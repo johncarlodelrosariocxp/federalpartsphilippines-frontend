@@ -1,7 +1,7 @@
-// src/pages/admin/CategoryForm.js - COMPLETE FIXED VERSION
+// src/pages/admin/CategoryForm.js - UPDATED WITH PRODUCT LINKING
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { categoryAPI } from "../../services/api";
+import { categoryAPI, productAPI } from "../../services/api";
 import {
   ArrowLeft,
   Save,
@@ -15,6 +15,34 @@ import {
   Image as ImageIcon,
   Camera,
   Trash2,
+  Package,
+  Link as LinkIcon,
+  ExternalLink,
+  Plus,
+  Search,
+  Loader2,
+  Eye,
+  Edit,
+  Grid3x3,
+  List,
+  Check,
+  XCircle,
+  RefreshCw,
+  Star,
+  TrendingUp,
+  Clock,
+  BarChart3,
+  Crown,
+  FolderOpen,
+  Layers,
+  Tag,
+  Zap,
+  Globe,
+  Shield,
+  Hash,
+  DollarSign,
+  Users,
+  ShoppingBag,
 } from "lucide-react";
 
 // Helper function to get image URL
@@ -66,6 +94,7 @@ const CategoryForm = () => {
   const navigate = useNavigate();
   const isEditMode = !!id;
   const fileInputRef = useRef(null);
+  const searchInputRef = useRef(null);
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -78,6 +107,36 @@ const CategoryForm = () => {
   const [imageFile, setImageFile] = useState(null);
   const [validationErrors, setValidationErrors] = useState({});
   const [showImageRemoveConfirm, setShowImageRemoveConfirm] = useState(false);
+
+  // Product linking states
+  const [linkedProducts, setLinkedProducts] = useState([]);
+  const [allProducts, setAllProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [loadingAllProducts, setLoadingAllProducts] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [productFilter, setProductFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("name");
+  const [sortOrder, setSortOrder] = useState("asc");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const [viewMode, setViewMode] = useState("grid");
+  const [selectedProducts, setSelectedProducts] = useState([]);
+  const [bulkAction, setBulkAction] = useState("");
+  const [showLinkProductsModal, setShowLinkProductsModal] = useState(false);
+  const [linkingProducts, setLinkingProducts] = useState(false);
+  const [unlinkingProducts, setUnlinkingProducts] = useState(false);
+
+  const [productStats, setProductStats] = useState({
+    total: 0,
+    active: 0,
+    inactive: 0,
+    featured: 0,
+    outOfStock: 0,
+    lowStock: 0,
+    totalValue: 0,
+    avgPrice: 0,
+  });
 
   const [category, setCategory] = useState({
     name: "",
@@ -95,15 +154,83 @@ const CategoryForm = () => {
   useEffect(() => {
     if (isEditMode) {
       fetchCategory();
+      fetchLinkedProducts();
     }
     fetchAllCategories();
+    fetchAllProducts();
   }, [id]);
 
-  // Fetch specific category (for edit mode)
+  useEffect(() => {
+    if (showLinkProductsModal) {
+      filterProducts();
+    }
+  }, [searchQuery, productFilter, sortBy, sortOrder, allProducts, showLinkProductsModal]);
+
+  const filterProducts = () => {
+    let filtered = allProducts;
+    
+    // Apply search filter
+    if (searchQuery) {
+      filtered = filtered.filter(product => 
+        product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (product.sku && product.sku.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (product.description && product.description.toLowerCase().includes(searchQuery.toLowerCase()))
+      );
+    }
+    
+    // Apply status filter
+    if (productFilter !== "all") {
+      filtered = filtered.filter(product => {
+        switch(productFilter) {
+          case "active": return product.isActive;
+          case "inactive": return !product.isActive;
+          case "featured": return product.featured;
+          case "lowStock": return product.stock > 0 && product.stock <= 10;
+          case "outOfStock": return product.stock === 0;
+          default: return true;
+        }
+      });
+    }
+    
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let aValue, bValue;
+      
+      switch(sortBy) {
+        case "price":
+          aValue = a.price || 0;
+          bValue = b.price || 0;
+          break;
+        case "stock":
+          aValue = a.stock || 0;
+          bValue = b.stock || 0;
+          break;
+        case "date":
+          aValue = new Date(a.createdAt || 0);
+          bValue = new Date(b.createdAt || 0);
+          break;
+        case "name":
+        default:
+          aValue = a.name?.toLowerCase() || "";
+          bValue = b.name?.toLowerCase() || "";
+          break;
+      }
+      
+      if (sortOrder === "desc") {
+        return aValue < bValue ? 1 : -1;
+      }
+      return aValue > bValue ? 1 : -1;
+    });
+    
+    setFilteredProducts(filtered);
+    setCurrentPage(1);
+  };
+
+  // Fetch category details
   const fetchCategory = async () => {
     try {
       setLoading(true);
-      const response = await categoryAPI.getCategory(id);
+      const response = await categoryAPI.getCategoryById(id);
 
       let categoryData = null;
       if (response?.success && response.data) {
@@ -118,8 +245,7 @@ const CategoryForm = () => {
         setCategory({
           name: categoryData.name || "",
           description: categoryData.description || "",
-          isActive:
-            categoryData.isActive !== undefined ? categoryData.isActive : true,
+          isActive: categoryData.isActive !== undefined ? categoryData.isActive : true,
           parentCategory: categoryData.parentCategory || null,
           seoTitle: categoryData.seoTitle || "",
           seoDescription: categoryData.seoDescription || "",
@@ -129,13 +255,13 @@ const CategoryForm = () => {
           imageUrl: categoryData.imageUrl || categoryData.image || "",
         });
 
-        // Set image preview if image exists
+        // Set image preview
         const imageUrl = categoryData.imageUrl || categoryData.image;
         if (imageUrl) {
           setImagePreview(getImageUrl(imageUrl));
         }
       } else {
-        setError("Category not found or invalid response format");
+        setError("Category not found");
       }
     } catch (err) {
       console.error("Error fetching category:", err);
@@ -145,7 +271,7 @@ const CategoryForm = () => {
     }
   };
 
-  // Fetch all categories
+  // Fetch all categories for parent selection
   const fetchAllCategories = async () => {
     try {
       const response = await categoryAPI.getAllCategories();
@@ -168,6 +294,299 @@ const CategoryForm = () => {
       console.error("Error fetching categories:", err);
       setAllCategories([]);
     }
+  };
+
+  // Fetch all products for linking
+  const fetchAllProducts = async () => {
+    try {
+      setLoadingAllProducts(true);
+      const response = await productAPI.getAllProducts({
+        page: 1,
+        limit: 1000,
+        sort: "name",
+        order: "asc",
+      });
+
+      let products = [];
+      if (response?.success && response.data?.products) {
+        products = response.data.products;
+      } else if (response?.success && response.data) {
+        products = response.data;
+      } else if (Array.isArray(response)) {
+        products = response;
+      } else if (response?.products) {
+        products = response.products;
+      }
+
+      setAllProducts(products || []);
+      setFilteredProducts(products || []);
+    } catch (err) {
+      console.error("Error fetching all products:", err);
+      setAllProducts([]);
+      setFilteredProducts([]);
+    } finally {
+      setLoadingAllProducts(false);
+    }
+  };
+
+  // Fetch products linked to this category
+  const fetchLinkedProducts = async () => {
+    if (!id) return;
+    
+    try {
+      setLoadingProducts(true);
+      const response = await productAPI.getAllProducts({ 
+        page: 1,
+        limit: 1000,
+        category: id,
+        includeStats: true 
+      });
+      
+      let products = [];
+      let stats = {};
+      
+      if (response?.success && response.data) {
+        products = response.data.products || response.data;
+        stats = response.data.stats || {};
+      } else if (Array.isArray(response)) {
+        products = response;
+      } else if (response?.products) {
+        products = response.products;
+        stats = response.stats || {};
+      }
+      
+      setLinkedProducts(products || []);
+      
+      // Calculate detailed product stats
+      if (Array.isArray(products)) {
+        const total = products.length;
+        const active = products.filter(p => p.isActive).length;
+        const inactive = products.filter(p => !p.isActive).length;
+        const featured = products.filter(p => p.featured).length;
+        const outOfStock = products.filter(p => p.stock === 0).length;
+        const lowStock = products.filter(p => p.stock > 0 && p.stock <= 10).length;
+        const totalValue = products.reduce((sum, p) => sum + (p.price * (p.stock || 0)), 0);
+        const avgPrice = total > 0 ? products.reduce((sum, p) => sum + (p.price || 0), 0) / total : 0;
+        
+        setProductStats({
+          total,
+          active,
+          inactive,
+          featured,
+          outOfStock,
+          lowStock,
+          totalValue,
+          avgPrice,
+          ...stats,
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching linked products:", err);
+      setLinkedProducts([]);
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+
+  // Handle product search
+  const handleSearch = (e) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+  };
+
+  // Handle product selection for bulk actions
+  const toggleProductSelection = (productId) => {
+    setSelectedProducts(prev => {
+      if (prev.includes(productId)) {
+        return prev.filter(id => id !== productId);
+      } else {
+        return [...prev, productId];
+      }
+    });
+  };
+
+  const selectAllProducts = () => {
+    const currentPageProductIds = currentProducts.map(p => p._id);
+    if (selectedProducts.length === currentPageProductIds.length) {
+      // Deselect all on current page
+      setSelectedProducts(prev => prev.filter(id => !currentPageProductIds.includes(id)));
+    } else {
+      // Select all on current page
+      setSelectedProducts(prev => {
+        const newSelection = [...prev];
+        currentPageProductIds.forEach(id => {
+          if (!newSelection.includes(id)) {
+            newSelection.push(id);
+          }
+        });
+        return newSelection;
+      });
+    }
+  };
+
+  // Link products to category
+  const linkProductsToCategory = async (productIds) => {
+    if (!id || !productIds.length) return;
+    
+    try {
+      setLinkingProducts(true);
+      
+      // Update each product with this category
+      const updatePromises = productIds.map(productId => {
+        const productToUpdate = allProducts.find(p => p._id === productId);
+        if (!productToUpdate) return Promise.resolve();
+        
+        // Check if product already has a category
+        const currentCategory = productToUpdate.category || productToUpdate.categoryId;
+        
+        const updateData = {
+          ...productToUpdate,
+          category: id  // Set category to current category ID
+        };
+        
+        // If product already has a category, preserve it in parentCategory field
+        if (currentCategory && currentCategory !== id) {
+          updateData.parentCategory = currentCategory;
+        }
+        
+        return productAPI.updateProduct(productId, updateData);
+      });
+      
+      await Promise.all(updatePromises);
+      
+      // Refresh linked products
+      await fetchLinkedProducts();
+      // Refresh all products to update their category status
+      await fetchAllProducts();
+      
+      setSuccess(`${productIds.length} product(s) linked to category successfully!`);
+      setSelectedProducts([]);
+      setShowLinkProductsModal(false);
+      
+      setTimeout(() => setSuccess(""), 3000);
+    } catch (err) {
+      console.error("Error linking products:", err);
+      setError("Failed to link products. Please try again.");
+    } finally {
+      setLinkingProducts(false);
+    }
+  };
+
+  // Unlink products from category
+  const unlinkProductsFromCategory = async (productIds) => {
+    if (!id || !productIds.length) return;
+    
+    try {
+      setUnlinkingProducts(true);
+      
+      // Update each product to remove category
+      const updatePromises = productIds.map(productId => {
+        const productToUpdate = allProducts.find(p => p._id === productId);
+        if (!productToUpdate) return Promise.resolve();
+        
+        const updateData = {
+          ...productToUpdate,
+          category: null  // Remove category
+        };
+        
+        // If product has parentCategory, move it back to main category
+        if (productToUpdate.parentCategory) {
+          updateData.category = productToUpdate.parentCategory;
+          updateData.parentCategory = null;
+        }
+        
+        return productAPI.updateProduct(productId, updateData);
+      });
+      
+      await Promise.all(updatePromises);
+      
+      // Refresh linked products
+      await fetchLinkedProducts();
+      // Refresh all products
+      await fetchAllProducts();
+      
+      setSuccess(`${productIds.length} product(s) unlinked from category successfully!`);
+      setSelectedProducts([]);
+      
+      setTimeout(() => setSuccess(""), 3000);
+    } catch (err) {
+      console.error("Error unlinking products:", err);
+      setError("Failed to unlink products. Please try again.");
+    } finally {
+      setUnlinkingProducts(false);
+    }
+  };
+
+  // Apply bulk action
+  const applyBulkAction = async () => {
+    if (!bulkAction || !selectedProducts.length) return;
+    
+    switch(bulkAction) {
+      case "link":
+        await linkProductsToCategory(selectedProducts);
+        break;
+      case "unlink":
+        await unlinkProductsFromCategory(selectedProducts);
+        break;
+      case "activate":
+        await updateProductsStatus(selectedProducts, true);
+        break;
+      case "deactivate":
+        await updateProductsStatus(selectedProducts, false);
+        break;
+      default:
+        break;
+    }
+    
+    setBulkAction("");
+  };
+
+  const updateProductsStatus = async (productIds, isActive) => {
+    try {
+      const updatePromises = productIds.map(productId => {
+        const productToUpdate = allProducts.find(p => p._id === productId);
+        if (!productToUpdate) return Promise.resolve();
+        
+        const updateData = {
+          ...productToUpdate,
+          isActive: isActive
+        };
+        
+        return productAPI.updateProduct(productId, updateData);
+      });
+      
+      await Promise.all(updatePromises);
+      
+      // Refresh products
+      await fetchLinkedProducts();
+      await fetchAllProducts();
+      
+      setSuccess(`${productIds.length} product(s) ${isActive ? 'activated' : 'deactivated'} successfully!`);
+      setSelectedProducts([]);
+      
+      setTimeout(() => setSuccess(""), 3000);
+    } catch (err) {
+      console.error("Error updating products status:", err);
+      setError("Failed to update product status. Please try again.");
+    }
+  };
+
+  // Pagination
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentProducts = filteredProducts.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+  // Check if product is already linked
+  const isProductLinked = (productId) => {
+    return linkedProducts.some(p => p._id === productId);
+  };
+
+  // Check if product is selected
+  const isProductSelected = (productId) => {
+    return selectedProducts.includes(productId);
   };
 
   const handleChange = (e) => {
@@ -418,6 +837,91 @@ const CategoryForm = () => {
     }
   };
 
+  // Navigate to view all products in this category
+  const viewAllProducts = () => {
+    navigate(`/admin/products?category=${id}`);
+  };
+
+  // Navigate to create a new product in this category
+  const createProductInCategory = () => {
+    navigate(`/admin/products/new?category=${id}`);
+  };
+
+  // View a specific product
+  const viewProduct = (productId) => {
+    navigate(`/admin/products/edit/${productId}`);
+  };
+
+  // View product details
+  const viewProductDetails = (productId) => {
+    navigate(`/admin/products/view/${productId}`);
+  };
+
+  // Quick actions
+  const quickAction = (action, productId = null) => {
+    switch(action) {
+      case 'refresh':
+        fetchLinkedProducts();
+        fetchAllProducts();
+        setSuccess("Products refreshed!");
+        setTimeout(() => setSuccess(""), 2000);
+        break;
+      case 'linkSelected':
+        if (selectedProducts.length > 0) {
+          linkProductsToCategory(selectedProducts);
+        }
+        break;
+      case 'unlinkSelected':
+        if (selectedProducts.length > 0) {
+          unlinkProductsFromCategory(selectedProducts);
+        }
+        break;
+      case 'exportList':
+        exportProductList();
+        break;
+      case 'openLinkModal':
+        setShowLinkProductsModal(true);
+        setTimeout(() => {
+          if (searchInputRef.current) {
+            searchInputRef.current.focus();
+          }
+        }, 100);
+        break;
+      default:
+        break;
+    }
+  };
+
+  const exportProductList = () => {
+    const data = linkedProducts.map(p => ({
+      Name: p.name,
+      SKU: p.sku || '',
+      Price: `₱${p.price?.toFixed(2)}`,
+      Stock: p.stock || 0,
+      Status: p.isActive ? 'Active' : 'Inactive',
+      Featured: p.featured ? 'Yes' : 'No',
+      Category: category.name,
+    }));
+    
+    const csv = [
+      Object.keys(data[0] || {}).join(','),
+      ...data.map(row => Object.values(row).join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${category.name}-products-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    
+    setSuccess("Product list exported successfully!");
+    setTimeout(() => setSuccess(""), 2000);
+  };
+
   const flattenCategoriesForSelect = (categories, level = 0) => {
     if (!Array.isArray(categories)) return [];
 
@@ -474,7 +978,7 @@ const CategoryForm = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pt-6">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <button
@@ -491,7 +995,7 @@ const CategoryForm = () => {
               </h1>
               <p className="text-gray-600">
                 {isEditMode
-                  ? "Update your product category details"
+                  ? "Update your product category details and linked products"
                   : "Create a new product category"}
               </p>
             </div>
@@ -566,6 +1070,510 @@ const CategoryForm = () => {
               <CheckCircle className="w-5 h-5 flex-shrink-0" />
               <span>{success}</span>
             </div>
+          </div>
+        )}
+
+        {/* Product Linking Section (Only in Edit Mode) */}
+        {isEditMode && (
+          <div className="mb-8 bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-50 rounded-lg">
+                  <LinkIcon className="w-6 h-6 text-blue-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-800">
+                    Linked Products Management
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    Manage products associated with this category
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => quickAction('refresh')}
+                  className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+                  title="Refresh products"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Refresh
+                </button>
+                <button
+                  onClick={() => quickAction('openLinkModal')}
+                  className="inline-flex items-center gap-2 bg-green-600 text-white px-3 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Link Products
+                </button>
+                <button
+                  onClick={createProductInCategory}
+                  className="inline-flex items-center gap-2 bg-blue-600 text-white px-3 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                >
+                  <Package className="w-4 h-4" />
+                  Add New Product
+                </button>
+                <button
+                  onClick={viewAllProducts}
+                  className="inline-flex items-center gap-2 bg-purple-600 text-white px-3 py-2 rounded-lg font-medium hover:bg-purple-700 transition-colors"
+                >
+                  View All
+                  <ExternalLink className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Product Stats Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-6">
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Total</p>
+                    <p className="text-xl font-bold text-gray-900">
+                      {productStats.total}
+                    </p>
+                  </div>
+                  <Package className="w-6 h-6 text-gray-500" />
+                </div>
+              </div>
+
+              <div className="bg-green-50 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-green-600">Active</p>
+                    <p className="text-xl font-bold text-green-700">
+                      {productStats.active}
+                    </p>
+                  </div>
+                  <Check className="w-6 h-6 text-green-500" />
+                </div>
+              </div>
+
+              <div className="bg-yellow-50 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-yellow-600">Featured</p>
+                    <p className="text-xl font-bold text-yellow-700">
+                      {productStats.featured}
+                    </p>
+                  </div>
+                  <Star className="w-6 h-6 text-yellow-500" />
+                </div>
+              </div>
+
+              <div className="bg-red-50 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-red-600">Out of Stock</p>
+                    <p className="text-xl font-bold text-red-700">
+                      {productStats.outOfStock}
+                    </p>
+                  </div>
+                  <AlertCircle className="w-6 h-6 text-red-500" />
+                </div>
+              </div>
+
+              <div className="bg-orange-50 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-orange-600">Low Stock</p>
+                    <p className="text-xl font-bold text-orange-700">
+                      {productStats.lowStock}
+                    </p>
+                  </div>
+                  <TrendingUp className="w-6 h-6 text-orange-500" />
+                </div>
+              </div>
+
+              <div className="bg-blue-50 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-blue-600">Inactive</p>
+                    <p className="text-xl font-bold text-blue-700">
+                      {productStats.inactive}
+                    </p>
+                  </div>
+                  <Clock className="w-6 h-6 text-blue-500" />
+                </div>
+              </div>
+
+              <div className="bg-purple-50 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-purple-600">Total Value</p>
+                    <p className="text-xl font-bold text-purple-700">
+                      ₱{(productStats.totalValue || 0).toLocaleString()}
+                    </p>
+                  </div>
+                  <DollarSign className="w-6 h-6 text-purple-500" />
+                </div>
+              </div>
+
+              <div className="bg-indigo-50 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-indigo-600">Avg Price</p>
+                    <p className="text-xl font-bold text-indigo-700">
+                      ₱{(productStats.avgPrice || 0).toFixed(2)}
+                    </p>
+                  </div>
+                  <BarChart3 className="w-6 h-6 text-indigo-500" />
+                </div>
+              </div>
+            </div>
+
+            {/* Bulk Actions Bar */}
+            {selectedProducts.length > 0 && (
+              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <Check className="w-5 h-5 text-blue-600" />
+                    <span className="font-medium text-blue-800">
+                      {selectedProducts.length} product(s) selected
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <select
+                      value={bulkAction}
+                      onChange={(e) => setBulkAction(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Bulk Actions</option>
+                      <option value="link">Link to Category</option>
+                      <option value="unlink">Unlink from Category</option>
+                      <option value="activate">Activate Products</option>
+                      <option value="deactivate">Deactivate Products</option>
+                    </select>
+                    <button
+                      onClick={applyBulkAction}
+                      disabled={!bulkAction || linkingProducts || unlinkingProducts}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {(linkingProducts || unlinkingProducts) ? (
+                        <span className="flex items-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Applying...
+                        </span>
+                      ) : (
+                        "Apply"
+                      )}
+                    </button>
+                    <button
+                      onClick={() => setSelectedProducts([])}
+                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50"
+                    >
+                      Clear Selection
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Products Display */}
+            {loadingProducts ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+                <p className="mt-4 text-gray-600">Loading products...</p>
+              </div>
+            ) : linkedProducts.length > 0 ? (
+              <>
+                {/* View Toggle */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                  <div className="flex items-center gap-4">
+                    <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+                      <button
+                        onClick={() => setViewMode("grid")}
+                        className={`p-2 ${viewMode === "grid" ? "bg-blue-50 text-blue-600" : "bg-white text-gray-600"}`}
+                      >
+                        <Grid3x3 className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => setViewMode("list")}
+                        className={`p-2 ${viewMode === "list" ? "bg-blue-50 text-blue-600" : "bg-white text-gray-600"}`}
+                      >
+                        <List className="w-5 h-5" />
+                      </button>
+                    </div>
+                    <span className="text-sm text-gray-600">
+                      Showing {linkedProducts.length} product(s)
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => quickAction('exportList')}
+                    className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg font-medium hover:bg-gray-200"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Export List
+                  </button>
+                </div>
+
+                {/* Grid View */}
+                {viewMode === "grid" ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {linkedProducts.map((product) => (
+                      <div key={product._id} className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow">
+                        <div className="relative">
+                          {/* Product Image */}
+                          <div className="aspect-square bg-gray-100 overflow-hidden">
+                            {product.images && product.images[0] ? (
+                              <img
+                                src={getImageUrl(product.images[0])}
+                                alt={product.name}
+                                className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                                onError={(e) => {
+                                  e.target.style.display = "none";
+                                  e.target.parentNode.innerHTML = `
+                                    <div class="w-full h-full flex items-center justify-center">
+                                      <Package class="w-12 h-12 text-gray-400" />
+                                    </div>
+                                  `;
+                                }}
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <Package className="w-12 h-12 text-gray-400" />
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Selection Checkbox */}
+                          <div className="absolute top-3 left-3">
+                            <input
+                              type="checkbox"
+                              checked={selectedProducts.includes(product._id)}
+                              onChange={() => toggleProductSelection(product._id)}
+                              className="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                            />
+                          </div>
+                          
+                          {/* Status Badges */}
+                          <div className="absolute top-3 right-3 flex flex-col gap-1">
+                            {product.featured && (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                <Star className="w-3 h-3 mr-1" />
+                                Featured
+                              </span>
+                            )}
+                            {product.isActive ? (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                <Check className="w-3 h-3 mr-1" />
+                                Active
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                <XCircle className="w-3 h-3 mr-1" />
+                                Inactive
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Product Info */}
+                        <div className="p-4">
+                          <div className="mb-3">
+                            <h3 className="font-semibold text-gray-900 truncate">{product.name}</h3>
+                            <p className="text-sm text-gray-500 truncate">{product.sku || "No SKU"}</p>
+                          </div>
+                          
+                          <div className="space-y-2 mb-4">
+                            <div className="flex justify-between items-center">
+                              <span className="text-lg font-bold text-gray-900">
+                                ₱{product.price?.toFixed(2) || "0.00"}
+                              </span>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                product.stock > 10 
+                                  ? "bg-green-100 text-green-800"
+                                  : product.stock > 0
+                                  ? "bg-yellow-100 text-yellow-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}>
+                                {product.stock || 0} in stock
+                              </span>
+                            </div>
+                            
+                            {product.description && (
+                              <p className="text-sm text-gray-600 line-clamp-2">
+                                {product.description}
+                              </p>
+                            )}
+                          </div>
+                          
+                          {/* Actions */}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => viewProductDetails(product._id)}
+                              className="flex-1 inline-flex items-center justify-center gap-1 bg-blue-50 text-blue-700 px-3 py-2 rounded-lg font-medium hover:bg-blue-100 transition-colors"
+                            >
+                              <Eye className="w-4 h-4" />
+                              View
+                            </button>
+                            <button
+                              onClick={() => viewProduct(product._id)}
+                              className="flex-1 inline-flex items-center justify-center gap-1 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+                            >
+                              <Edit className="w-4 h-4" />
+                              Edit
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  /* List View */
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-gray-200">
+                          <th className="text-left py-3 px-4">
+                            <input
+                              type="checkbox"
+                              checked={selectedProducts.length === linkedProducts.length && linkedProducts.length > 0}
+                              onChange={() => {
+                                if (selectedProducts.length === linkedProducts.length) {
+                                  setSelectedProducts([]);
+                                } else {
+                                  setSelectedProducts(linkedProducts.map(p => p._id));
+                                }
+                              }}
+                              className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                            />
+                          </th>
+                          <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Product</th>
+                          <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Price</th>
+                          <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Stock</th>
+                          <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Status</th>
+                          <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {linkedProducts.map((product) => (
+                          <tr key={product._id} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="py-3 px-4">
+                              <input
+                                type="checkbox"
+                                checked={selectedProducts.includes(product._id)}
+                                onChange={() => toggleProductSelection(product._id)}
+                                className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                              />
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                                  {product.images && product.images[0] ? (
+                                    <img
+                                      src={getImageUrl(product.images[0])}
+                                      alt={product.name}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center">
+                                      <Package className="w-5 h-5 text-gray-400" />
+                                    </div>
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="font-medium text-gray-900">{product.name}</p>
+                                  <p className="text-sm text-gray-500">{product.sku || "No SKU"}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div>
+                                <span className="font-medium text-gray-900">
+                                  ₱{product.price?.toFixed(2) || "0.00"}
+                                </span>
+                                {product.discountedPrice && (
+                                  <span className="text-sm text-red-600 line-through ml-2">
+                                    ₱{product.discountedPrice.toFixed(2)}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                product.stock > 10 
+                                  ? "bg-green-100 text-green-800"
+                                  : product.stock > 0
+                                  ? "bg-yellow-100 text-yellow-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}>
+                                {product.stock || 0} in stock
+                              </span>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex flex-col gap-1">
+                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                  product.isActive
+                                    ? "bg-green-100 text-green-800"
+                                    : "bg-gray-100 text-gray-800"
+                                }`}>
+                                  {product.isActive ? "Active" : "Inactive"}
+                                </span>
+                                {product.featured && (
+                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                    Featured
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => viewProductDetails(product._id)}
+                                  className="text-blue-600 hover:text-blue-700 p-1"
+                                  title="View Details"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => viewProduct(product._id)}
+                                  className="text-gray-600 hover:text-gray-700 p-1"
+                                  title="Edit Product"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => unlinkProductsFromCategory([product._id])}
+                                  className="text-red-600 hover:text-red-700 p-1"
+                                  title="Unlink from Category"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-center py-12">
+                <div className="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                  <Package className="w-12 h-12 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No products linked yet</h3>
+                <p className="text-gray-600 mb-6">Start by linking products to this category</p>
+                <div className="flex flex-wrap justify-center gap-3">
+                  <button
+                    onClick={() => quickAction('openLinkModal')}
+                    className="inline-flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors"
+                  >
+                    <LinkIcon className="w-4 h-4" />
+                    Link Existing Products
+                  </button>
+                  <button
+                    onClick={createProductInCategory}
+                    className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Create New Product
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1105,6 +2113,326 @@ const CategoryForm = () => {
           </div>
         </form>
       </div>
+
+      {/* Link Products Modal */}
+      {showLinkProductsModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-50 rounded-lg">
+                    <LinkIcon className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Link Products to Category
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      Select products to link to "{category.name}"
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowLinkProductsModal(false);
+                    setSelectedProducts([]);
+                    setSearchQuery("");
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-hidden flex flex-col">
+              {/* Search and Filters */}
+              <div className="p-4 border-b border-gray-200 bg-gray-50">
+                <div className="flex flex-col lg:flex-row gap-4">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <input
+                        ref={searchInputRef}
+                        type="text"
+                        value={searchQuery}
+                        onChange={handleSearch}
+                        placeholder="Search products by name, SKU, or description..."
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <select
+                      value={productFilter}
+                      onChange={(e) => setProductFilter(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="all">All Products</option>
+                      <option value="active">Active Only</option>
+                      <option value="inactive">Inactive Only</option>
+                      <option value="featured">Featured</option>
+                      <option value="lowStock">Low Stock</option>
+                      <option value="outOfStock">Out of Stock</option>
+                    </select>
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="name">Sort by Name</option>
+                      <option value="price">Sort by Price</option>
+                      <option value="stock">Sort by Stock</option>
+                      <option value="date">Sort by Date</option>
+                    </select>
+                    <button
+                      onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                      className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    >
+                      {sortOrder === "asc" ? "↑" : "↓"}
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Selection Info */}
+                {selectedProducts.length > 0 && (
+                  <div className="mt-4 flex items-center justify-between">
+                    <span className="text-sm font-medium text-blue-700">
+                      {selectedProducts.length} product(s) selected
+                    </span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setSelectedProducts([])}
+                        className="text-sm text-gray-600 hover:text-gray-800"
+                      >
+                        Clear Selection
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Products List */}
+              <div className="flex-1 overflow-y-auto p-4">
+                {loadingAllProducts ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                    <span className="ml-3 text-gray-600">Loading products...</span>
+                  </div>
+                ) : filteredProducts.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Search className="w-12 h-12 mx-auto text-gray-400 mb-3" />
+                    <p className="text-gray-600">No products found</p>
+                    <p className="text-sm text-gray-500 mt-1">Try a different search term or filter</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="mb-4 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedProducts.length === currentProducts.length && currentProducts.length > 0}
+                          onChange={selectAllProducts}
+                          className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-600">
+                          Select all on this page ({currentProducts.length} products)
+                        </span>
+                      </div>
+                      <span className="text-sm text-gray-500">
+                        Page {currentPage} of {totalPages} ({filteredProducts.length} total)
+                      </span>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {currentProducts.map((product) => (
+                        <div
+                          key={product._id}
+                          className={`border rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer ${
+                            isProductSelected(product._id)
+                              ? "border-blue-500 bg-blue-50"
+                              : "border-gray-200"
+                          } ${isProductLinked(product._id) ? "opacity-50 cursor-not-allowed" : ""}`}
+                          onClick={() => !isProductLinked(product._id) && toggleProductSelection(product._id)}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="flex-shrink-0">
+                              <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100">
+                                {product.images && product.images[0] ? (
+                                  <img
+                                    src={getImageUrl(product.images[0])}
+                                    alt={product.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <Package className="w-6 h-6 text-gray-400" />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between">
+                                <div>
+                                  <h4 className="font-medium text-gray-900 truncate">
+                                    {product.name}
+                                  </h4>
+                                  <p className="text-sm text-gray-500 truncate">
+                                    {product.sku || "No SKU"}
+                                  </p>
+                                </div>
+                                <input
+                                  type="checkbox"
+                                  checked={isProductSelected(product._id)}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    toggleProductSelection(product._id);
+                                  }}
+                                  disabled={isProductLinked(product._id)}
+                                  className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                />
+                              </div>
+                              <div className="mt-2 space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-medium text-gray-900">
+                                    ₱{product.price?.toFixed(2) || "0.00"}
+                                  </span>
+                                  <span className={`text-xs px-2 py-1 rounded-full ${
+                                    product.stock > 10
+                                      ? "bg-green-100 text-green-800"
+                                      : product.stock > 0
+                                      ? "bg-yellow-100 text-yellow-800"
+                                      : "bg-red-100 text-red-800"
+                                  }`}>
+                                    {product.stock || 0} in stock
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-xs px-2 py-1 rounded-full ${
+                                    product.isActive
+                                      ? "bg-green-100 text-green-800"
+                                      : "bg-gray-100 text-gray-800"
+                                  }`}>
+                                    {product.isActive ? "Active" : "Inactive"}
+                                  </span>
+                                  {product.featured && (
+                                    <span className="text-xs px-2 py-1 rounded-full bg-yellow-100 text-yellow-800">
+                                      Featured
+                                    </span>
+                                  )}
+                                  {isProductLinked(product._id) && (
+                                    <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800">
+                                      Already Linked
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Pagination */}
+                    {totalPages > 1 && (
+                      <div className="mt-6 flex justify-center">
+                        <nav className="flex items-center gap-1">
+                          <button
+                            onClick={() => paginate(Math.max(1, currentPage - 1))}
+                            disabled={currentPage === 1}
+                            className="px-3 py-1 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                          >
+                            Previous
+                          </button>
+                          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                            let pageNum;
+                            if (totalPages <= 5) {
+                              pageNum = i + 1;
+                            } else if (currentPage <= 3) {
+                              pageNum = i + 1;
+                            } else if (currentPage >= totalPages - 2) {
+                              pageNum = totalPages - 4 + i;
+                            } else {
+                              pageNum = currentPage - 2 + i;
+                            }
+                            
+                            return (
+                              <button
+                                key={pageNum}
+                                onClick={() => paginate(pageNum)}
+                                className={`px-3 py-1 border rounded-lg ${
+                                  currentPage === pageNum
+                                    ? "bg-blue-600 text-white border-blue-600"
+                                    : "border-gray-300 hover:bg-gray-50"
+                                }`}
+                              >
+                                {pageNum}
+                              </button>
+                            );
+                          })}
+                          <button
+                            onClick={() => paginate(Math.min(totalPages, currentPage + 1))}
+                            disabled={currentPage === totalPages}
+                            className="px-3 py-1 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                          >
+                            Next
+                          </button>
+                        </nav>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-4 border-t border-gray-200 bg-gray-50">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="text-sm text-gray-600">
+                    <p>
+                      Showing {Math.min(filteredProducts.length, indexOfFirstItem + 1)}-
+                      {Math.min(filteredProducts.length, indexOfLastItem)} of {filteredProducts.length} products
+                    </p>
+                    {selectedProducts.length > 0 && (
+                      <p className="font-medium text-blue-700">
+                        {selectedProducts.length} product(s) selected for linking
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        setShowLinkProductsModal(false);
+                        setSelectedProducts([]);
+                        setSearchQuery("");
+                      }}
+                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => linkProductsToCategory(selectedProducts)}
+                      disabled={selectedProducts.length === 0 || linkingProducts}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {linkingProducts ? (
+                        <span className="flex items-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Linking...
+                        </span>
+                      ) : (
+                        `Link ${selectedProducts.length} Product(s)`
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Remove Image Confirmation Modal */}
       {showImageRemoveConfirm && (
