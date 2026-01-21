@@ -1,0 +1,265 @@
+/* src/index.css */
+@import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap");
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom utilities */
+@layer components {
+  .btn-primary {
+    @apply bg-[#C00C00] hover:bg-[#A00A00] text-white font-bold py-3 px-6 rounded-lg inline-flex items-center gap-2 transition-colors;
+  }
+
+  .btn-secondary {
+    @apply bg-transparent border-2 border-[#0033A0] text-[#0033A0] hover:bg-[#0033A0]/10 font-bold py-3 px-6 rounded-lg transition-colors;
+  }
+
+  .btn-primary-sm {
+    @apply bg-[#C00C00] hover:bg-[#A00A00] text-white font-semibold py-2 px-4 rounded-lg inline-flex items-center gap-2 transition-colors text-sm;
+  }
+
+  .btn-blue {
+    @apply bg-[#0033A0] hover:bg-[#00287D] text-white font-bold py-3 px-6 rounded-lg inline-flex items-center gap-2 transition-colors;
+  }
+
+  .btn-outline-red {
+    @apply bg-transparent border-2 border-[#C00C00] text-[#C00C00] hover:bg-[#C00C00]/10 font-bold py-3 px-6 rounded-lg transition-colors;
+  }
+
+  .container-custom {
+    @apply container mx-auto px-4;
+  }
+
+  .section-padding {
+    @apply py-16 md:py-24;
+  }
+
+  .card-hover {
+    @apply transition-transform duration-300 hover:-translate-y-2 hover:shadow-xl;
+  }
+
+  /* SDS-specific components */
+  .sds-badge {
+    @apply inline-block px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider;
+  }
+
+  .sds-badge-red {
+    @apply bg-[#C00C00] text-white;
+  }
+
+  .sds-badge-blue {
+    @apply bg-[#0033A0] text-white;
+  }
+
+  .sds-card {
+    @apply bg-white border border-gray-200 rounded-lg shadow-md p-6 transition-all duration-300 hover:shadow-xl;
+  }
+
+  .sds-header {
+    @apply bg-white border-b border-gray-200 py-4;
+  }
+
+  .sds-hero {
+    @apply bg-gradient-to-r from-white to-gray-50 py-20 md:py-32;
+  }
+
+  .sds-footer {
+    @apply bg-black text-white py-12;
+  }
+
+  /* SDS Typography */
+  .sds-title {
+    @apply font-bebas text-4xl md:text-6xl tracking-wide;
+  }
+
+  .sds-subtitle {
+    @apply font-bebas text-2xl md:text-4xl tracking-wide;
+  }
+
+  .sds-heading {
+    @apply font-bebas text-3xl md:text-5xl tracking-wide mb-4;
+  }
+
+  .sds-label {
+    @apply text-sm font-semibold text-gray-700 uppercase tracking-wider;
+  }
+
+  /* SDS Navigation */
+  .sds-nav-link {
+    @apply text-gray-700 hover:text-[#C00C00] font-medium transition-colors;
+  }
+
+  .sds-nav-link-active {
+    @apply text-[#C00C00] font-bold border-b-2 border-[#C00C00];
+  }
+
+  /* SDS Form elements */
+  .sds-input {
+    @apply w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C00C00] focus:border-transparent;
+  }
+
+  .sds-select {
+    @apply w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0033A0] focus:border-transparent bg-white;
+  }
+
+  /* SDS Alert */
+  .sds-alert {
+    @apply p-4 rounded-lg border;
+  }
+
+  .sds-alert-red {
+    @apply bg-[#C00C00]/10 border-[#C00C00]/20 text-[#C00C00];
+  }
+
+  .sds-alert-blue {
+    @apply bg-[#0033A0]/10 border-[#0033A0]/20 text-[#0033A0];
+  }
+}
+
+/* Base styles */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background-color: white;
+  color: black;
+  margin: 0;
+  padding: 0;
+}
+
+/* SDS Brand Logo Styling */
+.sds-logo {
+  font-family: "Bebas Neue", sans-serif;
+  letter-spacing: 1px;
+}
+
+.sds-logo-part {
+  color: #c00c00;
+}
+
+/* SDS Section Dividers */
+.sds-divider {
+  height: 4px;
+  width: 60px;
+  background-color: #c00c00;
+  margin: 1.5rem auto;
+  border-radius: 2px;
+}
+
+.sds-divider-blue {
+  background-color: #0033a0;
+}
+
+/* SDS Table */
+.sds-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.sds-table th {
+  background-color: #f5f5f5;
+  text-align: left;
+  padding: 12px 16px;
+  font-weight: 600;
+  color: #000000;
+  border-bottom: 2px solid #c00c00;
+}
+
+.sds-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.sds-table tr:hover {
+  background-color: #f9f9f9;
+}
+
+/* SDS Modal */
+.sds-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.sds-modal {
+  background-color: white;
+  border-radius: 12px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.sds-modal-header {
+  padding: 24px;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sds-modal-title {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 1.75rem;
+  color: #000000;
+  margin: 0;
+}
+
+.sds-modal-body {
+  padding: 24px;
+}
+
+.sds-modal-footer {
+  padding: 24px;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    color: black;
+    background: white;
+  }
+
+  .sds-table th {
+    background-color: #f0f0f0 !important;
+    -webkit-print-color-adjust: exact;
+  }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c00c00;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a00a00;
+}
