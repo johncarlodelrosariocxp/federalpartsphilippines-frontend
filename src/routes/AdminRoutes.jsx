@@ -7,7 +7,6 @@ import AdminProducts from "../pages/admin/Products";
 import ProductForm from "../pages/admin/ProductForm";
 import AdminCategories from "../pages/admin/Categories";
 import CategoryForm from "../pages/admin/CategoryForm";
-import AdminOrders from "../pages/admin/Orders"; // This will now work
 import AdminUsers from "../pages/admin/Users";
 import AdminSettings from "../components/Settings";
 // Import brand components
@@ -32,7 +31,6 @@ const AdminRoutes = () => {
           <Route path="brands/new" element={<BrandForm />} />
           <Route path="brands/edit/:id" element={<BrandForm />} />
           {/* End Brand Routes */}
-          <Route path="orders" element={<AdminOrders />} />
           <Route path="users" element={<AdminUsers />} />
           <Route path="settings" element={<AdminSettings />} />
           <Route path="*" element={<AdminDashboard />} />
