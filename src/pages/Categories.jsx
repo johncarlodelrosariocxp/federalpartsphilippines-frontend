@@ -1,26 +1,36 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Search,
   Filter,
   ChevronRight,
   Home,
-  Factory,
-  Grid3x3,
+  Grid,
   List,
   X,
   RefreshCw,
   ArrowRight,
   Award,
-  TrendingUp,
   Package,
   FolderTree,
+  Sparkles,
+  Eye,
+  FolderOpen,
+  Crown,
+  Layers,
+  ChevronDown,
+  ChevronUp,
+  ChevronLeft,
+  ChevronRight as ChevronRightIcon,
+  Star,
+  Tag,
+  TrendingUp,
   CheckCircle,
   Truck,
-  Sparkles,
-  Heart,
-  Share2,
-  Eye
+  Maximize2,
+  Minimize2,
+  ChevronsDown,
+  ChevronsUp
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { categoryAPI } from "../services/api";
@@ -69,228 +79,286 @@ const getImageUrl = (imagePath) => {
   return `${IMAGE_BASE_URL}/uploads/categories/${cleanFilename}`;
 };
 
-// Fallback image generator
-const getFallbackColor = (name) => {
-  const colors = [
-    "bg-gradient-to-r from-blue-500 to-purple-600",
-    "bg-gradient-to-r from-green-500 to-teal-600",
-    "bg-gradient-to-r from-red-500 to-pink-600",
-    "bg-gradient-to-r from-yellow-500 to-orange-600",
-    "bg-gradient-to-r from-indigo-500 to-blue-600",
-    "bg-gradient-to-r from-pink-500 to-rose-600",
-    "bg-gradient-to-r from-teal-500 to-green-600",
-    "bg-gradient-to-r from-orange-500 to-red-600",
-  ];
-
-  const colorIndex =
-    name?.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0) %
-    colors.length;
-  return colors[colorIndex || 0];
-};
-
-// Category Card Component
-const CategoryCard = ({ category, onViewProducts }) => {
+// Main Category Picture Component
+const MainCategoryPicture = ({ 
+  category, 
+  onViewSubCategories, 
+  onViewProducts, 
+  isExpanded
+}) => {
   const [isHovered, setIsHovered] = useState(false);
   const [imageError, setImageError] = useState(false);
 
   const imageUrl = getImageUrl(category.image || category.imageUrl);
-  const fallbackClass = getFallbackColor(category.name);
+  const hasSubCategories = category.children && category.children.length > 0;
 
   return (
-    <Link
-      to={`/products?category=${category._id}`}
-      className="group bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 overflow-hidden hover:border-blue-500/50 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      {/* Category Header */}
-      <div className="p-6 border-b border-gray-700/50">
-        <div className="flex items-start gap-4">
-          {/* Logo Container with Glow Effect */}
-          <div className="relative">
-            <div className="absolute inset-0 bg-blue-500/20 rounded-xl blur group-hover:blur-xl transition duration-500"></div>
-            <div className="relative w-16 h-16 rounded-xl bg-gray-900 border border-gray-700 overflow-hidden flex-shrink-0">
-              {!imageError && imageUrl ? (
-                <img
-                  src={imageUrl}
-                  alt={category.name}
-                  className="w-full h-full object-contain p-2"
-                  onError={() => setImageError(true)}
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gray-800">
-                  <FolderTree className="w-8 h-8 text-blue-400" />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Category Info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between mb-2">
-              <h3 className="text-lg font-bold text-white truncate group-hover:text-blue-300 transition-colors">
-                {category.name || "Unnamed Category"}
-              </h3>
-              {category.featured && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 bg-amber-500/20 text-amber-300 text-xs font-semibold rounded-full border border-amber-500/30">
-                  <Award className="w-3 h-3" />
-                  Featured
-                </span>
-              )}
-            </div>
-            
-            {category.description && (
-              <p className="text-sm text-gray-400 italic mb-2 line-clamp-1">
-                "{category.description}"
-              </p>
-            )}
-
-            <div className="flex flex-wrap gap-2">
-              <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-900 text-gray-300 text-xs rounded-md border border-gray-700">
-                <Package className="w-3 h-3" />
-                {category.productCount || 0} Products
+    <div className="relative group">
+      {/* Category Picture */}
+      <div
+        className={`relative w-full aspect-square overflow-hidden rounded-xl border transition-all duration-500 ${
+          isExpanded 
+            ? 'border-blue-500 ring-2 ring-blue-500/30 shadow-lg shadow-blue-500/20' 
+            : 'border-gray-700 hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-500/10'
+        }`}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        onClick={() => hasSubCategories && onViewSubCategories(category._id)}
+      >
+        {/* Image Container */}
+        <div className="w-full h-full overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900">
+          {imageUrl && !imageError ? (
+            <img
+              src={imageUrl}
+              alt={category.name}
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+              onError={() => setImageError(true)}
+            />
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center p-4">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-3 shadow-lg">
+                <Crown className="w-8 h-8 text-white" />
+              </div>
+              <span className="text-sm font-medium text-blue-300 text-center px-2">
+                {category.name}
               </span>
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Category Details */}
-      <div className="p-6">
-        {category.description && (
-          <p className="text-gray-400 text-sm mb-4 line-clamp-2">
-            {category.description}
-          </p>
-        )}
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div className="text-center p-3 bg-gray-900/50 rounded-lg border border-gray-700 group-hover:border-blue-500/30 transition-colors">
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <TrendingUp className="w-4 h-4 text-blue-400" />
-              <span className="text-xs text-blue-300 font-medium">
-                Products
-              </span>
-            </div>
-            <p className="text-2xl font-bold text-white">
-              {category.productCount || 0}
-            </p>
-          </div>
-          <div className="text-center p-3 bg-gray-900/50 rounded-lg border border-gray-700 group-hover:border-green-500/30 transition-colors">
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <CheckCircle className="w-4 h-4 text-green-400" />
-              <span className="text-xs text-green-300 font-medium">
-                Quality
-              </span>
-            </div>
-            <p className="text-2xl font-bold text-white">
-              Verified
-            </p>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex items-center justify-between pt-4 border-t border-gray-700/50">
-          <span className={`text-sm font-medium px-3 py-1 rounded-full ${
-            category.isActive
-              ? "bg-green-500/20 text-green-400 border border-green-500/30"
-              : "bg-gray-900 text-gray-400 border border-gray-700"
-          }`}>
-            {category.isActive ? "Active" : "Inactive"}
-          </span>
+          )}
           
-          <div className="flex items-center gap-3">
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                onViewProducts(category._id);
-              }}
-              className="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors"
-            >
-              <Eye className="w-4 h-4" />
-              Quick View
-            </button>
-            <span className="text-sm text-gray-500 group-hover:text-blue-400 transition-colors flex items-center gap-1">
-              View Details
-              <ChevronRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
-            </span>
+          {/* Overlay on hover */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
+            <div className="text-white transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+              <h3 className="font-bold text-lg mb-2">{category.name}</h3>
+              <div className="flex items-center gap-2">
+                <span className="text-xs bg-black/70 backdrop-blur-sm px-2.5 py-1.5 rounded-full border border-white/10">
+                  {category.productCount || 0} products
+                </span>
+                {hasSubCategories && (
+                  <span className="text-xs bg-blue-600/80 backdrop-blur-sm px-2.5 py-1.5 rounded-full border border-blue-500/30 flex items-center gap-1">
+                    <Layers className="w-3 h-3" />
+                    {category.children.length} subs
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
         </div>
+        
+        {/* Expand Indicator */}
+        {hasSubCategories && (
+          <div className={`absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+            isExpanded 
+              ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/50 rotate-180' 
+              : 'bg-black/80 backdrop-blur-sm text-white group-hover:bg-blue-600 group-hover:shadow-lg group-hover:shadow-blue-500/30'
+          }`}>
+            <ChevronsDown className="w-4 h-4" />
+          </div>
+        )}
+        
+        {/* Category Type Badge */}
+        <div className="absolute top-3 left-3">
+          <span className="px-2.5 py-1 text-xs font-semibold bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-full shadow">
+            Main
+          </span>
+        </div>
       </div>
-    </Link>
+      
+      {/* Category Name Below */}
+      <div className="mt-3 px-1">
+        <h3 className="font-semibold text-white text-sm truncate">{category.name}</h3>
+        <div className="flex items-center justify-between mt-1">
+          <p className="text-xs text-gray-400">{category.productCount || 0} products</p>
+          {hasSubCategories && (
+            <p className="text-xs text-blue-400 flex items-center gap-1">
+              <Layers className="w-3 h-3" />
+              {category.children.length} subs
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
   );
 };
 
-// Category List Item Component
-const CategoryListItem = ({ category, onViewProducts }) => {
+// Sub-category Picture Component
+const SubCategoryPicture = ({ 
+  subCategory, 
+  onViewProducts,
+  parentCategory 
+}) => {
   const [imageError, setImageError] = useState(false);
-
-  const imageUrl = getImageUrl(category.image || category.imageUrl);
-  const fallbackClass = getFallbackColor(category.name);
+  const [isHovered, setIsHovered] = useState(false);
+  const imageUrl = getImageUrl(subCategory.image || subCategory.imageUrl);
 
   return (
-    <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 p-6 hover:border-blue-500/30 transition-all duration-300">
-      <div className="flex items-center gap-6">
-        <div className="relative">
-          <div className="absolute inset-0 bg-blue-500/20 rounded-lg blur group-hover:blur-xl transition duration-500"></div>
-          <div className="relative w-24 h-24 rounded-lg bg-gray-900 border border-gray-700 overflow-hidden flex-shrink-0">
-            {!imageError && imageUrl ? (
-              <img
-                className="w-full h-full object-cover"
-                src={imageUrl}
-                alt={category.name}
-                onError={() => setImageError(true)}
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gray-800">
-                <FolderTree className="w-8 h-8 text-blue-400" />
+    <div 
+      className="group cursor-pointer relative"
+      onClick={() => onViewProducts(subCategory._id)}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <div className="aspect-square rounded-xl overflow-hidden border border-gray-700/50 group-hover:border-purple-500/70 transition-all duration-300 bg-gradient-to-br from-gray-800 to-gray-900 shadow-md group-hover:shadow-xl group-hover:shadow-purple-500/20">
+        {imageUrl && !imageError ? (
+          <img
+            src={imageUrl}
+            alt={subCategory.name}
+            className={`w-full h-full object-cover transition-all duration-500 ${
+              isHovered ? 'scale-110 brightness-110' : 'scale-100 brightness-90'
+            }`}
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center p-4">
+            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center mb-2 shadow-lg">
+              <FolderOpen className="w-7 h-7 text-white" />
+            </div>
+            <span className="text-sm font-medium text-purple-300 text-center px-2">
+              {subCategory.name}
+            </span>
+          </div>
+        )}
+        
+        {/* Hover overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
+          <div className="text-white transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+            <h4 className="font-bold text-base mb-1">{subCategory.name}</h4>
+            <p className="text-xs text-gray-300 line-clamp-2 mb-2">
+              {subCategory.description || 'No description'}
+            </p>
+            <div className="flex items-center justify-between">
+              <span className="text-xs bg-black/70 backdrop-blur-sm px-2 py-1 rounded-full">
+                {subCategory.productCount || 0} products
+              </span>
+              <div className="flex items-center gap-1 text-purple-300">
+                <ArrowRight className="w-3 h-3" />
+                <span className="text-xs font-medium">View</span>
               </div>
-            )}
+            </div>
           </div>
         </div>
-        <div className="flex-1">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h3 className="text-xl font-bold text-white mb-2">
-                {category.name}
-              </h3>
-              <p className="text-gray-400 text-sm mb-3 line-clamp-2">
-                {category.description || "No description available"}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1 px-3 py-1 bg-gray-900 rounded-lg border border-gray-700">
-                <Package className="w-4 h-4 text-gray-400" />
-                <span className="text-sm font-medium text-white">
-                  {category.productCount || 0}
-                </span>
+      </div>
+      
+      {/* Name below for non-hover state */}
+      <div className="mt-3 text-center px-1">
+        <h4 className="font-medium text-white text-sm truncate">{subCategory.name}</h4>
+        <p className="text-xs text-gray-400 mt-0.5">{subCategory.productCount || 0} products</p>
+      </div>
+    </div>
+  );
+};
+
+// Expanded Sub-categories Section
+const ExpandedSubCategoriesSection = ({ 
+  category, 
+  onViewProducts,
+  onClose,
+  onViewAllProducts 
+}) => {
+  if (!category.children || category.children.length === 0) return null;
+
+  return (
+    <div className="mt-6 mb-8 relative">
+      {/* Connector line from main category */}
+      <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 w-0.5 h-6 bg-gradient-to-b from-blue-500 to-transparent"></div>
+      
+      {/* Main container */}
+      <div className="relative bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-gray-700/70 shadow-xl overflow-hidden">
+        {/* Decorative gradient border */}
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-transparent pointer-events-none"></div>
+        
+        {/* Header */}
+        <div className="relative p-6 border-b border-gray-700/50">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <div className="absolute inset-0 bg-purple-500/20 rounded-full blur-xl"></div>
+                <div className="relative w-12 h-12 rounded-full bg-gradient-to-br from-purple-600 to-purple-500 flex items-center justify-center shadow-lg">
+                  <FolderOpen className="w-6 h-6 text-white" />
+                </div>
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-white">
+                  Sub-categories of <span className="text-purple-400">{category.name}</span>
+                </h2>
+                <div className="flex items-center gap-3 mt-1">
+                  <span className="text-sm text-gray-300 bg-gray-800/50 backdrop-blur-sm px-3 py-1 rounded-full border border-gray-700">
+                    {category.children.length} sub-categories
+                  </span>
+                  <span className="text-sm text-blue-300 bg-blue-900/20 backdrop-blur-sm px-3 py-1 rounded-full border border-blue-700/30">
+                    {category.children.reduce((sum, child) => sum + (child.productCount || 0), 0)} total products
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-          <div className="flex items-center justify-between">
+            
             <div className="flex items-center gap-3">
-              <span className="inline-flex items-center gap-1 px-3 py-1 bg-gray-900 text-sm text-gray-300 rounded-md border border-gray-700">
-                <CheckCircle className="w-3 h-3 text-green-400" />
-                Quality
-              </span>
-              <span className="inline-flex items-center gap-1 px-3 py-1 bg-gray-900 text-sm text-gray-300 rounded-md border border-gray-700">
-                <Truck className="w-3 h-3 text-blue-400" />
-                Fast Delivery
-              </span>
-              {category.featured && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 bg-amber-500/20 text-sm text-amber-300 rounded-md border border-amber-500/30">
-                  <Award className="w-3 h-3" />
-                  Featured
-                </span>
-              )}
+              <button
+                onClick={() => onViewAllProducts(category._id)}
+                className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-xl transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/30 flex items-center gap-2 group"
+              >
+                <Package className="w-4 h-4" />
+                <span className="font-medium">View All Products</span>
+              </button>
+              <button
+                onClick={onClose}
+                className="p-2.5 text-gray-400 hover:text-white hover:bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 transition-all hover:border-gray-600"
+                title="Collapse sub-categories"
+              >
+                <ChevronsUp className="w-5 h-5" />
+              </button>
             </div>
-            <button
-              onClick={() => onViewProducts(category._id)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 transition-colors rounded-lg"
-            >
-              View Products
-              <ArrowRight className="w-4 h-4" />
-            </button>
+          </div>
+        </div>
+      
+
+        {/* Sub-categories Grid */}
+        <div className="p-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
+            {category.children.map((subCategory) => (
+              <div key={subCategory._id} className="relative">
+                <SubCategoryPicture
+                  subCategory={subCategory}
+                  onViewProducts={onViewProducts}
+                  parentCategory={category}
+                />
+                {subCategory.featured && (
+                  <div className="absolute top-2 left-2">
+                    <span className="px-2 py-1 text-xs font-semibold bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-full shadow flex items-center gap-1">
+                      <Award className="w-3 h-3" />
+                      Featured
+                    </span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-700/50 bg-gray-800/20 backdrop-blur-sm">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-semibold text-white mb-1">Quick Actions</h3>
+              <p className="text-sm text-gray-400">Explore more options below</p>
+            </div>
+            
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => onViewAllProducts(category._id)}
+                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/25 flex items-center gap-2"
+              >
+                <Package className="w-4 h-4" />
+                <span className="text-sm font-medium">All Products</span>
+              </button>
+              
+              <button
+                onClick={onClose}
+                className="px-4 py-2 bg-gray-800/50 hover:bg-gray-800 text-gray-300 rounded-lg border border-gray-700 transition-all duration-300 hover:border-gray-600 flex items-center gap-2"
+              >
+                <ChevronsUp className="w-4 h-4" />
+                <span className="text-sm font-medium">Collapse</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -298,37 +366,169 @@ const CategoryListItem = ({ category, onViewProducts }) => {
   );
 };
 
+// Category List Item Component
+const CategoryListItem = ({ 
+  category, 
+  onViewProducts, 
+  onViewSubCategories, 
+  viewSubCategories
+}) => {
+  const [imageError, setImageError] = useState(false);
+  const imageUrl = getImageUrl(category.image || category.imageUrl);
+  const isMainCategory = !category.parentCategory;
+  const hasSubCategories = category.children && category.children.length > 0;
+
+  return (
+    <div className={`bg-gradient-to-br from-gray-800/50 to-gray-900/30 backdrop-blur-sm rounded-xl border p-6 transition-all duration-300 ${
+      viewSubCategories === category._id 
+        ? 'border-blue-500/50 shadow-lg shadow-blue-500/10' 
+        : 'border-gray-700 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/5'
+    }`}>
+      <div className="flex items-center gap-4">
+        <div className="relative flex-shrink-0">
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/30 to-purple-500/30 rounded-xl blur-xl"></div>
+          <div className="relative w-20 h-20 rounded-xl bg-gradient-to-br from-gray-900 to-gray-800 border overflow-hidden shadow-lg">
+            {!imageError && imageUrl ? (
+              <img
+                src={imageUrl}
+                alt={category.name}
+                className="w-full h-full object-cover"
+                onError={() => setImageError(true)}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                {isMainCategory ? (
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                    <Crown className="w-6 h-6 text-white" />
+                  </div>
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
+                    <FolderOpen className="w-6 h-6 text-white" />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+        
+        <div className="flex-1">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-4">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <h3 className="text-lg font-bold text-white">{category.name}</h3>
+                <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${
+                  isMainCategory 
+                    ? 'bg-gradient-to-r from-blue-500/20 to-blue-600/20 text-blue-300 border border-blue-500/30'
+                    : 'bg-gradient-to-r from-purple-500/20 to-purple-600/20 text-purple-300 border border-purple-500/30'
+                }`}>
+                  {isMainCategory ? 'Main' : 'Sub'}
+                </span>
+                {category.featured && (
+                  <span className="px-2.5 py-1 text-xs font-semibold bg-gradient-to-r from-amber-500/20 to-amber-600/20 text-amber-300 border border-amber-500/30 rounded-full flex items-center gap-1">
+                    <Award className="w-3 h-3" />
+                    Featured
+                  </span>
+                )}
+              </div>
+              {category.description && (
+                <p className="text-gray-400 text-sm line-clamp-2">{category.description}</p>
+              )}
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900/50 backdrop-blur-sm rounded-lg border border-gray-700">
+                <Package className="w-4 h-4 text-gray-400" />
+                <span className="text-sm font-medium text-white">
+                  {category.productCount || 0}
+                </span>
+              </div>
+              {hasSubCategories && isMainCategory && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-900/20 backdrop-blur-sm rounded-lg border border-blue-700/30">
+                  <Layers className="w-4 h-4 text-blue-400" />
+                  <span className="text-sm font-medium text-blue-300">
+                    {category.children.length}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex flex-wrap gap-2">
+              <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-900/50 backdrop-blur-sm text-sm text-gray-300 rounded-lg border border-gray-700">
+                <CheckCircle className="w-3.5 h-3.5 text-green-400" />
+                Quality
+              </span>
+              <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-900/50 backdrop-blur-sm text-sm text-gray-300 rounded-lg border border-gray-700">
+                <Truck className="w-3.5 h-3.5 text-blue-400" />
+                Fast Delivery
+              </span>
+            </div>
+            
+            
+          </div>
+        </div>
+      </div>
+      
+      {/* Show Sub-categories if expanded */}
+      {isMainCategory && hasSubCategories && viewSubCategories === category._id && (
+        <div className="mt-6 pt-6 border-t border-gray-700/30">
+          <ExpandedSubCategoriesSection
+            category={category}
+            onViewProducts={onViewProducts}
+            onClose={() => onViewSubCategories(null)}
+            onViewAllProducts={onViewProducts}
+          />
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Categories = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // States
   const [categories, setCategories] = useState([]);
+  const [mainCategories, setMainCategories] = useState([]);
+  const [allCategories, setAllCategories] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [error, setError] = useState(null);
   const [viewMode, setViewMode] = useState("grid");
-  const [sortBy, setSortBy] = useState("popular");
-  const [filteredCategories, setFilteredCategories] = useState([]);
-  const [showFilters, setShowFilters] = useState(false);
+  const [expandedCategory, setExpandedCategory] = useState(null);
+  
+  // Filters from URL
   const [filters, setFilters] = useState({
-    sortOrder: "desc",
-    featured: "all",
+    search: searchParams.get("search") || "",
+    type: searchParams.get("type") || "main", // main, sub, all
+    featured: searchParams.get("featured") || "all",
+    sort: searchParams.get("sort") || "popular",
+    page: parseInt(searchParams.get("page") || "1"),
+    limit: 12,
   });
-  const [wishlist, setWishlist] = useState([]);
-  const [featuredCategories, setFeaturedCategories] = useState([]);
+
+  // Update URL when filters change
+  useEffect(() => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value && value.toString().trim() !== "") {
+        params.set(key, value.toString());
+      }
+    });
+    setSearchParams(params);
+  }, [filters, setSearchParams]);
 
   // Fetch categories on mount
   useEffect(() => {
     fetchCategories();
-  }, []);
-
-  // Filter categories when search or filters change
-  useEffect(() => {
-    filterCategories();
-  }, [categories, searchTerm, filters, sortBy]);
+  }, [filters.page]);
 
   const fetchCategories = async () => {
     try {
       setLoading(true);
+      setError(null);
+      
       const response = await categoryAPI.getAllCategories();
 
       let categoriesData = [];
@@ -344,7 +544,7 @@ const Categories = () => {
         categoriesData = response;
       }
 
-      // Process categories with images
+      // Process categories and build hierarchy
       const processedCategories = categoriesData.map((cat) => ({
         ...cat,
         image: cat.image || cat.imageUrl,
@@ -352,95 +552,89 @@ const Categories = () => {
         description: cat.description || "",
         featured: cat.featured || false,
         isActive: cat.isActive !== false,
+        children: [], // Initialize children array
       }));
 
-      setCategories(processedCategories);
-      setFeaturedCategories(
-        processedCategories.filter((cat) => cat.featured).slice(0, 3)
-      );
+      // Build category hierarchy
+      const categoryMap = {};
+      const rootCategories = [];
+
+      // First pass: create map and identify roots
+      processedCategories.forEach(category => {
+        categoryMap[category._id] = { ...category, children: [] };
+      });
+
+      // Second pass: build hierarchy
+      processedCategories.forEach(category => {
+        const categoryNode = categoryMap[category._id];
+        
+        if (category.parentCategory) {
+          // Add as child to parent
+          if (categoryMap[category.parentCategory]) {
+            categoryMap[category.parentCategory].children.push(categoryNode);
+          }
+        } else {
+          // Add as root category
+          rootCategories.push(categoryNode);
+        }
+      });
+
+      // Flatten all categories for search and filtering
+      const flattenCategories = (catList) => {
+        let flat = [];
+        catList.forEach(cat => {
+          flat.push(cat);
+          if (cat.children && cat.children.length > 0) {
+            flat = flat.concat(flattenCategories(cat.children));
+          }
+        });
+        return flat;
+      };
+
+      setCategories(rootCategories);
+      setAllCategories(flattenCategories(rootCategories));
+      setMainCategories(rootCategories);
+      
     } catch (error) {
       console.error("Error fetching categories:", error);
-      toast.error("Failed to load categories");
+      setError("Failed to load categories");
       setCategories([]);
+      setAllCategories([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const filterCategories = () => {
-    let filtered = [...categories];
-
-    // Search filter
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        (cat) =>
-          cat.name?.toLowerCase().includes(term) ||
-          cat.description?.toLowerCase().includes(term) ||
-          (cat.slug && cat.slug.toLowerCase().includes(term))
-      );
-    }
-
-    // Featured filter
-    if (filters.featured === "featured") {
-      filtered = filtered.filter((cat) => cat.featured);
-    } else if (filters.featured === "popular") {
-      filtered = filtered.filter((cat) => (cat.productCount || 0) > 100);
-    }
-
-    // Sorting
-    filtered.sort((a, b) => {
-      let aValue, bValue;
-
-      switch (sortBy) {
-        case "name":
-          aValue = a.name?.toLowerCase() || "";
-          bValue = b.name?.toLowerCase() || "";
-          break;
-        case "popular":
-          aValue = a.productCount || 0;
-          bValue = b.productCount || 0;
-          break;
-        case "featured":
-          aValue = a.featured ? 1 : 0;
-          bValue = b.featured ? 1 : 0;
-          break;
-        default:
-          aValue = a.productCount || 0;
-          bValue = b.productCount || 0;
-      }
-
-      return filters.sortOrder === "desc"
-        ? aValue < bValue
-          ? 1
-          : -1
-        : aValue > bValue
-        ? 1
-        : -1;
-    });
-
-    setFilteredCategories(filtered);
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({
+      ...prev,
+      [key]: value,
+      page: 1,
+    }));
   };
 
-  const clearFilters = () => {
-    setSearchTerm("");
-    setFilters({
-      sortOrder: "desc",
-      featured: "all",
-    });
-    setSortBy("popular");
+  const handleViewSubCategories = (categoryId) => {
+    if (expandedCategory === categoryId) {
+      setExpandedCategory(null);
+    } else {
+      setExpandedCategory(categoryId);
+    }
   };
 
   const handleViewProducts = (categoryId) => {
     navigate(`/products?category=${categoryId}`);
   };
 
-  const handleAddToWishlist = (categoryId, add) => {
-    if (add) {
-      setWishlist([...wishlist, categoryId]);
-    } else {
-      setWishlist(wishlist.filter((id) => id !== categoryId));
-    }
+  const clearFilters = () => {
+    setFilters({
+      search: "",
+      type: "main",
+      featured: "all",
+      sort: "popular",
+      page: 1,
+      limit: 12,
+    });
+    setExpandedCategory(null);
   };
 
   const handleRefresh = () => {
@@ -448,144 +642,484 @@ const Categories = () => {
     toast.success("Categories refreshed!");
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-900 pt-24 pb-16">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-          </div>
-        </div>
+  // Get filtered categories
+  const getFilteredCategories = () => {
+    let filtered = filters.type === "main" 
+      ? mainCategories 
+      : filters.type === "sub"
+      ? allCategories.filter(cat => cat.parentCategory)
+      : allCategories;
+
+    // Search filter
+    if (filters.search) {
+      const term = filters.search.toLowerCase();
+      filtered = filtered.filter(cat => 
+        cat.name?.toLowerCase().includes(term) ||
+        cat.description?.toLowerCase().includes(term)
+      );
+    }
+
+    // Featured filter
+    if (filters.featured === "featured") {
+      filtered = filtered.filter(cat => cat.featured);
+    }
+
+    // Sorting
+    filtered.sort((a, b) => {
+      let aValue, bValue;
+
+      switch (filters.sort) {
+        case "name":
+          aValue = a.name?.toLowerCase() || "";
+          bValue = b.name?.toLowerCase() || "";
+          return aValue.localeCompare(bValue);
+        case "products":
+          aValue = a.productCount || 0;
+          bValue = b.productCount || 0;
+          return bValue - aValue;
+        case "featured":
+          aValue = a.featured ? 1 : 0;
+          bValue = b.featured ? 1 : 0;
+          return bValue - aValue;
+        case "popular":
+        default:
+          aValue = a.productCount || 0;
+          bValue = b.productCount || 0;
+          return bValue - aValue;
+      }
+    });
+
+    return filtered;
+  };
+
+  const filteredCategories = getFilteredCategories();
+
+  // Hero Banner
+  const renderHeroBanner = () => (
+    <div className="relative pt-24 pb-20 overflow-hidden">
+      {/* Background Image with Overlay */}
+      <div className="absolute inset-0 z-0">
+        <img
+          src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80"
+          alt="Category Banner"
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-gray-900 via-gray-900/90 to-gray-900/70"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-gray-900 to-transparent"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-gray-900/50 to-transparent"></div>
       </div>
-    );
-  }
 
-  return (
-    <div className="min-h-screen bg-gray-900">
-      {/* Hero Section with Picture Banner */}
-      <div className="relative pt-24 pb-20 overflow-hidden">
-        {/* Background Image with Overlay */}
-        <div className="absolute inset-0 z-0">
-          <img
-            src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80"
-            alt="Product Categories Banner"
-            className="w-full h-full object-cover opacity-30"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-gray-900 via-gray-900/80 to-gray-900/40"></div>
-          <div className="absolute inset-0 bg-gradient-to-t from-gray-900 to-transparent"></div>
-        </div>
+      {/* Animated background elements */}
+      <div className="absolute inset-0 z-0 overflow-hidden">
+        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
+      </div>
 
-        {/* Content */}
-        <div className="relative z-10 max-w-7xl mx-auto px-4">
-          {/* Breadcrumb */}
-          <nav className="flex items-center gap-2 text-sm mb-8">
-            <Link to="/" className="text-gray-400 hover:text-white transition-colors flex items-center gap-1">
-              <Home className="w-4 h-4" />
-              Home
-            </Link>
-            <ChevronRight className="w-4 h-4 text-gray-600" />
-            <span className="text-white font-medium">Categories</span>
-          </nav>
+      {/* Content */}
+      <div className="relative z-10 max-w-7xl mx-auto px-4">
+        {/* Breadcrumb */}
+        <nav className="flex items-center gap-2 text-sm mb-8">
+          <Link to="/" className="text-gray-400 hover:text-white transition-colors flex items-center gap-1 group">
+            <Home className="w-4 h-4 group-hover:text-blue-400 transition-colors" />
+            Home
+          </Link>
+          <ChevronRight className="w-4 h-4 text-gray-600" />
+          <span className="text-white font-medium">Categories</span>
+        </nav>
 
-          <div className="text-center">
-            <div className="inline-flex items-center gap-3 px-4 py-2 bg-blue-500/20 backdrop-blur-sm rounded-full border border-blue-500/30 mb-6">
-              <FolderTree className="w-5 h-5 text-blue-400" />
-              <span className="text-blue-300 font-medium">Premium Categories</span>
+        <div className="text-center">
+          <div className="inline-flex items-center gap-3 px-4 py-2 bg-gradient-to-r from-blue-500/20 to-blue-600/20 backdrop-blur-sm rounded-full border border-blue-500/30 mb-6">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center">
+              <FolderTree className="w-4 h-4 text-white" />
             </div>
-            
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-white via-blue-100 to-blue-300 bg-clip-text text-transparent">
-              Product Categories
-            </h1>
-            
-            <p className="text-xl text-gray-300 max-w-3xl mx-auto mb-10">
-              Explore our wide range of premium product categories. 
-              From essential accessories to high-performance gear.
-            </p>
-            
-            {/* Search Bar */}
-            <div className="max-w-2xl mx-auto">
-              <div className="relative group">
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl blur opacity-20 group-hover:opacity-30 transition duration-1000"></div>
-                <div className="relative">
-                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Search categories by name, description..."
-                    className="w-full pl-12 pr-4 py-3 rounded-xl bg-gray-800/90 backdrop-blur-sm border border-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400"
-                  />
+            <span className="text-blue-300 font-medium">Premium Categories Collection</span>
+          </div>
+          
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-white via-blue-100 to-blue-200 bg-clip-text text-transparent">
+            Browse Our Categories
+          </h1>
+          
+          <p className="text-xl text-gray-300 max-w-3xl mx-auto mb-10 leading-relaxed">
+            Discover our curated collection of premium product categories. 
+            From essential accessories to high-performance gear, find exactly what you need.
+          </p>
+          
+          {/* Search Bar */}
+          <div className="max-w-2xl mx-auto">
+            <div className="relative group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-xl blur opacity-30 group-hover:opacity-40 transition duration-1000"></div>
+              <div className="relative">
+                <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
+                  <Search className="w-5 h-5 text-gray-400" />
                 </div>
+                <input
+                  type="text"
+                  value={filters.search}
+                  onChange={(e) => handleFilterChange("search", e.target.value)}
+                  placeholder="Search categories by name, description..."
+                  className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-gray-900/90 backdrop-blur-sm border border-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400 shadow-lg"
+                />
               </div>
             </div>
           </div>
         </div>
       </div>
+    </div>
+  );
 
-      {/* Filters */}
-      <div className="sticky top-0 z-20 bg-gray-900/95 backdrop-blur-md border-b border-gray-800">
+  // Controls Section
+  const renderControls = () => (
+    <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/30 backdrop-blur-sm rounded-2xl border border-gray-700 p-6 mb-8 shadow-lg">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-gray-300 font-medium">View:</span>
+            <div className="flex bg-gray-900/50 backdrop-blur-sm p-1 rounded-lg border border-gray-700">
+              <button
+                onClick={() => setViewMode("grid")}
+                className={`p-2 rounded-lg transition-all ${
+                  viewMode === "grid"
+                    ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/25"
+                    : "text-gray-500 hover:text-gray-300 hover:bg-gray-800/50"
+                }`}
+                title="Grid View"
+              >
+                <Grid className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setViewMode("list")}
+                className={`p-2 rounded-lg transition-all ${
+                  viewMode === "list"
+                    ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/25"
+                    : "text-gray-500 hover:text-gray-300 hover:bg-gray-800/50"
+                }`}
+                title="List View"
+              >
+                <List className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+          
+          <div className="flex flex-wrap gap-3">
+            {/* Sort Options */}
+            <select
+              value={filters.sort}
+              onChange={(e) => handleFilterChange("sort", e.target.value)}
+              className="bg-gray-900/50 backdrop-blur-sm border border-gray-700 text-white px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none rounded-lg min-w-[180px]"
+            >
+              <option value="popular">Most Popular</option>
+              <option value="name">Alphabetical</option>
+              <option value="products">Most Products</option>
+              <option value="featured">Featured First</option>
+            </select>
+
+            {/* Category Type Filter */}
+            <select
+              value={filters.type}
+              onChange={(e) => handleFilterChange("type", e.target.value)}
+              className="bg-gray-900/50 backdrop-blur-sm border border-gray-700 text-white px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none rounded-lg min-w-[180px]"
+            >
+              <option value="main">Main Categories</option>
+              <option value="sub">Sub-categories</option>
+              <option value="all">All Categories</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={clearFilters}
+            className="px-4 py-2.5 border border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800/50 backdrop-blur-sm transition-all rounded-lg flex items-center gap-2"
+          >
+            <X className="w-4 h-4" />
+            Clear Filters
+          </button>
+          <button
+            onClick={handleRefresh}
+            className="p-2.5 border border-gray-700 hover:bg-gray-800/50 backdrop-blur-sm transition-all text-gray-300 hover:text-white rounded-lg"
+            title="Refresh"
+          >
+            <RefreshCw className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Render Categories
+  const renderCategories = () => {
+    if (loading) {
+      return (
+        <div className="flex justify-center items-center h-96">
+          <div className="text-center">
+            <div className="relative">
+              <div className="w-20 h-20 rounded-full border-4 border-gray-700 border-t-blue-500 animate-spin mx-auto mb-4"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <FolderTree className="w-8 h-8 text-blue-400 animate-pulse" />
+              </div>
+            </div>
+            <p className="text-gray-400 mt-4">Loading categories...</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="bg-gradient-to-br from-red-900/20 to-red-900/10 backdrop-blur-sm p-8 rounded-2xl border border-red-800/50 shadow-lg">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-500/20 to-red-600/20 flex items-center justify-center">
+              <FolderTree className="w-6 h-6 text-red-400" />
+            </div>
+            <div>
+              <p className="text-red-300 font-medium text-lg">{error}</p>
+              <button
+                onClick={fetchCategories}
+                className="text-red-400 hover:text-red-300 text-sm mt-2 flex items-center gap-1 transition-colors group"
+              >
+                <RefreshCw className="w-4 h-4 group-hover:rotate-180 transition-transform" />
+                Try Again
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (filteredCategories.length === 0) {
+      return (
+        <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/30 backdrop-blur-sm p-12 text-center border border-gray-700 rounded-2xl shadow-lg">
+          <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-gray-800 to-gray-900 mb-6 shadow-lg">
+            <FolderTree className="w-12 h-12 text-gray-600" />
+          </div>
+          <h3 className="text-2xl font-bold text-white mb-3">
+            No categories found
+          </h3>
+          <p className="text-gray-400 mb-8 max-w-md mx-auto leading-relaxed">
+            {filters.search
+              ? "No categories match your search. Try different keywords or clear the search."
+              : "Try adjusting your filters to find more categories."}
+          </p>
+          <button
+            onClick={clearFilters}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-lg transition-all duration-300 shadow-lg hover:shadow-blue-500/25"
+          >
+            Clear All Filters
+          </button>
+        </div>
+      );
+    }
+
+    if (viewMode === "grid") {
+      return (
+        <div className="space-y-8">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+            {filteredCategories.map((category) => (
+              <div key={category._id} className="relative">
+                <MainCategoryPicture
+                  category={category}
+                  onViewSubCategories={handleViewSubCategories}
+                  onViewProducts={handleViewProducts}
+                  isExpanded={expandedCategory === category._id}
+                />
+              </div>
+            ))}
+          </div>
+          
+          {/* Render expanded sub-categories sections after the grid */}
+          {filteredCategories
+            .filter(category => expandedCategory === category._id && category.children && category.children.length > 0)
+            .map((category) => (
+              <div key={`expanded-${category._id}`} className="mt-4">
+                <ExpandedSubCategoriesSection
+                  category={category}
+                  onViewProducts={handleViewProducts}
+                  onClose={() => handleViewSubCategories(null)}
+                  onViewAllProducts={handleViewProducts}
+                />
+              </div>
+            ))}
+        </div>
+      );
+    } else {
+      return (
+        <div className="space-y-6">
+          {filteredCategories.map((category) => (
+            <CategoryListItem
+              key={category._id}
+              category={category}
+              onViewProducts={handleViewProducts}
+              onViewSubCategories={handleViewSubCategories}
+              viewSubCategories={expandedCategory}
+            />
+          ))}
+        </div>
+      );
+    }
+  };
+
+  // Featured Categories Section
+  const renderFeaturedCategories = () => {
+    const featuredCategories = mainCategories.filter(cat => cat.featured).slice(0, 3);
+    
+    if (featuredCategories.length === 0) return null;
+
+    return (
+      <div className="mt-16 pt-12 border-t border-gray-800/50">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500/20 to-amber-600/20 flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-amber-400" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-white">Featured Main Categories</h2>
+              <p className="text-gray-400">Top categories curated for you</p>
+            </div>
+          </div>
+          <button
+            onClick={() => handleFilterChange("featured", "featured")}
+            className="text-blue-400 hover:text-blue-300 font-medium transition-colors flex items-center gap-1 group"
+          >
+            View All Featured
+            <ChevronRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+          </button>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {featuredCategories.map((category) => (
+            <div
+              key={category._id}
+              className="bg-gradient-to-br from-gray-800/50 to-gray-900/30 backdrop-blur-sm rounded-xl border border-gray-700 p-6 hover:border-blue-500/50 transition-all duration-300 group hover:shadow-xl hover:shadow-blue-500/10"
+            >
+              <div className="flex items-center gap-4 mb-5">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-blue-600/20 rounded-lg blur-xl"></div>
+                  <div className="relative w-16 h-16 rounded-lg bg-gradient-to-br from-gray-900 to-gray-800 border border-gray-700 flex items-center justify-center shadow-lg">
+                    <Crown className="w-8 h-8 text-blue-400" />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="text-xl font-bold text-white group-hover:text-blue-300 transition-colors">
+                      {category.name}
+                    </h3>
+                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-amber-500/20 to-amber-600/20 text-amber-300 text-xs font-semibold rounded-full border border-amber-500/30">
+                      <Award className="w-3 h-3" />
+                      Featured
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <p className="text-sm text-gray-400 bg-gray-900/50 backdrop-blur-sm px-3 py-1 rounded-full border border-gray-700">
+                      {category.productCount || 0} products
+                    </p>
+                    {category.children && category.children.length > 0 && (
+                      <p className="text-sm text-blue-300 bg-blue-900/20 backdrop-blur-sm px-3 py-1 rounded-full border border-blue-700/30">
+                        {category.children.length} subs
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+              {category.description && (
+                <p className="text-gray-300 mb-5 text-sm line-clamp-2 leading-relaxed">
+                  {category.description}
+                </p>
+              )}
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => handleViewProducts(category._id)}
+                  className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 font-medium group"
+                >
+                  Shop Now
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </button>
+                {category.children && category.children.length > 0 && (
+                  <button
+                    onClick={() => handleViewSubCategories(category._id)}
+                    className="inline-flex items-center gap-2 text-purple-400 hover:text-purple-300 font-medium group"
+                  >
+                    <Layers className="w-4 h-4" />
+                    View Subs
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-900 to-gray-950">
+      {/* Hero Section with Picture Banner */}
+      {renderHeroBanner()}
+
+      {/* Filters Bar */}
+      <div className="sticky top-0 z-40 bg-gradient-to-b from-gray-900/95 to-gray-900/80 backdrop-blur-xl border-b border-gray-800/50 shadow-xl">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <Filter className="w-5 h-5 text-blue-400" />
-              <span className="font-medium text-gray-300">Filter Categories:</span>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500/20 to-blue-600/20 flex items-center justify-center">
+                <Filter className="w-4 h-4 text-blue-400" />
+              </div>
+              <span className="font-medium text-gray-300">Filter & Sort Categories</span>
             </div>
             
             <div className="flex flex-wrap gap-2">
               <button
-                onClick={() => setFilters({...filters, featured: "all"})}
+                onClick={() => handleFilterChange("type", "main")}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  filters.featured === "all"
-                    ? "bg-blue-600 text-white shadow-lg shadow-blue-500/25"
-                    : "bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700"
+                  filters.type === "main"
+                    ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/25"
+                    : "bg-gray-800/50 backdrop-blur-sm text-gray-300 hover:text-white hover:bg-gray-800 border border-gray-700"
                 }`}
               >
-                All Categories
+                <span className="flex items-center gap-1.5">
+                  <Crown className="w-4 h-4" />
+                  Main
+                </span>
               </button>
               <button
-                onClick={() => setFilters({...filters, featured: "featured"})}
+                onClick={() => handleFilterChange("type", "sub")}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  filters.featured === "featured"
-                    ? "bg-amber-500 text-white shadow-lg shadow-amber-500/25"
-                    : "bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700"
+                  filters.type === "sub"
+                    ? "bg-gradient-to-r from-purple-600 to-purple-500 text-white shadow-lg shadow-purple-500/25"
+                    : "bg-gray-800/50 backdrop-blur-sm text-gray-300 hover:text-white hover:bg-gray-800 border border-gray-700"
                 }`}
               >
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-1.5">
+                  <FolderOpen className="w-4 h-4" />
+                  Sub
+                </span>
+              </button>
+              
+              <button
+                onClick={() => handleFilterChange("featured", "featured")}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  filters.featured === "featured"
+                    ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg shadow-amber-500/25"
+                    : "bg-gray-800/50 backdrop-blur-sm text-gray-300 hover:text-white hover:bg-gray-800 border border-gray-700"
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
                   <Award className="w-4 h-4" />
                   Featured
                 </span>
               </button>
+              
               <button
-                onClick={() => setFilters({...filters, featured: "popular"})}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  filters.featured === "popular"
-                    ? "bg-green-600 text-white shadow-lg shadow-green-500/25"
-                    : "bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700"
-                }`}
+                onClick={() => setExpandedCategory(null)}
+                className="px-4 py-2 bg-gray-800/50 backdrop-blur-sm text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg border border-gray-700 flex items-center gap-1.5"
               >
-                Popular
-              </button>
-
-              {/* Sort Order */}
-              <button
-                onClick={() =>
-                  setFilters((prev) => ({
-                    ...prev,
-                    sortOrder: prev.sortOrder === "desc" ? "asc" : "desc",
-                  }))
-                }
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border ${
-                  filters.sortOrder === "desc"
-                    ? "bg-gray-800 text-gray-300 border-gray-700"
-                    : "bg-gray-700 text-white border-gray-600"
-                }`}
-              >
-                {filters.sortOrder === "desc" ? "Most First" : "Least First"}
+                <ChevronsUp className="w-4 h-4" />
+                Collapse All
               </button>
             </div>
 
-            <div className="text-sm text-gray-400">
-              Showing <span className="font-semibold text-white">{filteredCategories.length}</span> of {categories.length} categories
+            <div className="text-sm bg-gray-800/50 backdrop-blur-sm px-4 py-2 rounded-lg border border-gray-700">
+              <span className="text-gray-300">Showing </span>
+              <span className="font-semibold text-white">{filteredCategories.length}</span>
+              <span className="text-gray-300"> categories</span>
             </div>
           </div>
         </div>
@@ -593,213 +1127,21 @@ const Categories = () => {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Controls */}
+        {renderControls()}
+
+        {/* Categories */}
+        {renderCategories()}
+
         {/* Featured Categories */}
-        {featuredCategories.length > 0 && (
-          <div className="mb-12">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                <Sparkles className="w-6 h-6 text-amber-400" />
-                Featured Categories
-              </h2>
-              <Link
-                to="/products"
-                className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
-              >
-                View All Products →
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {featuredCategories.map((category) => (
-                <div
-                  key={category._id}
-                  className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 p-6 hover:border-blue-500/50 transition-all duration-300 group"
-                >
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="relative">
-                      <div className="absolute inset-0 bg-blue-500/20 rounded-lg blur group-hover:blur-xl transition duration-500"></div>
-                      <div className="relative w-16 h-16 bg-gray-900 border border-gray-700 rounded-lg flex items-center justify-center">
-                        <FolderTree className="w-8 h-8 text-blue-400" />
-                      </div>
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-white group-hover:text-blue-300 transition-colors">
-                        {category.name}
-                      </h3>
-                      <p className="text-sm text-gray-400">
-                        {category.productCount || 0} products
-                      </p>
-                    </div>
-                  </div>
-                  <p className="text-gray-300 mb-4 text-sm line-clamp-2">
-                    {category.description}
-                  </p>
-                  <button
-                    onClick={() => handleViewProducts(category._id)}
-                    className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 font-medium"
-                  >
-                    Shop Now
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Categories Controls */}
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 p-6 mb-8">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div className="flex items-center gap-4 flex-1">
-              {/* Search */}
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search categories..."
-                  className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 focus:ring-2 focus:ring-blue-500 outline-none text-white placeholder-gray-500 rounded-lg"
-                />
-                {searchTerm && (
-                  <button
-                    onClick={() => setSearchTerm("")}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-
-              {/* Sort Options */}
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="bg-gray-700 border border-gray-600 text-white px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none rounded-lg"
-              >
-                <option value="popular">Most Popular</option>
-                <option value="name">Alphabetical</option>
-                <option value="featured">Featured</option>
-              </select>
-            </div>
-
-            {/* View Mode and Actions */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleRefresh}
-                className="p-2 border border-gray-700 hover:bg-gray-700 transition-all text-gray-300 rounded-lg"
-                title="Refresh"
-              >
-                <RefreshCw className="w-5 h-5" />
-              </button>
-              <div className="flex items-center gap-2 bg-gray-900 p-1 rounded-lg">
-                <button
-                  onClick={() => setViewMode("grid")}
-                  className={`p-2 transition-all rounded ${
-                    viewMode === "grid"
-                      ? "bg-gray-800 text-blue-400"
-                      : "text-gray-500 hover:text-gray-300"
-                  }`}
-                  title="Grid View"
-                >
-                  <Grid3x3 className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => setViewMode("list")}
-                  className={`p-2 transition-all rounded ${
-                    viewMode === "list"
-                      ? "bg-gray-800 text-blue-400"
-                      : "text-gray-500 hover:text-gray-300"
-                  }`}
-                  title="List View"
-                >
-                  <List className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Categories Grid/List */}
-        {filteredCategories.length === 0 ? (
-          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 p-12 text-center">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gray-900 mb-6">
-              <FolderTree className="w-10 h-10 text-gray-600" />
-            </div>
-            <h3 className="text-2xl font-semibold text-white mb-2">
-              No categories found
-            </h3>
-            <p className="text-gray-400 mb-6 max-w-md mx-auto">
-              {searchTerm
-                ? "No categories match your search. Try different keywords."
-                : "We're updating our categories. Please check back soon!"}
-            </p>
-            <div className="flex gap-3 justify-center">
-              <button
-                onClick={clearFilters}
-                className="inline-flex items-center gap-2 px-6 py-3 border border-gray-700 text-gray-300 hover:bg-gray-700 rounded-lg"
-              >
-                Clear Filters
-              </button>
-              <Link
-                to="/"
-                className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 hover:bg-blue-700 rounded-lg"
-              >
-                Back to Home
-              </Link>
-            </div>
-          </div>
-        ) : viewMode === "grid" ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCategories.map((category) => (
-              <CategoryCard
-                key={category._id}
-                category={category}
-                onViewProducts={handleViewProducts}
-              />
-            ))}
-          </div>
-        ) : (
-          // List View
-          <div className="space-y-4">
-            {filteredCategories.map((category) => (
-              <CategoryListItem
-                key={category._id}
-                category={category}
-                onViewProducts={handleViewProducts}
-              />
-            ))}
-          </div>
-        )}
+        {renderFeaturedCategories()}
 
         {/* Stats Footer */}
         {filteredCategories.length > 0 && (
-          <div className="mt-12 pt-8 border-t border-gray-800">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center p-4 bg-gray-800/30 backdrop-blur-sm rounded-xl border border-gray-700 hover:border-blue-500/30 transition-colors group">
-                <div className="text-2xl font-bold text-white mb-1 group-hover:text-blue-300 transition-colors">
-                  {categories.length}
-                </div>
-                <div className="text-sm text-gray-400">Total Categories</div>
-              </div>
-              <div className="text-center p-4 bg-gray-800/30 backdrop-blur-sm rounded-xl border border-gray-700 hover:border-green-500/30 transition-colors group">
-                <div className="text-2xl font-bold text-green-400 mb-1 group-hover:text-green-300 transition-colors">
-                  {categories.filter(b => b.isActive).length}
-                </div>
-                <div className="text-sm text-gray-400">Active Categories</div>
-              </div>
-              <div className="text-center p-4 bg-gray-800/30 backdrop-blur-sm rounded-xl border border-gray-700 hover:border-amber-500/30 transition-colors group">
-                <div className="text-2xl font-bold text-amber-400 mb-1 group-hover:text-amber-300 transition-colors">
-                  {categories.filter(b => b.featured).length}
-                </div>
-                <div className="text-sm text-gray-400">Featured Categories</div>
-              </div>
-              <div className="text-center p-4 bg-gray-800/30 backdrop-blur-sm rounded-xl border border-gray-700 hover:border-purple-500/30 transition-colors group">
-                <div className="text-2xl font-bold text-purple-400 mb-1 group-hover:text-purple-300 transition-colors">
-                  {categories.reduce((sum, cat) => sum + (cat.productCount || 0), 0)}
-                </div>
-                <div className="text-sm text-gray-400">Total Products</div>
-              </div>
-            </div>
+          <div className="mt-16 pt-12 border-t border-gray-800/50">
+            
+            
+           
           </div>
         )}
       </div>

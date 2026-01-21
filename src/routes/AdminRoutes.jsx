@@ -1,4 +1,3 @@
-// src/routes/AdminRoutes.jsx
 import React from "react";
 import { Routes, Route } from "react-router-dom";
 import AdminRoute from "../components/AdminRoute";
@@ -8,7 +7,7 @@ import AdminProducts from "../pages/admin/Products";
 import ProductForm from "../pages/admin/ProductForm";
 import AdminCategories from "../pages/admin/Categories";
 import CategoryForm from "../pages/admin/CategoryForm";
-import AdminOrders from "../pages/admin/Orders";
+import AdminOrders from "../pages/admin/Orders"; // This will now work
 import AdminUsers from "../pages/admin/Users";
 import AdminSettings from "../components/Settings";
 // Import brand components

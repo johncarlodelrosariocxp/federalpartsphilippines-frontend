@@ -181,26 +181,36 @@ const Home = () => {
 
   // Helper function to get appropriate image based on category
   const getCategoryImage = (category) => {
-    // If category has image property, try to construct URL
-    if (category.image) {
+    // If category has image property and it's a valid string
+    if (category?.image && typeof category.image === 'string' && category.image.trim() !== '') {
       // Check if it's already a full URL
       if (category.image.startsWith("http")) {
         return category.image;
       }
-      // Try to get from API
-      try {
-        const imageUrl = categoryAPI.getImageUrl?.(
-          category.image,
-          "categories"
-        );
-        if (imageUrl) return imageUrl;
-      } catch (e) {
-        console.log("Could not get image URL from API:", e);
+      
+      // If it's a relative path that starts with /
+      if (category.image.startsWith("/")) {
+        const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+        return `${API_BASE_URL}${category.image}`;
       }
+      
+      // If it's just a filename, construct the full URL
+      const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+      return `${API_BASE_URL}/uploads/categories/${category.image}`;
+    }
+
+    // If category has imageUrl property
+    if (category?.imageUrl && typeof category.imageUrl === 'string' && category.imageUrl.trim() !== '') {
+      if (category.imageUrl.startsWith("http")) {
+        return category.imageUrl;
+      }
+      
+      const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+      return `${API_BASE_URL}${category.imageUrl}`;
     }
 
     // Fallback to hardcoded image based on name
-    const name = (category.name || "").toLowerCase();
+    const name = (category?.name || "").toLowerCase();
     if (name.includes("engine"))
       return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=160&fit=crop";
     if (name.includes("brake"))
@@ -506,6 +516,18 @@ const Home = () => {
         min-height: 200px;
       }
       
+      /* Image styles */
+      .category-image {
+        width: 100%;
+        height: 160px;
+        object-fit: cover;
+        transition: transform 0.5s ease;
+      }
+      
+      .category-image:hover {
+        transform: scale(1.05);
+      }
+      
       /* Responsive adjustments */
       @media (max-width: 768px) {
         .section-padding {
@@ -519,11 +541,19 @@ const Home = () => {
         .loading-skeleton {
           grid-template-columns: repeat(2, 1fr);
         }
+        
+        .category-image {
+          height: 140px;
+        }
       }
       
       @media (max-width: 640px) {
         .loading-skeleton {
           grid-template-columns: 1fr;
+        }
+        
+        .category-image {
+          height: 120px;
         }
       }
     </style>
@@ -540,6 +570,10 @@ const Home = () => {
             src="/banner/FRONT PAGE.jpg"
             alt="Federal Parts Banner"
             className="w-full h-full object-cover"
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.src = "https://images.unsplash.com/photo-1566473359723-7e3e4d6c8c1b?w=1200&h=800&fit=crop";
+            }}
           />
         </div>
       </section>
@@ -633,25 +667,38 @@ const Home = () => {
                   >
                     <Link
                       to={`/categories/${category.slug}`}
-                      className="group bg-gray-800 hover:bg-gray-700 rounded-xl shadow-lg overflow-hidden card-hover block transition-all duration-300"
+                      className="group rounded-xl shadow-lg overflow-hidden  block transition-all duration-300"
                     >
-                      <div className="relative h-32 overflow-hidden">
+                      <div className="relative h-20overflow-hidden">
                         <img
                           src={category.image}
                           alt={category.title}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                          className="category-image w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                          loading="lazy"
                           onError={(e) => {
+                            console.error(`Failed to load image for ${category.title}:`, category.image);
                             e.target.onerror = null;
-                            e.target.src =
-                              "https://images.unsplash.com/photo-1566473359723-7e3e4d6c8c1b?w=400&h=160&fit=crop";
+                            // Fallback to default image based on category name
+                            const name = (category.title || "").toLowerCase();
+                            if (name.includes("engine")) {
+                              e.target.src = "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=160&fit=crop";
+                            } else if (name.includes("brake")) {
+                              e.target.src = "https://images.unsplash.com/photo-1558981806-ec527fa0b4c9?w=400&h=160&fit=crop";
+                            } else if (name.includes("tire") || name.includes("wheel")) {
+                              e.target.src = "https://images.unsplash.com/photo-1603584173870-7f23fdae1b7a?w=400&h=160&fit=crop";
+                            } else if (name.includes("electrical") || name.includes("battery") || name.includes("light")) {
+                              e.target.src = "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=400&h=160&fit=crop";
+                            } else if (name.includes("accessory") || name.includes("tool")) {
+                              e.target.src = "https://images.unsplash.com/photo-1580261450035-4d4f04b7b4c5?w=400&h=160&fit=crop";
+                            } else {
+                              e.target.src = "https://images.unsplash.com/photo-1566473359723-7e3e4d6c8c1b?w=400&h=160&fit=crop";
+                            }
                           }}
                         />
                       </div>
                       <div className="p-4">
                         <div className="flex items-center gap-3">
-                          {category.icon && (
-                            <category.icon className="w-6 h-6 text-red-600" />
-                          )}
+                          
                           <h3 className="font-bold text-white">
                             {category.title}
                           </h3>
@@ -674,8 +721,7 @@ const Home = () => {
               {categories.some((cat) => cat._id.includes("hardcoded")) && (
                 <div className="mt-4 text-center">
                   <p className="text-yellow-500 text-sm">
-                    Showing demo categories. Real categories will load when API
-                    is connected.
+                    Showing demo categories. Real categories will load when API is connected.
                   </p>
                 </div>
               )}
@@ -695,8 +741,7 @@ const Home = () => {
               Quality you can Trust. Price You Can Afford.
             </h2>
             <p className="text-gray-300 text-lg max-w-3xl mx-auto">
-              Experience the perfect balance of premium quality and exceptional
-              value with Federal Parts - where trust meets affordability.
+              Experience the perfect balance of premium quality and exceptional value with Federal Parts - where trust meets affordability.
             </p>
           </div>
 
@@ -706,20 +751,7 @@ const Home = () => {
                 About Federal Parts
               </h2>
               <p className="text-gray-300 mb-8">
-                Cutting-edge innovative technology Federal Parts is one of the
-                brands of motorcycle spare parts marketed by PT Astra Otoparts
-                Tbk's Domestic business unit. Consumers in Indonesia can easily
-                obtain Federal Parts products due to the extensive marketing
-                network, which includes 50 main dealers, 23 sales offices, and
-                nearly 10,000 shops or workshops. In addition, Federal Parts is
-                well known for its quality because it is manufactured according
-                to OEM (Original Equipment Manufacturer) standards and is
-                suitable for all motorcycle brands circulating in Indonesia,
-                such as Honda, Kawasaki, Suzuki, and Yamaha. It is also
-                supported by the large variety of products offered. Federal
-                Parts is always committed to providing added value for consumers
-                by continuously launching spare parts with the latest technology
-                at affordable prices without compromising quality.
+                Cutting-edge innovative technology Federal Parts is one of the brands of motorcycle spare parts marketed by PT Astra Otoparts Tbk's Domestic business unit. Consumers in Indonesia can easily obtain Federal Parts products due to the extensive marketing network, which includes 50 main dealers, 23 sales offices, and nearly 10,000 shops or workshops. In addition, Federal Parts is well known for its quality because it is manufactured according to OEM (Original Equipment Manufacturer) standards and is suitable for all motorcycle brands circulating in Indonesia, such as Honda, Kawasaki, Suzuki, and Yamaha. It is also supported by the large variety of products offered. Federal Parts is always committed to providing added value for consumers by continuously launching spare parts with the latest technology at affordable prices without compromising quality.
               </p>
 
               <div className="space-y-4">
@@ -772,6 +804,10 @@ const Home = () => {
                   src="/wmremove-transformed (1).png"
                   alt="Motorcycle parts"
                   className="w-full h-auto"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = "https://images.unsplash.com/photo-1621422206586-8b4e69e4b8a1?w=600&h=400&fit=crop";
+                  }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end">
                   <div className="p-6">
@@ -779,8 +815,7 @@ const Home = () => {
                       Trusted by Riders Nationwide
                     </h3>
                     <p className="text-gray-200">
-                      Quality parts for every motorcycle, everywhere in
-                      Indonesia
+                      Quality parts for every motorcycle, everywhere in Indonesia
                     </p>
                   </div>
                 </div>

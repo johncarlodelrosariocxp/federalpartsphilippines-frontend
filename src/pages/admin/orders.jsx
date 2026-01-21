@@ -1,4 +1,3 @@
-// src/pages/admin/Orders.js
 import React, { useState, useEffect } from "react";
 import { orderAPI } from "../../services/api";
 import {
