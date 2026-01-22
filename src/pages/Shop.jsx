@@ -236,46 +236,43 @@ const Shop = () => {
   // Render functions
   const renderHeroBanner = () => (
     <div className="relative pt-24 pb-20 overflow-hidden">
-      {/* Background Image with Overlay */}
+      {/* Background Image with Dark Overlay */}
       <div className="absolute inset-0 z-0">
         <img
-          src="https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80"
+          src="/newbanner/shop daw.png"
           alt="Shop Products Banner"
-          className="w-full h-full object-cover opacity-30"
+          className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-gray-900 via-gray-900/80 to-gray-900/40"></div>
-        <div className="absolute inset-0 bg-gradient-to-t from-gray-900 to-transparent"></div>
+        {/* Dark overlay */}
+        <div className="absolute inset-0 bg-black/10"></div>
+        {/* Gradient overlay for better text visibility */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-black/20 to-black/20"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent"></div>
       </div>
 
       {/* Content */}
       <div className="relative z-10 max-w-7xl mx-auto px-4">
         {/* Breadcrumb */}
         <nav className="flex items-center gap-2 text-sm mb-8">
-          <Link to="/" className="text-gray-400 hover:text-white transition-colors flex items-center gap-1">
+          <Link to="/" className="text-gray-300 hover:text-white transition-colors flex items-center gap-1">
             <Home className="w-4 h-4" />
             Home
           </Link>
-          <ChevronRightIcon className="w-4 h-4 text-gray-600" />
+          <ChevronRightIcon className="w-4 h-4 text-gray-500" />
           <span className="text-white font-medium">Shop</span>
         </nav>
 
         <div className="text-center">
-          <div className="inline-flex items-center gap-3 px-4 py-2 bg-blue-500/20 backdrop-blur-sm rounded-full border border-blue-500/30 mb-6">
-            <Package className="w-5 h-5 text-blue-400" />
-            <span className="text-blue-300 font-medium">Premium Products Collection</span>
-          </div>
+         
           
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-white via-blue-100 to-blue-300 bg-clip-text text-transparent">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-20 mt-20 bg-gradient-to-r from-white via-blue-100 to-blue-300 bg-clip-text text-transparent">
             Shop Premium Products
           </h1>
           
-          <p className="text-xl text-gray-300 max-w-3xl mx-auto mb-10">
-            Discover our curated collection of high-quality products. 
-            From essential accessories to premium equipment.
-          </p>
+         
           
           {/* Search Bar */}
-          <div className="max-w-2xl mx-auto">
+          <div className="max-w-2xl mx-auto pb-10">
             <div className="relative group">
               <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl blur opacity-20 group-hover:opacity-30 transition duration-1000"></div>
               <div className="relative">
@@ -285,7 +282,7 @@ const Shop = () => {
                   value={filters.search}
                   onChange={(e) => handleFilterChange("search", e.target.value)}
                   placeholder="Search products by name, description, brand..."
-                  className="w-full pl-12 pr-4 py-3 rounded-xl bg-gray-800/90 backdrop-blur-sm border border-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400"
+                  className="w-full pl-12 pr-4 py-3 rounded-xl bg-gray-900/90 backdrop-blur-sm border border-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500"
                 />
               </div>
             </div>
@@ -296,7 +293,7 @@ const Shop = () => {
   );
 
   const renderFilters = () => (
-    <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 p-6 sticky top-24">
+    <div className="bg-gray-900/90 backdrop-blur-sm rounded-xl border border-gray-800 p-6 sticky top-24">
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-2">
           <Filter className="w-5 h-5 text-blue-400" />
@@ -324,7 +321,7 @@ const Shop = () => {
               placeholder="Search products..."
               value={filters.search}
               onChange={(e) => handleFilterChange("search", e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 focus:ring-2 focus:ring-blue-500 outline-none text-white rounded-lg placeholder-gray-500"
+              className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 focus:ring-2 focus:ring-blue-500 outline-none text-white rounded-lg placeholder-gray-500"
             />
           </div>
         </div>
@@ -333,7 +330,7 @@ const Shop = () => {
         <div>
           <h4 className="font-medium mb-3 text-gray-300">Categories</h4>
           <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
-            <label className="flex items-center gap-2 p-2 hover:bg-gray-700 cursor-pointer rounded-lg transition-colors">
+            <label className="flex items-center gap-2 p-2 hover:bg-gray-800 cursor-pointer rounded-lg transition-colors">
               <input
                 type="radio"
                 name="category"
@@ -346,7 +343,7 @@ const Shop = () => {
             {Array.isArray(categories) && categories.map((cat) => (
               <label
                 key={cat._id || cat.id}
-                className="flex items-center gap-2 p-2 hover:bg-gray-700 cursor-pointer rounded-lg transition-colors"
+                className="flex items-center gap-2 p-2 hover:bg-gray-800 cursor-pointer rounded-lg transition-colors"
               >
                 <input
                   type="radio"
@@ -361,80 +358,10 @@ const Shop = () => {
           </div>
         </div>
 
-        {/* Brands */}
-        <div>
-          <h4 className="font-medium mb-3 text-gray-300">Brands</h4>
-          <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
-            <label className="flex items-center gap-2 p-2 hover:bg-gray-700 cursor-pointer rounded-lg transition-colors">
-              <input
-                type="radio"
-                name="brand"
-                checked={filters.brand === ""}
-                onChange={() => handleFilterChange("brand", "")}
-                className="text-blue-500"
-              />
-              <span className="text-gray-300">All Brands</span>
-            </label>
-            {Array.isArray(brands) && brands.slice(0, 10).map((brand) => (
-              <label
-                key={brand.id}
-                className="flex items-center gap-2 p-2 hover:bg-gray-700 cursor-pointer rounded-lg transition-colors"
-              >
-                <input
-                  type="radio"
-                  name="brand"
-                  checked={filters.brand === brand.name}
-                  onChange={() => handleFilterChange("brand", brand.name)}
-                  className="text-blue-500"
-                />
-                <span className="text-gray-300">{brand.name}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        {/* Price Range */}
-        <div>
-          <h4 className="font-medium mb-3 text-gray-300">Price Range</h4>
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                placeholder="Min"
-                value={filters.minPrice}
-                onChange={(e) => handleFilterChange("minPrice", e.target.value)}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-              />
-              <span className="text-gray-400">to</span>
-              <input
-                type="number"
-                placeholder="Max"
-                value={filters.maxPrice}
-                onChange={(e) => handleFilterChange("maxPrice", e.target.value)}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Sort */}
-        <div>
-          <h4 className="font-medium mb-3 text-gray-300">Sort By</h4>
-          <select
-            value={filters.sort}
-            onChange={(e) => handleFilterChange("sort", e.target.value)}
-            className="w-full bg-gray-700 border border-gray-600 px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-white rounded-lg"
-          >
-            <option value="newest">Newest First</option>
-            <option value="price-low">Price: Low to High</option>
-            <option value="price-high">Price: High to Low</option>
-            <option value="rating">Highest Rated</option>
-            <option value="popular">Most Popular</option>
-          </select>
-        </div>
+       
 
         {/* Product Stats */}
-        <div className="pt-4 border-t border-gray-700">
+        <div className="pt-4 border-t border-gray-800">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-400">Total Products</span>
@@ -484,8 +411,8 @@ const Shop = () => {
 
     if (products.length === 0) {
       return (
-        <div className="bg-gray-800/50 backdrop-blur-sm p-12 text-center border border-gray-700 rounded-xl">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gray-900 mb-6">
+        <div className="bg-gray-900/90 backdrop-blur-sm p-12 text-center border border-gray-800 rounded-xl">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-black mb-6">
             <Package className="w-10 h-10 text-gray-600" />
           </div>
           <h3 className="text-2xl font-semibold text-white mb-2">
@@ -498,7 +425,7 @@ const Shop = () => {
           </p>
           <button
             onClick={clearFilters}
-            className="inline-flex items-center gap-2 px-6 py-3 border border-gray-700 text-gray-300 hover:bg-gray-700 rounded-lg transition-colors"
+            className="inline-flex items-center gap-2 px-6 py-3 border border-gray-800 text-gray-300 hover:bg-gray-800 rounded-lg transition-colors"
           >
             Clear All Filters
           </button>
@@ -527,13 +454,13 @@ const Shop = () => {
         {/* Pagination */}
         {pagination.totalPages > 1 && (
           <div className="flex justify-center mt-8">
-            <div className="flex items-center gap-2 bg-gray-800/50 backdrop-blur-sm p-2 rounded-xl border border-gray-700">
+            <div className="flex items-center gap-2 bg-gray-900/90 backdrop-blur-sm p-2 rounded-xl border border-gray-800">
               <button
                 onClick={() => handlePageChange(pagination.page - 1)}
                 disabled={pagination.page === 1}
                 className={`w-10 h-10 flex items-center justify-center rounded-lg ${
                   pagination.page === 1
-                    ? "bg-gray-900 text-gray-600 cursor-not-allowed"
+                    ? "bg-black text-gray-600 cursor-not-allowed"
                     : "bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors"
                 }`}
               >
@@ -575,7 +502,7 @@ const Shop = () => {
                 disabled={pagination.page === pagination.totalPages}
                 className={`w-10 h-10 flex items-center justify-center rounded-lg ${
                   pagination.page === pagination.totalPages
-                    ? "bg-gray-900 text-gray-600 cursor-not-allowed"
+                    ? "bg-black text-gray-600 cursor-not-allowed"
                     : "bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors"
                 }`}
               >
@@ -589,12 +516,12 @@ const Shop = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900">
-      {/* Hero Section with Picture Banner */}
+    <div className="min-h-screen bg-black">
+      {/* Hero Section with Custom Banner */}
       {renderHeroBanner()}
 
       {/* Filters Bar */}
-      <div className="sticky top-0 z-20 bg-gray-900/95 backdrop-blur-md border-b border-gray-800">
+      <div className="sticky top-0 z-20 bg-black/95 backdrop-blur-md border-b border-gray-900">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-2">
@@ -602,41 +529,6 @@ const Shop = () => {
               <span className="font-medium text-gray-300">Shop Products:</span>
             </div>
             
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setFilters(prev => ({...prev, sort: "newest"}))}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  filters.sort === "newest"
-                    ? "bg-blue-600 text-white shadow-lg shadow-blue-500/25"
-                    : "bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700"
-                }`}
-              >
-                Newest
-              </button>
-              <button
-                onClick={() => setFilters(prev => ({...prev, sort: "price-low"}))}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  filters.sort === "price-low"
-                    ? "bg-green-600 text-white shadow-lg shadow-green-500/25"
-                    : "bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700"
-                }`}
-              >
-                Price Low
-              </button>
-              <button
-                onClick={() => setFilters(prev => ({...prev, sort: "rating"}))}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  filters.sort === "rating"
-                    ? "bg-amber-500 text-white shadow-lg shadow-amber-500/25"
-                    : "bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700"
-                }`}
-              >
-                <span className="flex items-center gap-1">
-                  <Star className="w-4 h-4" />
-                  Top Rated
-                </span>
-              </button>
-            </div>
 
             <div className="text-sm text-gray-400">
               Showing <span className="font-semibold text-white">{products.length}</span> of {pagination.total} products
@@ -652,89 +544,19 @@ const Shop = () => {
           <div className="lg:col-span-1">
             {renderFilters()}
 
-            {/* Shop Stats */}
-            <div className="mt-6 bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 p-6">
-              <h3 className="text-lg font-bold text-white mb-4">Shop Stats</h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 bg-gray-900/50 rounded-lg border border-gray-700">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-500/20 rounded-lg">
-                      <Package className="w-5 h-5 text-blue-400" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-400">Total Products</p>
-                      <p className="text-xl font-bold text-white">
-                        {pagination.total}
-                      </p>
-                    </div>
-                  </div>
-                </div>
+          
 
-                <div className="flex items-center justify-between p-3 bg-gray-900/50 rounded-lg border border-gray-700">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-green-500/20 rounded-lg">
-                      <Tag className="w-5 h-5 text-green-400" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-400">Categories</p>
-                      <p className="text-xl font-bold text-white">
-                        {Array.isArray(categories) ? categories.length : 0}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between p-3 bg-gray-900/50 rounded-lg border border-gray-700">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-purple-500/20 rounded-lg">
-                      <Factory className="w-5 h-5 text-purple-400" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-400">Brands</p>
-                      <p className="text-xl font-bold text-white">
-                        {Array.isArray(brands) ? brands.length : 0}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Quick Links */}
-            <div className="mt-6 bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 p-6">
-              <h3 className="text-lg font-bold text-white mb-4">Quick Links</h3>
-              <div className="space-y-3">
-                <Link
-                  to="/categories"
-                  className="flex items-center justify-between p-3 border border-gray-700 rounded-lg hover:border-blue-500/50 hover:bg-blue-500/10 transition-colors group"
-                >
-                  <span className="font-medium text-gray-300 group-hover:text-blue-400">
-                    Browse Categories
-                  </span>
-                  <ChevronRightIcon className="w-4 h-4 text-gray-500 group-hover:text-blue-400" />
-                </Link>
-                <Link
-                  to="/products/featured"
-                  className="flex items-center justify-between p-3 border border-gray-700 rounded-lg hover:border-amber-500/50 hover:bg-amber-500/10 transition-colors group"
-                >
-                  <span className="font-medium text-gray-300 group-hover:text-amber-400">
-                    Featured Products
-                  </span>
-                  <Award className="w-4 h-4 text-gray-500 group-hover:text-amber-400" />
-                </Link>
-              </div>
-            </div>
           </div>
 
           {/* Main Content */}
           <div className="lg:col-span-3">
             {/* Controls */}
-            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 p-6 mb-8">
+            <div className="bg-gray-900/90 backdrop-blur-sm rounded-xl border border-gray-800 p-6 mb-8">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
                     <span className="text-gray-400">View:</span>
-                    <div className="flex bg-gray-900 p-1 rounded-lg">
+                    <div className="flex bg-black p-1 rounded-lg">
                       <button
                         onClick={() => setViewMode("grid")}
                         className={`p-2 rounded transition-all ${
@@ -767,7 +589,7 @@ const Shop = () => {
                 <div className="flex items-center gap-3">
                   <button
                     onClick={fetchProducts}
-                    className="p-2 border border-gray-700 hover:bg-gray-700 transition-all text-gray-300 rounded-lg"
+                    className="p-2 border border-gray-800 hover:bg-gray-800 transition-all text-gray-300 rounded-lg"
                     title="Refresh"
                   >
                     <RefreshCw className="w-5 h-5" />
@@ -781,7 +603,7 @@ const Shop = () => {
 
             {/* Featured Brands */}
             {Array.isArray(brands) && brands.length > 0 && (
-              <div className="mt-12 pt-8 border-t border-gray-800">
+              <div className="mt-12 pt-8 border-t border-gray-900">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                     <Sparkles className="w-6 h-6 text-amber-400" />
@@ -795,14 +617,14 @@ const Shop = () => {
                       <button
                         key={brand.id}
                         onClick={() => handleFilterChange("brand", brand.name)}
-                        className={`bg-gray-800/50 backdrop-blur-sm rounded-xl border p-4 transition-all duration-300 group ${
+                        className={`bg-gray-900/90 backdrop-blur-sm rounded-xl border p-4 transition-all duration-300 group ${
                           filters.brand === brand.name
                             ? "border-blue-500 bg-blue-500/10"
-                            : "border-gray-700 hover:border-blue-500/50"
+                            : "border-gray-800 hover:border-blue-500/50"
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-gray-900 border border-gray-700 rounded-lg flex items-center justify-center">
+                          <div className="w-12 h-12 bg-black border border-gray-800 rounded-lg flex items-center justify-center">
                             <Factory className="w-6 h-6 text-blue-400" />
                           </div>
                           <div className="text-left">

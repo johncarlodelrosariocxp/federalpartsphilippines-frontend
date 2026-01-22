@@ -46,7 +46,7 @@ import {
   MoreVertical
 } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { categoryAPI } from "../services/api";
+import { categoryAPI, productAPI } from "../services/api";
 
 // Helper function to get image URL
 const getImageUrl = (imagePath) => {
@@ -119,7 +119,7 @@ const MainCategoryPicture = ({
         onClick={() => hasSubCategories && onViewSubCategories(category._id)}
       >
         {/* Image Container */}
-        <div className="w-full h-full overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900">
+        <div className="w-full h-full overflow-hidden bg-black">
           {imageUrl && !imageError ? (
             <img
               src={imageUrl}
@@ -128,7 +128,7 @@ const MainCategoryPicture = ({
               onError={() => setImageError(true)}
             />
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center p-4">
+            <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-black">
               <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-3 shadow-lg">
                 <Crown className="w-8 h-8 text-white" />
               </div>
@@ -210,7 +210,7 @@ const SubCategoryPicture = ({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="aspect-square rounded-xl overflow-hidden border border-gray-700/50 group-hover:border-purple-500/70 transition-all duration-300 bg-gradient-to-br from-gray-800 to-gray-900 shadow-md group-hover:shadow-xl group-hover:shadow-purple-500/20">
+      <div className="aspect-square rounded-xl overflow-hidden border border-gray-700/50 group-hover:border-purple-500/70 transition-all duration-300 bg-black shadow-md group-hover:shadow-xl group-hover:shadow-purple-500/20">
         {imageUrl && !imageError ? (
           <img
             src={imageUrl}
@@ -221,7 +221,7 @@ const SubCategoryPicture = ({
             onError={() => setImageError(true)}
           />
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center p-4">
+          <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-black">
             <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center mb-2 shadow-lg">
               <FolderOpen className="w-7 h-7 text-white" />
             </div>
@@ -282,17 +282,17 @@ const ProductCard = ({ product }) => {
     return `${IMAGE_BASE_URL}/uploads/products/${imagePath}`;
   };
 
-  const imageUrl = getProductImageUrl(product.image || product.imageUrl);
+  const imageUrl = getProductImageUrl(product.images?.[0] || product.image || product.imageUrl);
 
   return (
     <div 
-      className="group bg-gradient-to-br from-gray-800/50 to-gray-900/30 backdrop-blur-sm rounded-xl border border-gray-700 overflow-hidden hover:border-blue-500/50 transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/10 cursor-pointer"
+      className="group bg-black rounded-xl border border-gray-700 overflow-hidden hover:border-blue-500/50 transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/10 cursor-pointer"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={() => window.open(`/products/${product._id}`, '_blank')}
     >
       {/* Product Image */}
-      <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800">
+      <div className="relative aspect-square overflow-hidden bg-black">
         {imageUrl && !imageError ? (
           <img
             src={imageUrl}
@@ -303,7 +303,7 @@ const ProductCard = ({ product }) => {
             onError={() => setImageError(true)}
           />
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center p-4">
+          <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-black">
             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-3 shadow-lg">
               <Package className="w-8 h-8 text-white" />
             </div>
@@ -313,23 +313,8 @@ const ProductCard = ({ product }) => {
           </div>
         )}
         
-        {/* Product Status Badge */}
-        <div className="absolute top-3 left-3">
-          {product.featured && (
-            <span className="px-2.5 py-1 text-xs font-semibold bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-full shadow flex items-center gap-1">
-              <Award className="w-3 h-3" />
-              Featured
-            </span>
-          )}
-        </div>
-        
-        {/* Price Badge */}
-        <div className="absolute top-3 right-3">
-          <span className="px-2.5 py-1 text-xs font-semibold bg-gradient-to-r from-green-600 to-green-500 text-white rounded-full shadow flex items-center gap-1">
-            <DollarSign className="w-3 h-3" />
-            ${product.price || 0}
-          </span>
-        </div>
+
+       
         
         {/* Hover Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
@@ -352,7 +337,7 @@ const ProductCard = ({ product }) => {
       </div>
       
       {/* Product Info */}
-      <div className="p-4">
+      <div className="p-4 bg-black">
         <div className="flex items-start justify-between mb-2">
           <h3 className="font-semibold text-white text-sm line-clamp-1">{product.name}</h3>
           <span className="font-bold text-blue-300">${product.price || 0}</span>
@@ -388,8 +373,8 @@ const ProductsSection = ({
   if (loading) {
     return (
       <div className="mt-6 mb-8 relative">
-        <div className="relative bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-gray-700/70 shadow-xl overflow-hidden p-8">
-          <div className="flex flex-col items-center justify-center h-64">
+        <div className="relative bg-black rounded-2xl border border-gray-700/70 shadow-xl overflow-hidden p-8">
+          <div className="flex flex-col items-center justify-center h-64 bg-black">
             <div className="relative">
               <div className="w-16 h-16 rounded-full border-4 border-gray-700 border-t-blue-500 animate-spin mx-auto mb-4"></div>
               <div className="absolute inset-0 flex items-center justify-center">
@@ -406,9 +391,9 @@ const ProductsSection = ({
   if (!products || products.length === 0) {
     return (
       <div className="mt-6 mb-8 relative">
-        <div className="relative bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-gray-700/70 shadow-xl overflow-hidden p-8">
-          <div className="flex flex-col items-center justify-center h-64">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center mb-4 shadow-lg">
+        <div className="relative bg-black rounded-2xl border border-gray-700/70 shadow-xl overflow-hidden p-8">
+          <div className="flex flex-col items-center justify-center h-64 bg-black">
+            <div className="w-20 h-20 rounded-full bg-black flex items-center justify-center mb-4 shadow-lg">
               <Package className="w-10 h-10 text-gray-600" />
             </div>
             <h3 className="text-xl font-bold text-white mb-2">No products found</h3>
@@ -427,12 +412,12 @@ const ProductsSection = ({
       <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 w-0.5 h-6 bg-gradient-to-b from-green-500 to-transparent"></div>
       
       {/* Main container */}
-      <div className="relative bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-gray-700/70 shadow-xl overflow-hidden">
+      <div className="relative bg-black rounded-2xl border border-gray-700/70 shadow-xl overflow-hidden">
         {/* Decorative gradient border */}
         <div className="absolute inset-0 bg-gradient-to-r from-green-500/5 via-blue-500/5 to-transparent pointer-events-none"></div>
         
         {/* Header */}
-        <div className="relative p-6 border-b border-gray-700/50">
+        <div className="relative p-6 border-b border-gray-700/50 bg-black">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="relative">
@@ -446,10 +431,10 @@ const ProductsSection = ({
                   Products in <span className="text-green-400">{category?.name}</span>
                 </h2>
                 <div className="flex items-center gap-3 mt-1">
-                  <span className="text-sm text-gray-300 bg-gray-800/50 backdrop-blur-sm px-3 py-1 rounded-full border border-gray-700">
+                  <span className="text-sm text-gray-300 bg-black px-3 py-1 rounded-full border border-gray-700">
                     {products.length} products
                   </span>
-                  <span className="text-sm text-green-300 bg-green-900/20 backdrop-blur-sm px-3 py-1 rounded-full border border-green-700/30">
+                  <span className="text-sm text-green-300 bg-green-900/20 px-3 py-1 rounded-full border border-green-700/30">
                     Total Value: ${products.reduce((sum, p) => sum + (p.price || 0), 0)}
                   </span>
                 </div>
@@ -459,7 +444,7 @@ const ProductsSection = ({
             <div className="flex items-center gap-3">
               <button
                 onClick={onClose}
-                className="p-2.5 text-gray-400 hover:text-white hover:bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 transition-all hover:border-gray-600"
+                className="p-2.5 text-gray-400 hover:text-white hover:bg-black rounded-xl border border-gray-700 transition-all hover:border-gray-600"
                 title="Close products view"
               >
                 <ChevronsUp className="w-5 h-5" />
@@ -469,7 +454,7 @@ const ProductsSection = ({
         </div>
         
         {/* Products Grid */}
-        <div className="p-6">
+        <div className="p-6 bg-black">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {products.map((product) => (
               <ProductCard key={product._id} product={product} />
@@ -478,15 +463,15 @@ const ProductsSection = ({
         </div>
         
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-700/50 bg-gray-800/20 backdrop-blur-sm">
+        <div className="px-6 py-4 border-t border-gray-700/50 bg-black">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
               <h3 className="text-lg font-semibold text-white mb-1">Product Summary</h3>
               <div className="flex items-center gap-3">
-                <span className="text-sm text-gray-400 bg-gray-800/50 backdrop-blur-sm px-3 py-1 rounded-full border border-gray-700">
+                <span className="text-sm text-gray-400 bg-black px-3 py-1 rounded-full border border-gray-700">
                   Average Price: ${(products.reduce((sum, p) => sum + (p.price || 0), 0) / products.length).toFixed(2)}
                 </span>
-                <span className="text-sm text-blue-300 bg-blue-900/20 backdrop-blur-sm px-3 py-1 rounded-full border border-blue-700/30">
+                <span className="text-sm text-blue-300 bg-blue-900/20 px-3 py-1 rounded-full border border-blue-700/30">
                   In Stock: {products.filter(p => p.stock > 0).length}
                 </span>
               </div>
@@ -495,7 +480,7 @@ const ProductsSection = ({
             <div className="flex gap-3">
               <button
                 onClick={onClose}
-                className="px-4 py-2 bg-gray-800/50 hover:bg-gray-800 text-gray-300 rounded-lg border border-gray-700 transition-all duration-300 hover:border-gray-600 flex items-center gap-2"
+                className="px-4 py-2 bg-black hover:bg-gray-900 text-gray-300 rounded-lg border border-gray-700 transition-all duration-300 hover:border-gray-600 flex items-center gap-2"
               >
                 <ChevronsUp className="w-4 h-4" />
                 <span className="text-sm font-medium">Back to Categories</span>
@@ -531,31 +516,25 @@ const ExpandedSubCategoriesSection = ({
       <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 w-0.5 h-6 bg-gradient-to-b from-blue-500 to-transparent"></div>
       
       {/* Main container */}
-      <div className="relative bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-gray-700/70 shadow-xl overflow-hidden">
+      <div className="relative bg-black rounded-2xl border border-gray-700/70 shadow-xl overflow-hidden">
         {/* Decorative gradient border */}
         <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-transparent pointer-events-none"></div>
         
         {/* Header */}
-        <div className="relative p-6 border-b border-gray-700/50">
+        <div className="relative p-6 border-b border-gray-700/50 bg-black">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="relative">
                 <div className="absolute inset-0 bg-purple-500/20 rounded-full blur-xl"></div>
-                <div className="relative w-12 h-12 rounded-full bg-gradient-to-br from-purple-600 to-purple-500 flex items-center justify-center shadow-lg">
-                  <FolderOpen className="w-6 h-6 text-white" />
-                </div>
+                
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-white">
-                  Sub-categories of <span className="text-purple-400">{category.name}</span>
+                  <span className="text-purple-400">{category.name}</span>
                 </h2>
                 <div className="flex items-center gap-3 mt-1">
-                  <span className="text-sm text-gray-300 bg-gray-800/50 backdrop-blur-sm px-3 py-1 rounded-full border border-gray-700">
-                    {category.children.length} sub-categories
-                  </span>
-                  <span className="text-sm text-blue-300 bg-blue-900/20 backdrop-blur-sm px-3 py-1 rounded-full border border-blue-700/30">
-                    {category.children.reduce((sum, child) => sum + (child.productCount || 0), 0)} total products
-                  </span>
+                 
+                 
                 </div>
               </div>
             </div>
@@ -570,7 +549,7 @@ const ExpandedSubCategoriesSection = ({
               </button>
               <button
                 onClick={onClose}
-                className="p-2.5 text-gray-400 hover:text-white hover:bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 transition-all hover:border-gray-600"
+                className="p-2.5 text-gray-400 hover:text-white hover:bg-black rounded-xl border border-gray-700 transition-all hover:border-gray-600"
                 title="Collapse sub-categories"
               >
                 <ChevronsUp className="w-5 h-5" />
@@ -578,10 +557,9 @@ const ExpandedSubCategoriesSection = ({
             </div>
           </div>
         </div>
-      
 
         {/* Sub-categories Grid */}
-        <div className="p-6">
+        <div className="p-6 bg-black">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
             {category.children.map((subCategory) => (
               <div key={subCategory._id} className="relative">
@@ -604,7 +582,7 @@ const ExpandedSubCategoriesSection = ({
         </div>
         
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-700/50 bg-gray-800/20 backdrop-blur-sm">
+        <div className="px-6 py-4 border-t border-gray-700/50 bg-black">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
               <h3 className="text-lg font-semibold text-white mb-1">Quick Actions</h3>
@@ -622,7 +600,7 @@ const ExpandedSubCategoriesSection = ({
               
               <button
                 onClick={onClose}
-                className="px-4 py-2 bg-gray-800/50 hover:bg-gray-800 text-gray-300 rounded-lg border border-gray-700 transition-all duration-300 hover:border-gray-600 flex items-center gap-2"
+                className="px-4 py-2 bg-black hover:bg-gray-900 text-gray-300 rounded-lg border border-gray-700 transition-all duration-300 hover:border-gray-600 flex items-center gap-2"
               >
                 <ChevronsUp className="w-4 h-4" />
                 <span className="text-sm font-medium">Collapse</span>
@@ -651,7 +629,7 @@ const CategoryListItem = ({
   const hasSubCategories = category.children && category.children.length > 0;
 
   return (
-    <div className={`bg-gradient-to-br from-gray-800/50 to-gray-900/30 backdrop-blur-sm rounded-xl border p-6 transition-all duration-300 ${
+    <div className={`bg-black rounded-xl border p-6 transition-all duration-300 ${
       viewSubCategories === category._id || viewProducts === category._id
         ? 'border-blue-500/50 shadow-lg shadow-blue-500/10' 
         : 'border-gray-700 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/5'
@@ -659,7 +637,7 @@ const CategoryListItem = ({
       <div className="flex items-center gap-4">
         <div className="relative flex-shrink-0">
           <div className="absolute inset-0 bg-gradient-to-r from-blue-500/30 to-purple-500/30 rounded-xl blur-xl"></div>
-          <div className="relative w-20 h-20 rounded-xl bg-gradient-to-br from-gray-900 to-gray-800 border overflow-hidden shadow-lg">
+          <div className="relative w-20 h-20 rounded-xl bg-black border overflow-hidden shadow-lg">
             {!imageError && imageUrl ? (
               <img
                 src={imageUrl}
@@ -668,7 +646,7 @@ const CategoryListItem = ({
                 onError={() => setImageError(true)}
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center">
+              <div className="w-full h-full flex items-center justify-center bg-black">
                 {isMainCategory ? (
                   <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
                     <Crown className="w-6 h-6 text-white" />
@@ -708,14 +686,14 @@ const CategoryListItem = ({
             </div>
             
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900/50 backdrop-blur-sm rounded-lg border border-gray-700">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-black rounded-lg border border-gray-700">
                 <Package className="w-4 h-4 text-gray-400" />
                 <span className="text-sm font-medium text-white">
                   {category.productCount || 0}
                 </span>
               </div>
               {hasSubCategories && isMainCategory && (
-                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-900/20 backdrop-blur-sm rounded-lg border border-blue-700/30">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-900/20 rounded-lg border border-blue-700/30">
                   <Layers className="w-4 h-4 text-blue-400" />
                   <span className="text-sm font-medium text-blue-300">
                     {category.children.length}
@@ -727,11 +705,11 @@ const CategoryListItem = ({
           
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex flex-wrap gap-2">
-              <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-900/50 backdrop-blur-sm text-sm text-gray-300 rounded-lg border border-gray-700">
+              <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-black text-sm text-gray-300 rounded-lg border border-gray-700">
                 <CheckCircle className="w-3.5 h-3.5 text-green-400" />
                 Quality
               </span>
-              <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-900/50 backdrop-blur-sm text-sm text-gray-300 rounded-lg border border-gray-700">
+              <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-black text-sm text-gray-300 rounded-lg border border-gray-700">
                 <Truck className="w-3.5 h-3.5 text-blue-400" />
                 Fast Delivery
               </span>
@@ -748,7 +726,7 @@ const CategoryListItem = ({
               {hasSubCategories && isMainCategory && (
                 <button
                   onClick={() => onViewSubCategories(category._id)}
-                  className="px-4 py-2 bg-gray-800/50 hover:bg-gray-800 text-gray-300 rounded-lg border border-gray-700 transition-all duration-300 hover:border-gray-600 flex items-center gap-2"
+                  className="px-4 py-2 bg-black hover:bg-gray-900 text-gray-300 rounded-lg border border-gray-700 transition-all duration-300 hover:border-gray-600 flex items-center gap-2"
                 >
                   <Layers className="w-4 h-4" />
                   <span className="font-medium">View Subs</span>
@@ -909,114 +887,81 @@ const Categories = () => {
     }
   };
 
-  // Fetch products for a specific category
+  // Fetch products for a specific category - UPDATED TO USE REAL API
   const fetchCategoryProducts = async (categoryId) => {
     try {
       setProductsLoading(true);
       setProducts([]);
       
-      // In a real application, you would make an API call here
-      // For now, we'll use mock data
-      const mockProducts = [
-        {
-          _id: "1",
-          name: "Premium Product 1",
-          description: "High-quality premium product with excellent features",
-          price: 99.99,
-          image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&h=500&fit=crop",
-          category: { name: "Electronics" },
-          featured: true,
-          stock: 15,
-          rating: 4.5
-        },
-        {
-          _id: "2",
-          name: "Standard Product 2",
-          description: "Reliable standard product for everyday use",
-          price: 49.99,
-          image: "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=500&h=500&fit=crop",
-          category: { name: "Accessories" },
-          featured: false,
-          stock: 30,
-          rating: 4.2
-        },
-        {
-          _id: "3",
-          name: "Deluxe Product 3",
-          description: "Luxury deluxe product with premium features",
-          price: 199.99,
-          image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&h=500&fit=crop",
-          category: { name: "Premium" },
-          featured: true,
-          stock: 8,
-          rating: 4.8
-        },
-        {
-          _id: "4",
-          name: "Budget Product 4",
-          description: "Affordable budget product with good value",
-          price: 29.99,
-          image: "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=500&h=500&fit=crop",
-          category: { name: "Basics" },
-          featured: false,
-          stock: 50,
-          rating: 3.9
-        },
-        {
-          _id: "5",
-          name: "Professional Product 5",
-          description: "Professional grade product for experts",
-          price: 149.99,
-          image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=500&h=500&fit=crop",
-          category: { name: "Professional" },
-          featured: true,
-          stock: 12,
-          rating: 4.7
-        },
-        {
-          _id: "6",
-          name: "Basic Product 6",
-          description: "Simple basic product for essential needs",
-          price: 19.99,
-          image: "https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?w=500&h=500&fit=crop",
-          category: { name: "Essentials" },
-          featured: false,
-          stock: 100,
-          rating: 4.0
-        },
-        {
-          _id: "7",
-          name: "Smart Product 7",
-          description: "Intelligent smart product with advanced features",
-          price: 129.99,
-          image: "https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=500&h=500&fit=crop",
-          category: { name: "Smart" },
-          featured: true,
-          stock: 20,
-          rating: 4.6
-        },
-        {
-          _id: "8",
-          name: "Compact Product 8",
-          description: "Compact and portable product for on-the-go use",
-          price: 79.99,
-          image: "https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?w=500&h=500&fit=crop",
-          category: { name: "Portable" },
-          featured: false,
-          stock: 25,
-          rating: 4.3
-        }
-      ];
+      // Use the productAPI from the services
+      const response = await productAPI.getProductsByCategory(categoryId, {
+        limit: 50, // Fetch more products
+        page: 1,
+        sort: 'name'
+      });
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      setProducts(mockProducts);
-      toast.success(`Loaded ${mockProducts.length} products`);
+      if (response.success && response.products) {
+        setProducts(response.products);
+        toast.success(`Loaded ${response.products.length} products`);
+      } else {
+        toast.error(response.message || "Failed to load products");
+        setProducts([]);
+      }
       
     } catch (error) {
       console.error("Error fetching products:", error);
       toast.error("Failed to load products");
+      setProducts([]);
+    } finally {
+      setProductsLoading(false);
+    }
+  };
+
+  // Fetch products for main category (all products from all sub-categories)
+  const fetchMainCategoryProducts = async (categoryId) => {
+    try {
+      setProductsLoading(true);
+      setProducts([]);
+      
+      // Get the category to find all sub-categories
+      const category = allCategories.find(cat => cat._id === categoryId);
+      
+      if (category && category.children && category.children.length > 0) {
+        // Get products from all sub-categories
+        const allProducts = [];
+        
+        for (const subCategory of category.children) {
+          const response = await productAPI.getProductsByCategory(subCategory._id, {
+            limit: 100,
+            page: 1
+          });
+          
+          if (response.success && response.products) {
+            allProducts.push(...response.products);
+          }
+        }
+        
+        // Remove duplicates
+        const uniqueProducts = Array.from(new Map(allProducts.map(product => [product._id, product])).values());
+        setProducts(uniqueProducts);
+        toast.success(`Loaded ${uniqueProducts.length} products from all sub-categories`);
+      } else {
+        // If no sub-categories, get products directly from the category
+        const response = await productAPI.getProductsByCategory(categoryId, {
+          limit: 100,
+          page: 1
+        });
+        
+        if (response.success && response.products) {
+          setProducts(response.products);
+          toast.success(`Loaded ${response.products.length} products`);
+        }
+      }
+      
+    } catch (error) {
+      console.error("Error fetching main category products:", error);
+      toast.error("Failed to load products");
+      setProducts([]);
     } finally {
       setProductsLoading(false);
     }
@@ -1047,7 +992,16 @@ const Categories = () => {
     } else {
       setViewingProducts(categoryId);
       setExpandedCategory(null);
-      await fetchCategoryProducts(categoryId);
+      
+      // Check if it's a main category
+      const category = allCategories.find(cat => cat._id === categoryId);
+      if (category && !category.parentCategory) {
+        // Main category - fetch products from all sub-categories
+        await fetchMainCategoryProducts(categoryId);
+      } else {
+        // Sub-category - fetch products directly
+        await fetchCategoryProducts(categoryId);
+      }
     }
   };
 
@@ -1127,95 +1081,64 @@ const Categories = () => {
     ? allCategories.find(cat => cat._id === viewingProducts)
     : null;
 
-  // Hero Banner
+  // Hero Banner - Updated with the specified image
   const renderHeroBanner = () => (
-    <div className="relative pt-24 pb-20 overflow-hidden">
-      {/* Background Image with Overlay */}
+    <div className="relative pt-20 pb-16 overflow-hidden bg-black">
+      {/* Banner Image */}
       <div className="absolute inset-0 z-0">
         <img
-          src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80"
-          alt="Category Banner"
+          src="/newbanner/destktop website Federal (Category).png"
+          alt="Federal Parts - Categories"
           className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-gray-900 via-gray-900/90 to-gray-900/70"></div>
-        <div className="absolute inset-0 bg-gradient-to-t from-gray-900 to-transparent"></div>
-        <div className="absolute inset-0 bg-gradient-to-b from-gray-900/50 to-transparent"></div>
-      </div>
-
-      {/* Animated background elements */}
-      <div className="absolute inset-0 z-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
+        {/* Dark overlay for better text readability */}
+        <div className="absolute inset-0 bg-black/50"></div>
       </div>
 
       {/* Content */}
       <div className="relative z-10 max-w-7xl mx-auto px-4">
         {/* Breadcrumb */}
         <nav className="flex items-center gap-2 text-sm mb-8">
-          <Link to="/" className="text-gray-400 hover:text-white transition-colors flex items-center gap-1 group">
+          <Link to="/" className="text-gray-300 hover:text-white transition-colors flex items-center gap-1 group">
             <Home className="w-4 h-4 group-hover:text-blue-400 transition-colors" />
             Home
           </Link>
-          <ChevronRight className="w-4 h-4 text-gray-600" />
+          <ChevronRight className="w-4 h-4 text-gray-500" />
           <span className="text-white font-medium">Categories</span>
           {viewingProducts && currentCategoryWithProducts && (
             <>
-              <ChevronRight className="w-4 h-4 text-gray-600" />
+              <ChevronRight className="w-4 h-4 text-gray-500" />
               <span className="text-blue-400 font-medium">Products</span>
-              <ChevronRight className="w-4 h-4 text-gray-600" />
+              <ChevronRight className="w-4 h-4 text-gray-500" />
               <span className="text-green-400 font-medium">{currentCategoryWithProducts.name}</span>
             </>
           )}
         </nav>
 
         <div className="text-center">
-          <div className="inline-flex items-center gap-3 px-4 py-2 bg-gradient-to-r from-blue-500/20 to-blue-600/20 backdrop-blur-sm rounded-full border border-blue-500/30 mb-6">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center">
-              {viewingProducts ? (
-                <ShoppingBag className="w-4 h-4 text-white" />
-              ) : (
-                <FolderTree className="w-4 h-4 text-white" />
-              )}
-            </div>
-            <span className="text-blue-300 font-medium">
-              {viewingProducts ? "Premium Products Collection" : "Premium Categories Collection"}
-            </span>
-          </div>
-          
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-white via-blue-100 to-blue-200 bg-clip-text text-transparent">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-20 mt-20 text-white">
             {viewingProducts 
               ? `Products in ${currentCategoryWithProducts?.name || 'Category'}`
               : "Browse Our Categories"}
           </h1>
           
-          <p className="text-xl text-gray-300 max-w-3xl mx-auto mb-10 leading-relaxed">
-            {viewingProducts
-              ? `Explore our premium collection of products in this category. 
-                 From high-quality essentials to exclusive items, find exactly what you need.`
-              : `Discover our curated collection of premium product categories. 
-                 From essential accessories to high-performance gear, find exactly what you need.`}
-          </p>
-          
           {/* Search Bar */}
-          <div className="max-w-2xl mx-auto">
-            <div className="relative group">
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-xl blur opacity-30 group-hover:opacity-40 transition duration-1000"></div>
-              <div className="relative">
-                <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
-                  <Search className="w-5 h-5 text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  value={filters.search}
-                  onChange={(e) => handleFilterChange("search", e.target.value)}
-                  placeholder={
-                    viewingProducts 
-                      ? "Search products by name, description..."
-                      : "Search categories by name, description..."
-                  }
-                  className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-gray-900/90 backdrop-blur-sm border border-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400 shadow-lg"
-                />
+          <div className="max-w-2xl mx-auto mb-10">
+            <div className="relative">
+              <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
+                <Search className="w-5 h-5 text-gray-400" />
               </div>
+              <input
+                type="text"
+                value={filters.search}
+                onChange={(e) => handleFilterChange("search", e.target.value)}
+                placeholder={
+                  viewingProducts 
+                    ? "Search products by name, description..."
+                    : "Search categories by name, description..."
+                }
+                className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-black/70 backdrop-blur-sm border border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400 shadow-lg"
+              />
             </div>
           </div>
         </div>
@@ -1225,94 +1148,8 @@ const Categories = () => {
 
   // Controls Section
   const renderControls = () => (
-    <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/30 backdrop-blur-sm rounded-2xl border border-gray-700 p-6 mb-8 shadow-lg">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          <div className="flex items-center gap-2">
-            <span className="text-gray-300 font-medium">View:</span>
-            <div className="flex bg-gray-900/50 backdrop-blur-sm p-1 rounded-lg border border-gray-700">
-              <button
-                onClick={() => setViewMode("grid")}
-                className={`p-2 rounded-lg transition-all ${
-                  viewMode === "grid"
-                    ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/25"
-                    : "text-gray-500 hover:text-gray-300 hover:bg-gray-800/50"
-                }`}
-                title="Grid View"
-              >
-                <Grid className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setViewMode("list")}
-                className={`p-2 rounded-lg transition-all ${
-                  viewMode === "list"
-                    ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/25"
-                    : "text-gray-500 hover:text-gray-300 hover:bg-gray-800/50"
-                }`}
-                title="List View"
-              >
-                <List className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-          
-          <div className="flex flex-wrap gap-3">
-            {/* Sort Options */}
-            <select
-              value={filters.sort}
-              onChange={(e) => handleFilterChange("sort", e.target.value)}
-              className="bg-gray-900/50 backdrop-blur-sm border border-gray-700 text-white px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none rounded-lg min-w-[180px]"
-            >
-              <option value="popular">Most Popular</option>
-              <option value="name">Alphabetical</option>
-              <option value="products">Most Products</option>
-              <option value="featured">Featured First</option>
-            </select>
-
-            {/* Category Type Filter - Only show when not viewing products */}
-            {!viewingProducts && (
-              <select
-                value={filters.type}
-                onChange={(e) => handleFilterChange("type", e.target.value)}
-                className="bg-gray-900/50 backdrop-blur-sm border border-gray-700 text-white px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none rounded-lg min-w-[180px]"
-              >
-                <option value="main">Main Categories</option>
-                <option value="sub">Sub-categories</option>
-                <option value="all">All Categories</option>
-              </select>
-            )}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {viewingProducts && (
-            <button
-              onClick={() => {
-                setViewingProducts(null);
-                setProducts([]);
-              }}
-              className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/25 flex items-center gap-2"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              Back to Categories
-            </button>
-          )}
-          <button
-            onClick={clearFilters}
-            className="px-4 py-2.5 border border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800/50 backdrop-blur-sm transition-all rounded-lg flex items-center gap-2"
-          >
-            <X className="w-4 h-4" />
-            Clear Filters
-          </button>
-          <button
-            onClick={handleRefresh}
-            className="p-2.5 border border-gray-700 hover:bg-gray-800/50 backdrop-blur-sm transition-all text-gray-300 hover:text-white rounded-lg"
-            title="Refresh"
-          >
-            <RefreshCw className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
+    <div className="bg-black rounded-2xl border border-gray-700 p-6 mb-8 shadow-lg">
+      
     </div>
   );
 
@@ -1336,7 +1173,7 @@ const Categories = () => {
 
     if (error) {
       return (
-        <div className="bg-gradient-to-br from-red-900/20 to-red-900/10 backdrop-blur-sm p-8 rounded-2xl border border-red-800/50 shadow-lg">
+        <div className="bg-black p-8 rounded-2xl border border-red-800/50 shadow-lg">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-500/20 to-red-600/20 flex items-center justify-center">
               <FolderTree className="w-6 h-6 text-red-400" />
@@ -1358,8 +1195,8 @@ const Categories = () => {
 
     if (filteredCategories.length === 0) {
       return (
-        <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/30 backdrop-blur-sm p-12 text-center border border-gray-700 rounded-2xl shadow-lg">
-          <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-gray-800 to-gray-900 mb-6 shadow-lg">
+        <div className="bg-black p-12 text-center border border-gray-700 rounded-2xl shadow-lg">
+          <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-black mb-6 shadow-lg">
             {viewingProducts ? (
               <ShoppingBag className="w-12 h-12 text-gray-600" />
             ) : (
@@ -1492,12 +1329,12 @@ const Categories = () => {
           {featuredCategories.map((category) => (
             <div
               key={category._id}
-              className="bg-gradient-to-br from-gray-800/50 to-gray-900/30 backdrop-blur-sm rounded-xl border border-gray-700 p-6 hover:border-blue-500/50 transition-all duration-300 group hover:shadow-xl hover:shadow-blue-500/10"
+              className="bg-black rounded-xl border border-gray-700 p-6 hover:border-blue-500/50 transition-all duration-300 group hover:shadow-xl hover:shadow-blue-500/10"
             >
               <div className="flex items-center gap-4 mb-5">
                 <div className="relative">
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-blue-600/20 rounded-lg blur-xl"></div>
-                  <div className="relative w-16 h-16 rounded-lg bg-gradient-to-br from-gray-900 to-gray-800 border border-gray-700 flex items-center justify-center shadow-lg">
+                  <div className="relative w-16 h-16 rounded-lg bg-black border border-gray-700 flex items-center justify-center shadow-lg">
                     <Crown className="w-8 h-8 text-blue-400" />
                   </div>
                 </div>
@@ -1506,18 +1343,15 @@ const Categories = () => {
                     <h3 className="text-xl font-bold text-white group-hover:text-blue-300 transition-colors">
                       {category.name}
                     </h3>
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-amber-500/20 to-amber-600/20 text-amber-300 text-xs font-semibold rounded-full border border-amber-500/30">
-                      <Award className="w-3 h-3" />
-                      Featured
-                    </span>
+                 
                   </div>
                   <div className="flex items-center gap-3">
-                    <p className="text-sm text-gray-400 bg-gray-900/50 backdrop-blur-sm px-3 py-1 rounded-full border border-gray-700">
+                    <p className="text-sm text-gray-400 bg-black px-3 py-1 rounded-full border border-gray-700">
                       {category.productCount || 0} products
                     </p>
                     {category.children && category.children.length > 0 && (
-                      <p className="text-sm text-blue-300 bg-blue-900/20 backdrop-blur-sm px-3 py-1 rounded-full border border-blue-700/30">
-                        {category.children.length} subs
+                      <p className="text-sm text-blue-300 bg-blue-900/20 px-3 py-1 rounded-full border border-blue-700/30">
+                        {category.children.length} 
                       </p>
                     )}
                   </div>
@@ -1554,12 +1388,12 @@ const Categories = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-900 to-gray-950">
+    <div className="min-h-screen bg-black">
       {/* Hero Section with Picture Banner */}
       {renderHeroBanner()}
 
       {/* Filters Bar */}
-      <div className="sticky top-0 z-40 bg-gradient-to-b from-gray-900/95 to-gray-900/80 backdrop-blur-xl border-b border-gray-800/50 shadow-xl">
+      <div className="sticky top-0 z-40 bg-black/95 backdrop-blur-xl border-b border-gray-800/50 shadow-xl">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -1575,71 +1409,9 @@ const Categories = () => {
               </span>
             </div>
             
-            {!viewingProducts && (
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => handleFilterChange("type", "main")}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    filters.type === "main"
-                      ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/25"
-                      : "bg-gray-800/50 backdrop-blur-sm text-gray-300 hover:text-white hover:bg-gray-800 border border-gray-700"
-                  }`}
-                >
-                  <span className="flex items-center gap-1.5">
-                    <Crown className="w-4 h-4" />
-                    Main
-                  </span>
-                </button>
-                <button
-                  onClick={() => handleFilterChange("type", "sub")}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    filters.type === "sub"
-                      ? "bg-gradient-to-r from-purple-600 to-purple-500 text-white shadow-lg shadow-purple-500/25"
-                      : "bg-gray-800/50 backdrop-blur-sm text-gray-300 hover:text-white hover:bg-gray-800 border border-gray-700"
-                  }`}
-                >
-                  <span className="flex items-center gap-1.5">
-                    <FolderOpen className="w-4 h-4" />
-                    Sub
-                  </span>
-                </button>
-                
-                <button
-                  onClick={() => handleFilterChange("featured", "featured")}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    filters.featured === "featured"
-                      ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg shadow-amber-500/25"
-                      : "bg-gray-800/50 backdrop-blur-sm text-gray-300 hover:text-white hover:bg-gray-800 border border-gray-700"
-                  }`}
-                >
-                  <span className="flex items-center gap-1.5">
-                    <Award className="w-4 h-4" />
-                    Featured
-                  </span>
-                </button>
-                
-                <button
-                  onClick={() => {
-                    setExpandedCategory(null);
-                    setViewingProducts(null);
-                  }}
-                  className="px-4 py-2 bg-gray-800/50 backdrop-blur-sm text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg border border-gray-700 flex items-center gap-1.5"
-                >
-                  <ChevronsUp className="w-4 h-4" />
-                  Collapse All
-                </button>
-              </div>
-            )}
+            
 
-            <div className="text-sm bg-gray-800/50 backdrop-blur-sm px-4 py-2 rounded-lg border border-gray-700">
-              <span className="text-gray-300">Showing </span>
-              <span className="font-semibold text-white">
-                {viewingProducts ? products.length : filteredCategories.length}
-              </span>
-              <span className="text-gray-300">
-                {viewingProducts ? " products" : " categories"}
-              </span>
-            </div>
+         
           </div>
         </div>
       </div>
@@ -1677,7 +1449,7 @@ const Categories = () => {
                 </button>
                 <button
                   onClick={() => window.open('/store', '_blank')}
-                  className="px-6 py-3 bg-gray-800/50 hover:bg-gray-800 text-gray-300 rounded-lg border border-gray-700 transition-all duration-300 hover:border-gray-600 flex items-center gap-2"
+                  className="px-6 py-3 bg-black hover:bg-gray-900 text-gray-300 rounded-lg border border-gray-700 transition-all duration-300 hover:border-gray-600 flex items-center gap-2"
                 >
                   <Globe className="w-4 h-4" />
                   Visit Store

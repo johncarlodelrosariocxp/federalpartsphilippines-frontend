@@ -13,6 +13,9 @@ import {
   TrendingDown,
   FolderTree,
   RefreshCw,
+  AlertCircle,
+  CheckCircle,
+  ChevronRight,
 } from "lucide-react";
 import { categoryAPI } from "../services/api";
 import { toast } from "react-hot-toast";
@@ -22,25 +25,38 @@ const Home = () => {
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [categories, setCategories] = useState([]);
   const [retryCount, setRetryCount] = useState(0);
+  const [apiStatus, setApiStatus] = useState("pending"); // pending, success, error
+  const [usingFallback, setUsingFallback] = useState(false);
 
-  // Fetch categories on component mount
+  // Fetch categories on component mount and when retryCount changes
   useEffect(() => {
     fetchCategories();
-  }, []);
+  }, [retryCount]);
 
   const fetchCategories = async () => {
     try {
       setCategoriesLoading(true);
+      setApiStatus("pending");
       console.log("Fetching categories...");
 
       // Try different approaches to get categories
       let categoriesData = [];
+      let isFallback = false;
 
       try {
-        // Approach 1: Direct API call
+        // First, check if API is reachable
+        const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+        const healthCheck = await fetch(`${API_BASE_URL}/api/health`);
+        
+        if (!healthCheck.ok) {
+          throw new Error("API not reachable");
+        }
+
+        // Approach 1: Use categoryAPI service
         const response = await categoryAPI.getAll();
         console.log("API Response:", response);
 
+        // Parse response based on different possible structures
         if (response?.success && response.data) {
           categoriesData = response.data;
         } else if (response?.data && Array.isArray(response.data)) {
@@ -49,55 +65,106 @@ const Home = () => {
           categoriesData = response.categories;
         } else if (Array.isArray(response)) {
           categoriesData = response;
+        } else if (response?.success === false && response.message) {
+          throw new Error(response.message);
+        } else {
+          throw new Error("Invalid response format");
         }
+
+        setApiStatus("success");
+        setUsingFallback(false);
       } catch (apiError) {
-        console.log("First approach failed, trying fallback...", apiError);
-
-        // Approach 2: Try with direct axios call
+        console.log("API approach failed, trying fallback...", apiError);
+        
+        // Approach 2: Direct fetch to categories endpoint
         try {
-          const API_BASE_URL =
-            import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-          const fallbackResponse = await fetch(`${API_BASE_URL}/categories`);
+          const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+          const fallbackResponse = await fetch(`${API_BASE_URL}/api/categories`);
+          
+          if (!fallbackResponse.ok) {
+            throw new Error(`HTTP ${fallbackResponse.status}`);
+          }
+          
           const data = await fallbackResponse.json();
-
+          
           if (data?.success && data.data) {
             categoriesData = data.data;
           } else if (Array.isArray(data)) {
             categoriesData = data;
+          } else if (data?.categories) {
+            categoriesData = data.categories;
+          } else {
+            throw new Error("Invalid fallback response");
           }
+          
+          setApiStatus("success");
+          setUsingFallback(false);
         } catch (fetchError) {
           console.log("Fallback also failed:", fetchError);
           // Use hardcoded categories as last resort
           categoriesData = getHardcodedCategories();
+          isFallback = true;
+          setApiStatus("error");
+          setUsingFallback(true);
         }
       }
 
       console.log("Processed categories data:", categoriesData);
 
-      // Process categories with images
+      // Process categories with images and subcategories
       const processedCategories = categoriesData
-        .map((cat) => ({
-          _id: cat._id || Math.random().toString(36).substr(2, 9),
-          name: cat.name || "Unnamed Category",
-          icon: getCategoryIcon(cat.name),
-          count: `${cat.productCount || cat.count || 0} items`,
-          image: getCategoryImage(cat),
-          slug:
-            cat.slug ||
-            cat.name?.toLowerCase().replace(/\s+/g, "-") ||
-            "category",
-          title: cat.name || "Category",
-          description: cat.description || "",
-        }))
-        .slice(0, 5); // Take only first 5 categories for display
+        .filter(cat => cat && cat.name) // Filter out invalid categories
+        .map((cat) => {
+          const categoryName = cat.name || "Unnamed Category";
+          const icon = getCategoryIcon(categoryName);
+          const image = getCategoryImage(cat);
+          const slug = cat.slug || categoryName.toLowerCase().replace(/\s+/g, "-").replace(/[^\w-]/g, "") || "category";
+          
+          // Get subcategories from the category data
+          const subcategories = cat.subcategories || cat.subCategories || 
+                              (cat.children && Array.isArray(cat.children) ? cat.children : []);
+          
+          // Process subcategories if they exist
+          const processedSubcategories = Array.isArray(subcategories) 
+            ? subcategories
+                .filter(sub => sub && sub.name)
+                .map(sub => ({
+                  _id: sub._id || Math.random().toString(36).substr(2, 9),
+                  name: sub.name || "Unnamed Subcategory",
+                  slug: sub.slug || sub.name.toLowerCase().replace(/\s+/g, "-").replace(/[^\w-]/g, ""),
+                  productCount: sub.productCount || sub.count || 0
+                }))
+                .slice(0, 4) // Limit to 4 subcategories for display
+            : [];
+
+          return {
+            _id: cat._id || Math.random().toString(36).substr(2, 9),
+            name: categoryName,
+            icon: icon,
+            count: `${cat.productCount || cat.count || cat.items || 0} items`,
+            image: image,
+            slug: slug,
+            title: categoryName,
+            description: cat.description || "",
+            subcategories: processedSubcategories,
+            subcategoryCount: processedSubcategories.length,
+            originalData: cat // Keep original data for debugging
+          };
+        })
+        .slice(0, 6); // Take only first 6 categories for display
 
       console.log("Final processed categories:", processedCategories);
       setCategories(processedCategories);
+      
+      if (processedCategories.length > 0) {
+        toast.success(`Loaded ${processedCategories.length} categories`);
+      }
     } catch (error) {
       console.error("Error fetching categories:", error);
       toast.error("Failed to load categories");
+      setApiStatus("error");
 
-      // Use hardcoded categories as fallback
+      // Use hardcoded categories as fallback with subcategories
       const hardcodedCategories = getHardcodedCategories();
       const processedHardcoded = hardcodedCategories.map((cat, index) => ({
         _id: `hardcoded-${index}`,
@@ -107,57 +174,100 @@ const Home = () => {
         slug: cat.slug,
         title: cat.name,
         count: cat.count,
+        description: cat.description,
+        subcategories: cat.subcategories || [],
+        subcategoryCount: cat.subcategories?.length || 0,
+        isFallback: true
       }));
 
       setCategories(processedHardcoded);
+      setUsingFallback(true);
     } finally {
       setCategoriesLoading(false);
     }
   };
 
-  // Hardcoded fallback categories
+  // Hardcoded fallback categories with subcategories
   const getHardcodedCategories = () => {
     return [
       {
         name: "Engine Parts",
         count: "42 items",
-        image:
-          "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=160&fit=crop",
+        image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=200&fit=crop",
         slug: "engine-parts",
         description: "High-performance engine components and parts",
+        subcategories: [
+          { name: "Pistons", slug: "pistons", count: 8 },
+          { name: "Cylinders", slug: "cylinders", count: 6 },
+          { name: "Crankshafts", slug: "crankshafts", count: 4 },
+          { name: "Valves", slug: "valves", count: 12 }
+        ]
       },
       {
-        name: "Brakes",
+        name: "Brake Systems",
         count: "28 items",
-        image:
-          "https://images.unsplash.com/photo-1558981806-ec527fa0b4c9?w=400&h=160&fit=crop",
-        slug: "brakes",
-        description: "Brake systems and components",
+        image: "https://images.unsplash.com/photo-1558981806-ec527fa0b4c9?w=400&h=200&fit=crop",
+        slug: "brake-systems",
+        description: "Complete brake systems and components",
+        subcategories: [
+          { name: "Brake Pads", slug: "brake-pads", count: 10 },
+          { name: "Brake Discs", slug: "brake-discs", count: 6 },
+          { name: "Brake Calipers", slug: "brake-calipers", count: 5 },
+          { name: "Brake Lines", slug: "brake-lines", count: 7 }
+        ]
       },
       {
-        name: "Tires",
+        name: "Tires & Wheels",
         count: "15 items",
-        image:
-          "https://images.unsplash.com/photo-1603584173870-7f23fdae1b7a?w=400&h=160&fit=crop",
-        slug: "tires",
+        image: "https://images.unsplash.com/photo-1603584173870-7f23fdae1b7a?w=400&h=200&fit=crop",
+        slug: "tires-wheels",
         description: "Tires and wheels for all motorcycle types",
+        subcategories: [
+          { name: "Sport Tires", slug: "sport-tires", count: 5 },
+          { name: "Off-road Tires", slug: "offroad-tires", count: 4 },
+          { name: "Alloy Wheels", slug: "alloy-wheels", count: 3 },
+          { name: "Spoked Wheels", slug: "spoked-wheels", count: 3 }
+        ]
       },
       {
         name: "Electrical",
         count: "36 items",
-        image:
-          "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=400&h=160&fit=crop",
+        image: "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=400&h=200&fit=crop",
         slug: "electrical",
         description: "Electrical components and systems",
+        subcategories: [
+          { name: "Batteries", slug: "batteries", count: 8 },
+          { name: "Alternators", slug: "alternators", count: 6 },
+          { name: "Lighting", slug: "lighting", count: 12 },
+          { name: "Wiring Harnesses", slug: "wiring-harnesses", count: 10 }
+        ]
+      },
+      {
+        name: "Suspension",
+        count: "24 items",
+        image: "https://images.unsplash.com/photo-1566473359723-7e3e4d6c8c1b?w=400&h=200&fit=crop",
+        slug: "suspension",
+        description: "Shock absorbers and suspension parts",
+        subcategories: [
+          { name: "Front Forks", slug: "front-forks", count: 8 },
+          { name: "Rear Shocks", slug: "rear-shocks", count: 6 },
+          { name: "Swingarms", slug: "swingarms", count: 4 },
+          { name: "Suspension Springs", slug: "suspension-springs", count: 6 }
+        ]
       },
       {
         name: "Accessories",
         count: "58 items",
-        image:
-          "https://images.unsplash.com/photo-1580261450035-4d4f04b7b4c5?w=400&h=160&fit=crop",
+        image: "https://images.unsplash.com/photo-1580261450035-4d4f04b7b4c5?w=400&h=200&fit=crop",
         slug: "accessories",
         description: "Motorcycle accessories and tools",
-      },
+        subcategories: [
+          { name: "Handlebars", slug: "handlebars", count: 12 },
+          { name: "Seats", slug: "seats", count: 8 },
+          { name: "Luggage", slug: "luggage", count: 15 },
+          { name: "Tools", slug: "tools", count: 23 }
+        ]
+      }
     ];
   };
 
@@ -169,13 +279,10 @@ const Home = () => {
     if (name.includes("engine") || name.includes("motor")) return Settings;
     if (name.includes("brake")) return Disc;
     if (name.includes("tire") || name.includes("wheel")) return Circle;
-    if (
-      name.includes("electrical") ||
-      name.includes("battery") ||
-      name.includes("light")
-    )
-      return Cable;
+    if (name.includes("suspension") || name.includes("shock")) return TrendingDown;
+    if (name.includes("electrical") || name.includes("battery") || name.includes("light")) return Cable;
     if (name.includes("accessory") || name.includes("tool")) return Wrench;
+    if (name.includes("exhaust") || name.includes("muffler")) return Flame;
     return FolderTree;
   };
 
@@ -209,27 +316,21 @@ const Home = () => {
       return `${API_BASE_URL}${category.imageUrl}`;
     }
 
-    // Fallback to hardcoded image based on name
+    // Fallback to Unsplash image based on category name
     const name = (category?.name || "").toLowerCase();
-    if (name.includes("engine"))
-      return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=160&fit=crop";
-    if (name.includes("brake"))
-      return "https://images.unsplash.com/photo-1558981806-ec527fa0b4c9?w=400&h=160&fit=crop";
-    if (name.includes("tire") || name.includes("wheel"))
-      return "https://images.unsplash.com/photo-1603584173870-7f23fdae1b7a?w=400&h=160&fit=crop";
-    if (
-      name.includes("electrical") ||
-      name.includes("battery") ||
-      name.includes("light")
-    )
-      return "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=400&h=160&fit=crop";
-    if (name.includes("accessory") || name.includes("tool"))
-      return "https://images.unsplash.com/photo-1580261450035-4d4f04b7b4c5?w=400&h=160&fit=crop";
+    if (name.includes("engine")) return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=200&fit=crop";
+    if (name.includes("brake")) return "https://images.unsplash.com/photo-1558981806-ec527fa0b4c9?w=400&h=200&fit=crop";
+    if (name.includes("tire") || name.includes("wheel")) return "https://images.unsplash.com/photo-1603584173870-7f23fdae1b7a?w=400&h=200&fit=crop";
+    if (name.includes("suspension")) return "https://images.unsplash.com/photo-1566473359723-7e3e4d6c8c1b?w=400&h=200&fit=crop";
+    if (name.includes("electrical") || name.includes("battery") || name.includes("light")) return "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=400&h=200&fit=crop";
+    if (name.includes("accessory") || name.includes("tool")) return "https://images.unsplash.com/photo-1580261450035-4d4f04b7b4c5?w=400&h=200&fit=crop";
+    if (name.includes("exhaust")) return "https://images.unsplash.com/photo-1558981806-ec527fa0b4c9?w=400&h=200&fit=crop";
 
-    // Default image
-    return "https://images.unsplash.com/photo-1566473359723-7e3e4d6c8c1b?w=400&h=160&fit=crop";
+    // Default motorcycle parts image
+    return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=200&fit=crop";
   };
 
+  // Intersection Observer for animations
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -253,318 +354,237 @@ const Home = () => {
   }, []);
 
   const handleRetry = () => {
-    setRetryCount((prev) => prev + 1);
-    fetchCategories();
+    if (retryCount < 3) {
+      setRetryCount((prev) => prev + 1);
+    } else {
+      toast.error("Maximum retry attempts reached. Using fallback data.");
+      const hardcodedCategories = getHardcodedCategories();
+      const processed = hardcodedCategories.map((cat, index) => ({
+        _id: `hardcoded-${index}`,
+        ...cat,
+        icon: getCategoryIcon(cat.name),
+        image: cat.image,
+        slug: cat.slug,
+        title: cat.name,
+        count: cat.count,
+        subcategories: cat.subcategories || [],
+        subcategoryCount: cat.subcategories?.length || 0,
+        isFallback: true
+      }));
+      setCategories(processed);
+      setUsingFallback(true);
+    }
   };
 
-  const animationStyles = `
-    <style>
-      @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-      }
-      
-      @keyframes fadeInUp {
-        from {
-          opacity: 0;
-          transform: translateY(30px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-      
-      @keyframes slideDown {
-        from {
-          opacity: 0;
-          transform: translateY(-20px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-      
-      @keyframes slideLeft {
-        from {
-          opacity: 0;
-          transform: translateX(50px);
-        }
-        to {
-          opacity: 1;
-          transform: translateX(0);
-        }
-      }
-      
-      @keyframes slideRight {
-        from {
-          opacity: 0;
-          transform: translateX(-50px);
-        }
-        to {
-          opacity: 1;
-          transform: translateX(0);
-        }
-      }
-      
-      @keyframes scaleIn {
-        from {
-          opacity: 0;
-          transform: scale(1.1);
-        }
-        to {
-          opacity: 1;
-          transform: scale(1);
-        }
-      }
-      
-      .animate-fade-in {
-        animation: fadeIn 1s ease forwards;
-      }
-      
-      .animate-fade-up {
-        animation: fadeInUp 0.8s ease forwards;
-        opacity: 0;
-      }
-      
-      .animate-slide-down {
-        animation: slideDown 0.8s ease forwards;
-        opacity: 0;
-      }
-      
-      .animate-slide-left {
-        animation: slideLeft 0.8s ease forwards;
-        opacity: 0;
-      }
-      
-      .animate-slide-right {
-        animation: slideRight 0.8s ease forwards;
-        opacity: 0;
-      }
-      
-      .animate-scale-in {
-        animation: scaleIn 1.2s ease forwards;
-        opacity: 0;
-      }
-      
-      .delay-100 {
-        animation-delay: 100ms;
-      }
-      
-      .delay-200 {
-        animation-delay: 200ms;
-      }
-      
-      .delay-300 {
-        animation-delay: 300ms;
-      }
-      
-      .delay-400 {
-        animation-delay: 400ms;
-      }
-      
-      .delay-500 {
-        animation-delay: 500ms;
-      }
-      
-      .delay-600 {
-        animation-delay: 600ms;
-      }
-      
-      .delay-700 {
-        animation-delay: 700ms;
-      }
-      
-      .delay-800 {
-        animation-delay: 800ms;
-      }
-      
-      .card-hover {
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-      }
-      
-      .card-hover:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 20px 40px rgba(220, 38, 38, 0.2);
-      }
-      
-      .btn-primary {
-        transition: all 0.3s ease;
-        position: relative;
-        overflow: hidden;
-      }
-      
-      .btn-primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 20px rgba(220, 38, 38, 0.3);
-      }
-      
-      .btn-secondary {
-        transition: all 0.3s ease;
-      }
-      
-      .btn-secondary:hover {
-        transform: translateY(-2px);
-      }
-      
-      .section-visible .animate-on-visible {
-        opacity: 1 !important;
-        animation-play-state: running !important;
-      }
-      
-      .animate-on-visible {
-        opacity: 0;
-        animation-play-state: paused;
-      }
-      
-      .text-bg-overlay {
-        background: rgba(0, 0, 0, 0.6);
-        padding: 2rem;
-        border-radius: 1rem;
-        backdrop-filter: blur(4px);
-      }
-      
-      .glow-border {
-        position: relative;
-        border: 2px solid transparent;
-        background: linear-gradient(45deg, #1f2937, #111827) padding-box,
-                    linear-gradient(45deg, #dc2626, #7c2d12, #dc2626) border-box;
-        animation: border-glow 3s ease-in-out infinite alternate;
-      }
-      
-      @keyframes border-glow {
-        0% {
-          box-shadow: 0 0 10px rgba(220, 38, 38, 0.3);
-        }
-        100% {
-          box-shadow: 0 0 20px rgba(220, 38, 38, 0.6), 0 0 40px rgba(220, 38, 38, 0.2);
-        }
-      }
-      
-      /* Container custom styles */
-      .container-custom {
-        max-width: 1280px;
-        margin: 0 auto;
-        padding: 0 1rem;
-      }
-      
-      .section-padding {
-        padding: 5rem 0;
-      }
+  const handleUseDemoData = () => {
+    const hardcodedCategories = getHardcodedCategories();
+    const processed = hardcodedCategories.map((cat, index) => ({
+      _id: `demo-${index}`,
+      ...cat,
+      icon: getCategoryIcon(cat.name),
+      image: cat.image,
+      slug: cat.slug,
+      title: cat.name,
+      count: cat.count,
+      subcategories: cat.subcategories || [],
+      subcategoryCount: cat.subcategories?.length || 0,
+      isDemo: true
+    }));
+    setCategories(processed);
+    setUsingFallback(true);
+    toast.success("Using demo categories");
+  };
 
-      /* Loading and error states */
-      .loading-skeleton {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(288px, 1fr));
-        gap: 1.5rem;
-        padding: 1rem 0;
+  // Category Card Component
+  const CategoryCard = ({ category, index }) => {
+    const [imgError, setImgError] = useState(false);
+    const IconComponent = category.icon || FolderTree;
+
+    const handleImageError = () => {
+      console.log(`Image failed to load for ${category.title}`);
+      setImgError(true);
+    };
+
+    // Get final image URL
+    const getFinalImageUrl = () => {
+      if (imgError) {
+        // Use fallback image based on category name
+        const name = (category.title || "").toLowerCase();
+        if (name.includes("engine")) return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=200&fit=crop";
+        if (name.includes("brake")) return "https://images.unsplash.com/photo-1558981806-ec527fa0b4c9?w=400&h=200&fit=crop";
+        if (name.includes("tire") || name.includes("wheel")) return "https://images.unsplash.com/photo-1603584173870-7f23fdae1b7a?w=400&h=200&fit=crop";
+        return "https://images.unsplash.com/photo-1566473359723-7e3e4d6c8c1b?w=400&h=200&fit=crop";
       }
-      
-      .product-card-skeleton {
-        background: linear-gradient(90deg, #2d3748 25%, #374151 50%, #2d3748 75%);
-        background-size: 200% 100%;
-        animation: loading 1.5s infinite;
-        border-radius: 0.75rem;
-        height: 400px;
-      }
-      
-      @keyframes loading {
-        0% {
-          background-position: 200% 0;
-        }
-        100% {
-          background-position: -200% 0;
-        }
-      }
-      
-      .error-message {
-        background-color: rgba(220, 38, 38, 0.1);
-        border: 1px solid rgba(220, 38, 38, 0.3);
-        border-radius: 0.5rem;
-        padding: 1rem;
-        margin: 2rem 0;
-      }
-      
-      /* About section highlights */
-      .highlight-card {
-        transition: all 0.3s ease;
-        border-left: 4px solid transparent;
-      }
-      
-      .highlight-card:hover {
-        transform: translateX(5px);
-        border-left-color: #dc2626;
-        background: linear-gradient(90deg, rgba(220, 38, 38, 0.1) 0%, rgba(31, 41, 55, 0.8) 100%);
-      }
-      
-      .quality-tagline {
-        background: linear-gradient(90deg, #dc2626, #7c2d12);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        font-weight: bold;
-        letter-spacing: 0.05em;
-      }
-      
-      /* Category loading skeleton */
-      .category-skeleton {
-        background: linear-gradient(90deg, #2d3748 25%, #374151 50%, #2d3748 75%);
-        background-size: 200% 100%;
-        animation: loading 1.5s infinite;
-        border-radius: 0.75rem;
-        min-height: 200px;
-      }
-      
-      /* Image styles */
-      .category-image {
-        width: 100%;
-        height: 160px;
-        object-fit: cover;
-        transition: transform 0.5s ease;
-      }
-      
-      .category-image:hover {
-        transform: scale(1.05);
-      }
-      
-      /* Responsive adjustments */
-      @media (max-width: 768px) {
-        .section-padding {
-          padding: 3rem 0;
-        }
-        
-        .container-custom {
-          padding: 0 1rem;
-        }
-        
-        .loading-skeleton {
-          grid-template-columns: repeat(2, 1fr);
-        }
-        
-        .category-image {
-          height: 140px;
-        }
-      }
-      
-      @media (max-width: 640px) {
-        .loading-skeleton {
-          grid-template-columns: 1fr;
-        }
-        
-        .category-image {
-          height: 120px;
-        }
-      }
-    </style>
-  `;
+      return category.image;
+    };
+
+    return (
+      <div
+        className="animate-fade-up animate-on-visible"
+        style={{ animationDelay: `${index * 100 + 300}ms` }}
+      >
+        <Link
+          to={`/categories/${category.slug}`}
+          className="group block bg-gray-900 rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-800"
+        >
+          <div className="relative h-48 overflow-hidden">
+            <img
+              src={getFinalImageUrl()}
+              alt={category.title}
+              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+              loading="lazy"
+              onError={handleImageError}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+            
+            {/* Fallback badge */}
+            {(category.isFallback || category.isDemo) && (
+              <div className="absolute top-3 right-3 bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded-full">
+                Demo
+              </div>
+            )}
+            
+            {/* Subcategory count badge */}
+            {category.subcategoryCount > 0 && (
+              <div className="absolute top-3 left-3 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+                {category.subcategoryCount} Subcategories
+              </div>
+            )}
+          </div>
+          
+          <div className="p-5">
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-600/10 rounded-lg">
+                  <IconComponent className="w-5 h-5 text-red-500" />
+                </div>
+                <h3 className="font-bold text-white text-lg group-hover:text-red-400 transition-colors">
+                  {category.title}
+                </h3>
+              </div>
+            </div>
+            
+            <p className="text-sm text-gray-400 mb-3">
+              {category.count}
+            </p>
+            
+            {category.description && (
+              <p className="text-sm text-gray-500 line-clamp-2 mb-4">
+                {category.description}
+              </p>
+            )}
+            
+            {/* Subcategories Section */}
+            {category.subcategories && category.subcategories.length > 0 && (
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    Subcategories
+                  </h4>
+                  <span className="text-xs text-gray-500">
+                    {category.subcategories.length} shown
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  {category.subcategories.map((sub, idx) => (
+                    <div 
+                      key={sub._id || idx}
+                      className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-gray-800/50 transition-colors group/sub"
+                    >
+                      <div className="flex items-center gap-2">
+                        <ChevronRight className="w-3 h-3 text-gray-500 group-hover/sub:text-red-500 transition-colors" />
+                        <span className="text-sm text-gray-300 group-hover/sub:text-white transition-colors">
+                          {sub.name}
+                        </span>
+                      </div>
+                      <span className="text-xs text-gray-500">
+                        {sub.productCount || sub.count || 0} items
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+         
+          </div>
+        </Link>
+      </div>
+    );
+  };
 
   return (
     <>
-      <div dangerouslySetInnerHTML={{ __html: animationStyles }} />
+      {/* Animation Styles */}
+      <style>
+        {`
+          @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
+          
+          @keyframes fadeInUp {
+            from {
+              opacity: 0;
+              transform: translateY(30px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+          
+          @keyframes slideDown {
+            from {
+              opacity: 0;
+              transform: translateY(-20px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+          
+          .animate-fade-in {
+            animation: fadeIn 1s ease forwards;
+          }
+          
+          .animate-fade-up {
+            animation: fadeInUp 0.8s ease forwards;
+            opacity: 0;
+          }
+          
+          .animate-slide-down {
+            animation: slideDown 0.8s ease forwards;
+            opacity: 0;
+          }
+          
+          .animate-on-visible {
+            opacity: 0;
+            animation-play-state: paused;
+          }
+          
+          .section-visible .animate-on-visible {
+            opacity: 1 !important;
+            animation-play-state: running !important;
+          }
+          
+          .category-skeleton {
+            background: linear-gradient(90deg, #1f2937 25%, #374151 50%, #1f2937 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: 0.75rem;
+          }
+          
+          @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+          }
+        `}
+      </style>
 
-      {/* Hero Section - Banner only */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+      {/* Hero Section with black background */}
+      <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black">
         <div className="absolute inset-0 z-0">
           <img
             src="/banner/FRONT PAGE.jpg"
@@ -578,164 +598,147 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Categories Section */}
+      {/* Categories Section with black background */}
       <section
         ref={(el) => (sectionRefs.current[0] = el)}
         id="categories"
-        className="section-padding bg-gradient-to-b from-gray-900 to-black"
+        className="py-16 bg-black"
       >
-        <div className="container-custom">
-          <div className="flex justify-between items-center mb-12">
-            <h2 className="font-bebas text-4xl text-white animate-fade-up delay-100 animate-on-visible">
-              Product Categories
-            </h2>
+        <div className="container mx-auto px-4 max-w-7xl">
+          {/* Header with API Status */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-4">
+            <div>
+              <h2 className="font-bebas text-4xl md:text-5xl text-white mb-2 animate-fade-up animate-on-visible">
+                Product Categories
+              </h2>
+            
+            </div>
+            
             <Link
               to="/categories"
-              className="text-red-600 hover:text-red-700 font-semibold flex items-center gap-2 animate-fade-up delay-200 animate-on-visible"
+              className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 hover:scale-105 animate-fade-up animate-on-visible"
             >
-              View All
-              <ArrowRight className="w-4 h-4" />
+              View All Categories
+              <ArrowRight className="w-5 h-5" />
             </Link>
           </div>
 
+          {/* Categories Grid */}
           {categoriesLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-              {[1, 2, 3, 4, 5].map((index) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+              {Array.from({ length: 6 }).map((_, index) => (
                 <div
                   key={index}
-                  className="animate-fade-up animate-on-visible category-skeleton"
+                  className="category-skeleton h-80 animate-fade-up animate-on-visible"
                   style={{ animationDelay: `${index * 100 + 300}ms` }}
-                >
-                  <div className="relative h-32 bg-gray-700 rounded-t-xl"></div>
-                  <div className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-6 h-6 bg-gray-600 rounded-full"></div>
-                      <div className="h-4 bg-gray-600 rounded w-24"></div>
-                    </div>
-                    <div className="mt-2 h-3 bg-gray-600 rounded w-16"></div>
-                  </div>
-                </div>
+                />
               ))}
             </div>
           ) : categories.length === 0 ? (
-            <div className="text-center py-12">
-              <FolderTree className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">
-                No categories available
+            <div className="text-center py-16">
+              <FolderTree className="w-24 h-24 mx-auto mb-6" />
+              <h3 className="text-2xl font-bold text-white mb-3">
+                No Categories Available
               </h3>
-              <p className="text-gray-400 mb-6">
+              <p className="text-gray-400 mb-8 max-w-md mx-auto">
                 {retryCount > 0
-                  ? "Still unable to fetch categories. Please check your backend connection."
-                  : "Categories will be displayed here once they are added."}
+                  ? "Unable to fetch categories. Please check your backend connection or use demo data."
+                  : "Categories will appear here once they are added to the system."}
               </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              
+              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                 <button
                   onClick={handleRetry}
-                  className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-medium inline-flex items-center gap-2 justify-center"
+                  disabled={retryCount >= 3}
+                  className={`px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-all ${
+                    retryCount >= 3
+                      ? "bg-gray-800 cursor-not-allowed"
+                      : "bg-red-600 hover:bg-red-700 hover:scale-105"
+                  }`}
                 >
-                  <RefreshCw className="w-4 h-4" />
-                  Try Again ({retryCount})
+                  <RefreshCw className={`w-4 h-4 ${retryCount >= 3 ? "" : "animate-spin"}`} />
+                  {retryCount >= 3 ? "Max Retries Reached" : `Try Again (${retryCount}/3)`}
                 </button>
+                
                 <button
-                  onClick={() => {
-                    const hardcodedCategories = getHardcodedCategories();
-                    const processed = hardcodedCategories.map((cat, index) => ({
-                      _id: `hardcoded-${index}`,
-                      ...cat,
-                      icon: getCategoryIcon(cat.name),
-                      image: cat.image,
-                      slug: cat.slug,
-                      title: cat.name,
-                      count: cat.count,
-                    }));
-                    setCategories(processed);
-                  }}
-                  className="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded-lg font-medium"
+                  onClick={handleUseDemoData}
+                  className="px-6 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg font-medium transition-all hover:scale-105"
                 >
                   Use Demo Categories
                 </button>
+                
+                <Link
+                  to="/admin/categories"
+                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-all hover:scale-105"
+                >
+                  Add Categories
+                </Link>
               </div>
+              
+              {retryCount > 0 && (
+                <div className="mt-8 p-4 bg-gray-900/50 rounded-lg max-w-lg mx-auto">
+                  <h4 className="text-white font-semibold mb-2">Troubleshooting Tips:</h4>
+                  <ul className="text-sm text-gray-400 space-y-1">
+                    <li>• Check if your backend server is running</li>
+                    <li>• Verify the API endpoint: {import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/categories</li>
+                    <li>• Ensure CORS is properly configured on the backend</li>
+                    <li>• Check browser console for detailed error messages</li>
+                  </ul>
+                </div>
+              )}
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
                 {categories.map((category, index) => (
-                  <div
-                    key={category._id || index}
-                    className="animate-fade-up animate-on-visible"
-                    style={{ animationDelay: `${index * 100 + 300}ms` }}
-                  >
-                    <Link
-                      to={`/categories/${category.slug}`}
-                      className="group rounded-xl shadow-lg overflow-hidden  block transition-all duration-300"
-                    >
-                      <div className="relative h-20overflow-hidden">
-                        <img
-                          src={category.image}
-                          alt={category.title}
-                          className="category-image w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                          loading="lazy"
-                          onError={(e) => {
-                            console.error(`Failed to load image for ${category.title}:`, category.image);
-                            e.target.onerror = null;
-                            // Fallback to default image based on category name
-                            const name = (category.title || "").toLowerCase();
-                            if (name.includes("engine")) {
-                              e.target.src = "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=160&fit=crop";
-                            } else if (name.includes("brake")) {
-                              e.target.src = "https://images.unsplash.com/photo-1558981806-ec527fa0b4c9?w=400&h=160&fit=crop";
-                            } else if (name.includes("tire") || name.includes("wheel")) {
-                              e.target.src = "https://images.unsplash.com/photo-1603584173870-7f23fdae1b7a?w=400&h=160&fit=crop";
-                            } else if (name.includes("electrical") || name.includes("battery") || name.includes("light")) {
-                              e.target.src = "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=400&h=160&fit=crop";
-                            } else if (name.includes("accessory") || name.includes("tool")) {
-                              e.target.src = "https://images.unsplash.com/photo-1580261450035-4d4f04b7b4c5?w=400&h=160&fit=crop";
-                            } else {
-                              e.target.src = "https://images.unsplash.com/photo-1566473359723-7e3e4d6c8c1b?w=400&h=160&fit=crop";
-                            }
-                          }}
-                        />
-                      </div>
-                      <div className="p-4">
-                        <div className="flex items-center gap-3">
-                          
-                          <h3 className="font-bold text-white">
-                            {category.title}
-                          </h3>
-                        </div>
-                        <p className="text-sm text-gray-400 mt-2">
-                          {category.count}
-                        </p>
-                        {category.description && (
-                          <p className="text-xs text-gray-500 mt-1 line-clamp-2">
-                            {category.description}
-                          </p>
-                        )}
-                      </div>
-                    </Link>
-                  </div>
+                  <CategoryCard key={category._id} category={category} index={index} />
                 ))}
               </div>
 
-              {/* Show message if using hardcoded categories */}
-              {categories.some((cat) => cat._id.includes("hardcoded")) && (
-                <div className="mt-4 text-center">
-                  <p className="text-yellow-500 text-sm">
-                    Showing demo categories. Real categories will load when API is connected.
-                  </p>
+              {/* Demo Data Notice */}
+              {usingFallback && (
+                <div className="mt-8 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0" />
+                    <div>
+                      <p className="text-yellow-500 font-medium">
+                        Showing demo categories with subcategories
+                      </p>
+                      <p className="text-yellow-400/80 text-sm mt-1">
+                        Real categories will load automatically when API connection is restored.
+                        <button 
+                          onClick={handleRetry}
+                          className="ml-2 underline hover:text-yellow-300 transition-colors"
+                        >
+                          Retry connection
+                        </button>
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
+
+              {/* View All Button for Mobile */}
+              <div className="mt-12 text-center lg:hidden">
+                <Link
+                  to="/categories"
+                  className="inline-flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-8 py-3 rounded-lg font-semibold transition-all duration-300 border border-gray-800"
+                >
+                  View All Categories
+                  <ArrowRight className="w-5 h-5" />
+                </Link>
+              </div>
             </>
           )}
         </div>
       </section>
 
-      {/* About Section */}
+      {/* About Section with black background */}
       <section
         ref={(el) => (sectionRefs.current[1] = el)}
-        className="section-padding bg-gradient-to-b from-black to-gray-900"
+        className="py-16 bg-black"
       >
-        <div className="container-custom">
+        <div className="container mx-auto px-4 max-w-7xl">
           <div className="text-center mb-12 animate-fade-up animate-on-visible">
             <h2 className="font-bebas text-5xl md:text-6xl text-white mb-4">
               Quality you can Trust. Price You Can Afford.
@@ -746,7 +749,7 @@ const Home = () => {
           </div>
 
           <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className="animate-slide-left animate-on-visible">
+            <div className="animate-slide-down animate-on-visible">
               <h2 className="font-bebas text-4xl text-white mb-6">
                 About Federal Parts
               </h2>
@@ -755,10 +758,7 @@ const Home = () => {
               </p>
 
               <div className="space-y-4">
-                <div
-                  style={{ animationDelay: "100ms" }}
-                  className="highlight-card flex items-center gap-4 p-4 bg-gray-800 rounded-lg animate-fade-up animate-on-visible"
-                >
+                <div className="flex items-center gap-4 p-4 bg-gray-900/50 rounded-lg hover:bg-gray-800 transition-colors animate-fade-up animate-on-visible border border-gray-800">
                   <Shield className="w-8 h-8 text-red-600 flex-shrink-0" />
                   <div>
                     <h4 className="font-bold text-white">
@@ -769,9 +769,9 @@ const Home = () => {
                     </p>
                   </div>
                 </div>
-                <div
+                <div 
+                  className="flex items-center gap-4 p-4 bg-gray-900/50 rounded-lg hover:bg-gray-800 transition-colors animate-fade-up animate-on-visible border border-gray-800"
                   style={{ animationDelay: "200ms" }}
-                  className="highlight-card flex items-center gap-4 p-4 bg-gray-800 rounded-lg animate-fade-up animate-on-visible"
                 >
                   <Target className="w-8 h-8 text-red-600 flex-shrink-0" />
                   <div>
@@ -781,9 +781,9 @@ const Home = () => {
                     </p>
                   </div>
                 </div>
-                <div
+                <div 
+                  className="flex items-center gap-4 p-4 bg-gray-900/50 rounded-lg hover:bg-gray-800 transition-colors animate-fade-up animate-on-visible border border-gray-800"
                   style={{ animationDelay: "300ms" }}
-                  className="highlight-card flex items-center gap-4 p-4 bg-gray-800 rounded-lg animate-fade-up animate-on-visible"
                 >
                   <TrendingDown className="w-8 h-8 text-red-600 flex-shrink-0" />
                   <div>
@@ -798,8 +798,8 @@ const Home = () => {
               </div>
             </div>
 
-            <div className="relative animate-slide-right animate-on-visible">
-              <div className="relative rounded-xl overflow-hidden shadow-2xl">
+            <div className="relative animate-fade-up animate-on-visible">
+              <div className="relative rounded-xl overflow-hidden shadow-2xl border border-gray-800">
                 <img
                   src="/wmremove-transformed (1).png"
                   alt="Motorcycle parts"

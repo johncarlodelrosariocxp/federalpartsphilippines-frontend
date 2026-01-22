@@ -81,7 +81,7 @@ const About = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100">
+    <div className="min-h-screen bg-black text-gray-100">
       {/* Added padding top here */}
       <div className="container-custom py-8 pt-30 md:pt-40">
         {/* Hero Section */}
@@ -103,9 +103,9 @@ const About = () => {
               <img
                 src="https://images.unsplash.com/photo-1580281657523-ef004bc5fd7e?w=800&h=600&fit=crop"
                 alt="Indonesia-Philippines business partnership"
-                className="rounded-2xl shadow-2xl border border-gray-700"
+                className="rounded-2xl shadow-2xl border border-gray-800"
               />
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-t from-gray-900/40 to-transparent" />
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-t from-black/40 to-transparent" />
               {/* Flags Badge */}
               <div className="absolute bottom-6 right-6 flex gap-2">
                 <div className="bg-white p-2 rounded-lg shadow-lg">
@@ -179,7 +179,7 @@ const About = () => {
             {partnershipBenefits.map((benefit, index) => (
               <div
                 key={index}
-                className="bg-gray-800 rounded-xl p-6 hover:shadow-2xl transition-all duration-300 border border-gray-700 hover:border-green-500/30"
+                className="bg-gray-900 rounded-xl p-6 hover:shadow-2xl transition-all duration-300 border border-gray-800 hover:border-green-500/30"
               >
                 <div className="flex items-center gap-4 mb-4">
                   <div className="bg-green-600 p-3 rounded-lg">
@@ -204,7 +204,7 @@ const About = () => {
             {values.map((value, index) => (
               <div
                 key={index}
-                className="bg-gray-800 rounded-xl p-6 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 border border-gray-700 hover:border-blue-500/30"
+                className="bg-gray-900 rounded-xl p-6 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 border border-gray-800 hover:border-blue-500/30"
               >
                 <div className="flex items-center gap-4 mb-4">
                   <div className="bg-blue-600 p-3 rounded-lg">
@@ -227,7 +227,7 @@ const About = () => {
           </h2>
           <div className="grid lg:grid-cols-2 gap-8">
             {/* Map */}
-            <div className="rounded-2xl overflow-hidden shadow-xl h-[400px] border border-gray-700">
+            <div className="rounded-2xl overflow-hidden shadow-xl h-[400px] border border-gray-800">
               <iframe
                 src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3859.334668704279!2d120.936162!3d14.764444!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397ad7c0871c3fd%3A0x4c1eceb2a4b8f8b8!2sFochun%20Warehouse%2C%20Balagtas%2C%20Bulacan!5e0!3m2!1sen!2sph!4v1647923456789!5m2!1sen!2sph"
                 width="100%"
@@ -242,7 +242,7 @@ const About = () => {
             </div>
 
             {/* Location Details */}
-            <div className="bg-gray-800 rounded-2xl p-8 border border-gray-700">
+            <div className="bg-gray-900 rounded-2xl p-8 border border-gray-800">
               <div className="flex items-center gap-3 mb-6">
                 <div className="bg-green-600 p-3 rounded-lg">
                   <Building className="w-6 h-6 text-white" />
@@ -327,7 +327,7 @@ const About = () => {
         </div>
 
         {/* Partnership Call to Action */}
-        <div className="text-center bg-gray-800 rounded-2xl p-8 md:p-12 border border-gray-700">
+        <div className="text-center bg-gray-900 rounded-2xl p-8 md:p-12 border border-gray-800">
           <h2 className="font-bebas text-4xl md:text-5xl mb-6 text-white">
             Interested in Becoming a Dealer?
           </h2>
@@ -347,7 +347,7 @@ const About = () => {
             </Link>
             <Link
               to="/contact"
-              className="bg-gray-700 hover:bg-gray-600 text-white font-medium py-3 px-8 rounded-lg transition-colors duration-300 text-lg border border-gray-600"
+              className="bg-gray-800 hover:bg-gray-700 text-white font-medium py-3 px-8 rounded-lg transition-colors duration-300 text-lg border border-gray-700"
             >
               Contact Sales
             </Link>

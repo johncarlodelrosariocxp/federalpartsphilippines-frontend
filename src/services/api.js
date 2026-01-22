@@ -1,9 +1,8 @@
-// src/services/api.js - COMPLETE FIXED VERSION FOR VERCEL DEPLOYMENT
+// src/services/api.js - COMPLETE FIXED VERSION WITH CATEGORY UPDATE
 import axios from "axios";
 import authService from "./auth.js";
 
 // ========== ENVIRONMENT CONFIGURATION ==========
-// For Vercel deployment, ensure these are set in Vercel dashboard
 const API_BASE_URL = import.meta.env.VITE_API_URL || "https://federalpartsphilippines-backend.onrender.com/api";
 const IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_URL || "https://federalpartsphilippines-backend.onrender.com";
 
@@ -14,12 +13,10 @@ const isBrowser = typeof window !== "undefined";
 const validateAndFixUrl = (url) => {
   if (!url) return "https://federalpartsphilippines-backend.onrender.com/api";
   
-  // Remove duplicate /api
   if (url.includes('/api/api')) {
     url = url.replace('/api/api', '/api');
   }
   
-  // Ensure URL ends with /api
   if (!url.endsWith('/api')) {
     url = url.endsWith('/') ? `${url}api` : `${url}/api`;
   }
@@ -38,14 +35,13 @@ const API = axios.create({
     "Accept": "application/json",
   },
   timeout: 30000,
-  withCredentials: false, // Important for Vercel compatibility
+  withCredentials: false,
 });
 
 // ========== REQUEST INTERCEPTOR ==========
 API.interceptors.request.use(
   (config) => {
     if (isBrowser) {
-      // Add authentication token if available
       try {
         const token = authService?.getToken?.();
         if (token && token.trim() !== "") {
@@ -55,19 +51,16 @@ API.interceptors.request.use(
         console.warn("❌ Error getting auth token:", error);
       }
 
-      // Prevent caching for GET requests
       if (config.method === "get") {
         config.headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
         config.headers["Pragma"] = "no-cache";
         config.headers["Expires"] = "0";
       }
 
-      // Let browser set content-type for FormData
       if (config.data instanceof FormData) {
         delete config.headers["Content-Type"];
       }
       
-      // Add timestamp to prevent caching
       if (config.method === "get" && !config.params) {
         config.params = { _t: Date.now() };
       } else if (config.method === "get" && config.params) {
@@ -75,7 +68,6 @@ API.interceptors.request.use(
       }
     }
     
-    // Log request for debugging
     console.log(`➡️ ${config.method?.toUpperCase()} ${config.url}`, config.params || "");
     
     return config;
@@ -91,9 +83,7 @@ API.interceptors.response.use(
   (response) => {
     console.log(`✅ ${response.status} ${response.config.url}`);
     
-    // Handle different response structures
     if (response && response.data) {
-      // If response.data has success property, return it directly
       if (
         response.data.success !== undefined ||
         response.data.data ||
@@ -101,7 +91,6 @@ API.interceptors.response.use(
       ) {
         return response.data;
       }
-      // If response.data is an array or object, wrap it
       return {
         success: true,
         data: response.data,
@@ -119,7 +108,6 @@ API.interceptors.response.use(
       method: error.config?.method
     });
 
-    // Handle timeout
     if (error.code === "ECONNABORTED") {
       return Promise.reject({
         success: false,
@@ -128,7 +116,6 @@ API.interceptors.response.use(
       });
     }
 
-    // Handle network errors
     if (error.code === "ERR_NETWORK" || error.message === "Network Error") {
       console.error("🌐 Network error detected!");
       console.error("Backend URL:", validatedApiUrl);
@@ -141,7 +128,6 @@ API.interceptors.response.use(
       });
     }
 
-    // Handle CORS errors
     if (error.message && error.message.includes("CORS")) {
       return Promise.reject({
         success: false,
@@ -151,11 +137,9 @@ API.interceptors.response.use(
       });
     }
 
-    // Handle response errors
     if (error.response) {
       const { status, data } = error.response;
 
-      // Handle 401 Unauthorized
       if (status === 401 && isBrowser) {
         try {
           authService?.logout?.();
@@ -171,7 +155,6 @@ API.interceptors.response.use(
         }
       }
 
-      // Handle 403 Forbidden
       if (status === 403) {
         return Promise.reject({
           success: false,
@@ -180,7 +163,6 @@ API.interceptors.response.use(
         });
       }
 
-      // Handle 404 Not Found
       if (status === 404) {
         return Promise.reject({
           success: false,
@@ -189,7 +171,6 @@ API.interceptors.response.use(
         });
       }
 
-      // Handle 429 Too Many Requests
       if (status === 429) {
         return Promise.reject({
           success: false,
@@ -198,7 +179,6 @@ API.interceptors.response.use(
         });
       }
 
-      // Handle 500+ Server Errors
       if (status >= 500) {
         return Promise.reject({
           success: false,
@@ -207,7 +187,6 @@ API.interceptors.response.use(
         });
       }
 
-      // Handle other errors
       return Promise.reject({
         success: false,
         message: data?.message || `Error ${status}`,
@@ -216,7 +195,6 @@ API.interceptors.response.use(
       });
     }
 
-    // Handle unknown errors
     return Promise.reject({
       success: false,
       message: error.message || "An unexpected error occurred",
@@ -230,9 +208,9 @@ export const testApiConnection = async () => {
   console.log("🔍 Testing API connection...");
   
   const endpointsToTest = [
-    validatedApiUrl.replace('/api', ''), // root
-    validatedApiUrl, // /api
-    `${validatedApiUrl.replace('/api', '')}/health`, // health endpoint
+    validatedApiUrl.replace('/api', ''),
+    validatedApiUrl,
+    `${validatedApiUrl.replace('/api', '')}/health`,
     "https://federalpartsphilippines-backend.onrender.com",
     "https://federalpartsphilippines-backend.onrender.com/api",
   ];
@@ -258,7 +236,6 @@ export const testApiConnection = async () => {
         data: response.data
       });
       
-      // Return first successful connection
       return {
         success: true,
         connected: true,
@@ -277,7 +254,6 @@ export const testApiConnection = async () => {
     }
   }
 
-  // All endpoints failed
   return {
     success: false,
     connected: false,
@@ -298,7 +274,6 @@ export const getImageUrl = (imagePath, type = "products") => {
     return "";
   }
 
-  // If it's already a full URL
   if (
     typeof imagePath === "string" &&
     (imagePath.startsWith("http://") || imagePath.startsWith("https://"))
@@ -306,7 +281,6 @@ export const getImageUrl = (imagePath, type = "products") => {
     return imagePath;
   }
 
-  // If it's a blob URL or data URL
   if (
     typeof imagePath === "string" &&
     (imagePath.startsWith("blob:") || imagePath.startsWith("data:"))
@@ -314,20 +288,15 @@ export const getImageUrl = (imagePath, type = "products") => {
     return imagePath;
   }
 
-  // Use environment variable or default to Render backend
   const baseUrl = IMAGE_BASE_URL || "https://federalpartsphilippines-backend.onrender.com";
 
-  // Handle absolute paths
   if (typeof imagePath === "string" && imagePath.startsWith("/")) {
     return `${baseUrl}${imagePath}`;
   }
 
-  // Handle relative paths/filenames
   if (typeof imagePath === "string") {
-    // Clean the filename
-    const cleanFilename = imagePath.replace(/^.*[\\/]/, "");
+    const cleanFilename = imagePath.replace(/^.*[\\/]/, '');
     
-    // Check if already contains uploads path
     if (imagePath.includes('uploads/')) {
       const path = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
       return `${baseUrl}${path}`;
@@ -339,7 +308,6 @@ export const getImageUrl = (imagePath, type = "products") => {
   return "";
 };
 
-// Alias for getFullImageUrl
 export const getFullImageUrl = getImageUrl;
 
 // ========== PRICE FORMATTING ==========
@@ -378,13 +346,11 @@ export const formatPrice = (price, currency = "PHP") => {
   }
 };
 
-// Calculate discount percentage
 export const calculateDiscountPercentage = (price, discountedPrice) => {
   if (!price || !discountedPrice || discountedPrice >= price) return 0;
   return Math.round(((price - discountedPrice) / price) * 100);
 };
 
-// Get final price
 export const getFinalPrice = (price, discountedPrice) => {
   if (!price) return 0;
   return discountedPrice && discountedPrice < price ? discountedPrice : price;
@@ -392,14 +358,12 @@ export const getFinalPrice = (price, discountedPrice) => {
 
 // ========== PRODUCT API ==========
 export const productAPI = {
-  // Get all products with filters
   getAllProducts: async (params = {}) => {
     try {
       console.log("📦 Fetching products with params:", params);
       const response = await API.get("/products", { params });
       
       if (response.success && response.products) {
-        // Process images for each product
         const processedProducts = response.products.map(product => ({
           ...product,
           images: product.images?.map(img => getImageUrl(img, "products")) || []
@@ -424,14 +388,12 @@ export const productAPI = {
     }
   },
 
-  // Get single product by ID
   getProductById: async (id) => {
     try {
       console.log(`📦 Fetching product ${id}`);
       const response = await API.get(`/products/${id}`);
       
       if (response.success && response.product) {
-        // Process images
         response.product = {
           ...response.product,
           images: response.product.images?.map(img => getImageUrl(img, "products")) || []
@@ -449,7 +411,6 @@ export const productAPI = {
     }
   },
 
-  // Search products
   searchProducts: async (query, params = {}) => {
     try {
       const response = await API.get("/products", {
@@ -457,7 +418,6 @@ export const productAPI = {
       });
       
       if (response.success && response.products) {
-        // Process images
         response.products = response.products.map(product => ({
           ...product,
           images: product.images?.map(img => getImageUrl(img, "products")) || []
@@ -476,7 +436,6 @@ export const productAPI = {
     }
   },
 
-  // Get products by category
   getProductsByCategory: async (categoryId, params = {}) => {
     try {
       const response = await API.get("/products", {
@@ -484,7 +443,6 @@ export const productAPI = {
       });
       
       if (response.success && response.products) {
-        // Process images
         response.products = response.products.map(product => ({
           ...product,
           images: product.images?.map(img => getImageUrl(img, "products")) || []
@@ -503,7 +461,6 @@ export const productAPI = {
     }
   },
 
-  // Get featured products
   getFeaturedProducts: async (params = {}) => {
     try {
       const response = await API.get("/products", {
@@ -511,7 +468,6 @@ export const productAPI = {
       });
       
       if (response.success && response.products) {
-        // Process images
         response.products = response.products.map(product => ({
           ...product,
           images: product.images?.map(img => getImageUrl(img, "products")) || []
@@ -529,7 +485,6 @@ export const productAPI = {
     }
   },
 
-  // Get products in stock
   getProductsInStock: async (params = {}) => {
     try {
       const response = await API.get("/products", {
@@ -537,7 +492,6 @@ export const productAPI = {
       });
       
       if (response.success && response.products) {
-        // Process images
         response.products = response.products.map(product => ({
           ...product,
           images: product.images?.map(img => getImageUrl(img, "products")) || []
@@ -555,7 +509,6 @@ export const productAPI = {
     }
   },
 
-  // Get products by price range
   getProductsByPriceRange: async (minPrice, maxPrice, params = {}) => {
     try {
       const response = await API.get("/products", {
@@ -563,7 +516,6 @@ export const productAPI = {
       });
       
       if (response.success && response.products) {
-        // Process images
         response.products = response.products.map(product => ({
           ...product,
           images: product.images?.map(img => getImageUrl(img, "products")) || []
@@ -581,14 +533,12 @@ export const productAPI = {
     }
   },
 
-  // ADMIN ENDPOINTS
   getAllProductsForAdmin: async (params = {}) => {
     try {
       console.log("👑 Fetching admin products with params:", params);
       const response = await API.get("/admin/products", { params });
       
       if (response.success && response.products) {
-        // Process images
         const processedProducts = response.products.map(product => ({
           ...product,
           images: product.images?.map(img => getImageUrl(img, "products")) || []
@@ -613,23 +563,19 @@ export const productAPI = {
     }
   },
 
-  // Create product
   createProduct: async (productData) => {
     try {
       console.log("➕ Creating product:", productData);
       
       const formData = new FormData();
       
-      // Add all product data to formData
       Object.keys(productData).forEach(key => {
         if (productData[key] !== null && productData[key] !== undefined) {
           if (key === 'images' && Array.isArray(productData.images)) {
-            // Handle multiple images
             productData.images.forEach((image, index) => {
               if (image instanceof File) {
                 formData.append('images', image);
               } else if (typeof image === 'string') {
-                // Could be base64 or URL
                 formData.append('images', image);
               }
             });
@@ -650,7 +596,6 @@ export const productAPI = {
       });
       
       if (response.success && response.product) {
-        // Process images for response
         response.product = {
           ...response.product,
           images: response.product.images?.map(img => getImageUrl(img, "products")) || []
@@ -668,14 +613,12 @@ export const productAPI = {
     }
   },
 
-  // Update product
   updateProduct: async (id, productData) => {
     try {
       console.log(`✏️ Updating product ${id}:`, productData);
       
       const formData = new FormData();
       
-      // Add all product data to formData
       Object.keys(productData).forEach(key => {
         if (productData[key] !== null && productData[key] !== undefined) {
           if (key === 'images' && Array.isArray(productData.images)) {
@@ -693,7 +636,6 @@ export const productAPI = {
         }
       });
       
-      // Add any new image files
       if (productData.newImages && Array.isArray(productData.newImages)) {
         productData.newImages.forEach(image => {
           if (image instanceof File) {
@@ -709,7 +651,6 @@ export const productAPI = {
       });
       
       if (response.success && response.product) {
-        // Process images for response
         response.product = {
           ...response.product,
           images: response.product.images?.map(img => getImageUrl(img, "products")) || []
@@ -727,7 +668,6 @@ export const productAPI = {
     }
   },
 
-  // Delete product
   deleteProduct: async (id) => {
     try {
       console.log(`🗑️ Deleting product ${id}`);
@@ -742,7 +682,6 @@ export const productAPI = {
     }
   },
 
-  // Hard delete product
   hardDeleteProduct: async (id) => {
     try {
       console.log(`💀 Hard deleting product ${id}`);
@@ -757,7 +696,6 @@ export const productAPI = {
     }
   },
 
-  // Toggle product status
   toggleProductStatus: async (id) => {
     try {
       console.log(`🔄 Toggling status for product ${id}`);
@@ -783,7 +721,6 @@ export const productAPI = {
     }
   },
 
-  // Update product stock
   updateProductStock: async (id, stock) => {
     try {
       console.log(`📊 Updating stock for product ${id} to ${stock}`);
@@ -800,7 +737,6 @@ export const productAPI = {
     }
   },
 
-  // Upload product image
   uploadProductImage: async (imageFile, productId = null) => {
     try {
       console.log(`📸 Uploading product image${productId ? ` for product ${productId}` : ''}`);
@@ -828,7 +764,6 @@ export const productAPI = {
     }
   },
 
-  // Upload base64 image
   uploadBase64Image: async (base64Data, type = "product") => {
     try {
       console.log(`📸 Uploading base64 ${type} image`);
@@ -849,7 +784,6 @@ export const productAPI = {
     }
   },
 
-  // Delete product image
   deleteProductImage: async (productId, imageUrlOrIndex) => {
     try {
       console.log(`🗑️ Deleting image from product ${productId}:`, imageUrlOrIndex);
@@ -908,14 +842,12 @@ export const productAPI = {
 
 // ========== CATEGORY API ==========
 export const categoryAPI = {
-  // Get all categories
   getAllCategories: async (params = {}) => {
     try {
       console.log("📁 Fetching categories with params:", params);
       const response = await API.get("/categories", { params });
       
       if (response.success && response.categories) {
-        // Process category images
         const processedCategories = response.categories.map(category => ({
           ...category,
           image: getImageUrl(category.image, "categories")
@@ -938,14 +870,12 @@ export const categoryAPI = {
     }
   },
 
-  // Get single category by ID
   getCategoryById: async (id) => {
     try {
       console.log(`📁 Fetching category ${id}`);
       const response = await API.get(`/categories/${id}`);
       
       if (response.success && response.category) {
-        // Process image
         response.category = {
           ...response.category,
           image: getImageUrl(response.category.image, "categories")
@@ -963,7 +893,6 @@ export const categoryAPI = {
     }
   },
 
-  // Create category
   createCategory: async (categoryData) => {
     try {
       console.log("➕ Creating category:", categoryData);
@@ -986,7 +915,6 @@ export const categoryAPI = {
       });
       
       if (response.success && response.category) {
-        // Process image for response
         response.category = {
           ...response.category,
           image: getImageUrl(response.category.image, "categories")
@@ -1004,7 +932,6 @@ export const categoryAPI = {
     }
   },
 
-  // Update category
   updateCategory: async (id, categoryData) => {
     try {
       console.log(`✏️ Updating category ${id}:`, categoryData);
@@ -1027,7 +954,6 @@ export const categoryAPI = {
       });
       
       if (response.success && response.category) {
-        // Process image for response
         response.category = {
           ...response.category,
           image: getImageUrl(response.category.image, "categories")
@@ -1045,7 +971,6 @@ export const categoryAPI = {
     }
   },
 
-  // Delete category
   deleteCategory: async (id) => {
     try {
       console.log(`🗑️ Deleting category ${id}`);
@@ -1056,6 +981,21 @@ export const categoryAPI = {
       return {
         success: false,
         message: error.message || "Failed to delete category"
+      };
+    }
+  },
+
+  // ADDED THIS FUNCTION: Update category product counts
+  updateCategoryProductCounts: async () => {
+    try {
+      console.log("🔄 Updating category product counts...");
+      const response = await API.post("/admin/categories/update-counts");
+      return response;
+    } catch (error) {
+      console.error("❌ Error updating category product counts:", error);
+      return {
+        success: false,
+        message: error.message || "Failed to update category product counts"
       };
     }
   }
@@ -1080,7 +1020,6 @@ export const authAPI = {
 
 // ========== CART API ==========
 export const cartAPI = {
-  // Get cart from localStorage
   getCart: () => {
     if (isBrowser) {
       try {
@@ -1094,7 +1033,6 @@ export const cartAPI = {
     return { items: [], total: 0, count: 0 };
   },
   
-  // Add to cart
   addToCart: (product, quantity = 1) => {
     if (!isBrowser) return { success: false, message: "Not in browser" };
     
@@ -1118,13 +1056,11 @@ export const cartAPI = {
         });
       }
       
-      // Recalculate total
       cart.total = cart.items.reduce((sum, item) => {
         const price = item.product.discountedPrice || item.product.price;
         return sum + (price * item.quantity);
       }, 0);
       
-      // Update count
       cart.count = cart.items.reduce((sum, item) => sum + item.quantity, 0);
       
       localStorage.setItem('cart', JSON.stringify(cart));
@@ -1143,7 +1079,6 @@ export const cartAPI = {
     }
   },
   
-  // Update cart item quantity
   updateCartItem: (productId, quantity) => {
     if (!isBrowser) return { success: false, message: "Not in browser" };
     
@@ -1158,13 +1093,11 @@ export const cartAPI = {
           cart.items[itemIndex].quantity = quantity;
         }
         
-        // Recalculate total
         cart.total = cart.items.reduce((sum, item) => {
           const price = item.product.discountedPrice || item.product.price;
           return sum + (price * item.quantity);
         }, 0);
         
-        // Update count
         cart.count = cart.items.reduce((sum, item) => sum + item.quantity, 0);
         
         localStorage.setItem('cart', JSON.stringify(cart));
@@ -1189,12 +1122,10 @@ export const cartAPI = {
     }
   },
   
-  // Remove from cart
   removeFromCart: (productId) => {
     return cartAPI.updateCartItem(productId, 0);
   },
   
-  // Clear cart
   clearCart: () => {
     if (!isBrowser) return { success: false, message: "Not in browser" };
     
@@ -1213,7 +1144,6 @@ export const cartAPI = {
     }
   },
   
-  // Get cart count
   getCartCount: () => {
     const cart = cartAPI.getCart();
     return cart.count || 0;
@@ -1224,10 +1154,8 @@ export const cartAPI = {
 export const dashboardAPI = {
   getOverviewStats: async () => {
     try {
-      // Get product stats
       const productStats = await productAPI.getProductStats();
       
-      // Get order stats (simulated)
       const orderStats = {
         totalOrders: 0,
         pendingOrders: 0,
@@ -1236,7 +1164,6 @@ export const dashboardAPI = {
         totalRevenue: 0
       };
       
-      // Get category stats
       const categoryResponse = await categoryAPI.getAllCategories();
       const categoryStats = {
         totalCategories: categoryResponse.categories?.length || 0,
@@ -1266,31 +1193,25 @@ export const dashboardAPI = {
 
 // ========== MAIN API SERVICE OBJECT ==========
 const apiService = {
-  // Axios instance
   API,
   
-  // All API modules
   productAPI,
   categoryAPI,
   authAPI,
   cartAPI,
   dashboardAPI,
   
-  // Helper functions
   getImageUrl,
   getFullImageUrl,
   formatPrice,
   calculateDiscountPercentage,
   getFinalPrice,
   
-  // Connection testing
   testApiConnection,
   
-  // Base URLs
   API_BASE_URL: validatedApiUrl,
   IMAGE_BASE_URL: IMAGE_BASE_URL || "https://federalpartsphilippines-backend.onrender.com",
   
-  // Direct methods for convenience
   getProducts: productAPI.getAllProducts,
   getProduct: productAPI.getProductById,
   createProduct: productAPI.createProduct,
@@ -1302,8 +1223,8 @@ const apiService = {
   createCategory: categoryAPI.createCategory,
   updateCategory: categoryAPI.updateCategory,
   deleteCategory: categoryAPI.deleteCategory,
+  updateCategoryProductCounts: categoryAPI.updateCategoryProductCounts, // ADDED THIS
   
-  // Utility function to check API connection
   checkConnection: async () => {
     try {
       const response = await API.get("/");
@@ -1324,7 +1245,6 @@ const apiService = {
     }
   },
   
-  // Health check
   healthCheck: async () => {
     try {
       const response = await API.get("/health");
@@ -1338,7 +1258,6 @@ const apiService = {
     }
   },
   
-  // Upload helper
   uploadFile: async (file, endpoint = "/upload", fieldName = "image") => {
     try {
       const formData = new FormData();
@@ -1360,13 +1279,11 @@ const apiService = {
     }
   },
   
-  // Initialize function to test connection on app start
   initialize: async () => {
     console.log("🚀 Initializing API Service...");
     console.log("📡 API URL:", validatedApiUrl);
     console.log("🖼️ Image URL:", IMAGE_BASE_URL || "Using API URL");
     
-    // Test connection
     const connection = await testApiConnection();
     console.log("🔌 Connection Status:", connection.success ? "✅ Connected" : "❌ Failed");
     

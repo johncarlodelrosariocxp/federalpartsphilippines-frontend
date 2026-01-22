@@ -75,7 +75,7 @@ const Contact = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 pt-24 md:pt-32">
+    <div className="min-h-screen bg-black text-gray-100 pt-24 md:pt-32">
       <div className="container mx-auto px-4 py-8 md:py-12 max-w-7xl">
         <div className="text-center mb-16">
           <h1 className="font-bebas text-5xl md:text-6xl mb-4 text-white">
@@ -91,10 +91,10 @@ const Contact = () => {
         <div className="grid lg:grid-cols-3 gap-8 lg:gap-12">
           {/* Contact Information Sidebar */}
           <div>
-            <div className="bg-gray-800 rounded-2xl p-6 md:p-8 border border-gray-700 mb-8">
+            <div className="bg-gray-900 rounded-2xl p-6 md:p-8 border border-gray-800 mb-8">
               <div className="flex items-center gap-3 mb-8">
-                <div className="bg-blue-600 p-3 rounded-lg">
-                  <MessageSquare className="w-6 h-6 text-white" />
+                <div className="bg-white p-3 rounded-lg">
+                  <MessageSquare className="w-6 h-6 text-black" />
                 </div>
                 <h2 className="font-bebas text-3xl text-white">
                   Philippine Office
@@ -105,16 +105,16 @@ const Contact = () => {
                 {contactInfo.map((info, index) => (
                   <div
                     key={index}
-                    className="flex items-start gap-4 p-3 hover:bg-gray-700/50 rounded-lg transition-colors"
+                    className="flex items-start gap-4 p-3 hover:bg-gray-800/50 rounded-lg transition-colors"
                   >
-                    <div className="bg-blue-900/30 p-3 rounded-lg border border-blue-800/30">
-                      <info.icon className="w-5 h-5 text-blue-400" />
+                    <div className="bg-gray-800 p-3 rounded-lg border border-gray-700">
+                      <info.icon className="w-5 h-5 text-white" />
                     </div>
                     <div className="flex-1">
                       <h3 className="font-bold text-white mb-1">
                         {info.title}
                       </h3>
-                      <p className="text-blue-300 font-medium">{info.detail}</p>
+                      <p className="text-gray-300 font-medium">{info.detail}</p>
                       <p className="text-gray-400 text-sm mt-1">
                         {info.description}
                       </p>
@@ -132,7 +132,7 @@ const Contact = () => {
 
           {/* Contact Form */}
           <div className="lg:col-span-2">
-            <div className="bg-gray-800 rounded-2xl p-6 md:p-8 border border-gray-700">
+            <div className="bg-gray-900 rounded-2xl p-6 md:p-8 border border-gray-800">
               <h2 className="font-bebas text-3xl text-white mb-2">
                 Send Us a Message
               </h2>
@@ -152,7 +152,7 @@ const Contact = () => {
                       value={formData.name}
                       onChange={handleChange}
                       required
-                      className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-white placeholder-gray-400"
+                      className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-white focus:border-gray-500 outline-none transition text-white placeholder-gray-400"
                       placeholder="Your name"
                     />
                   </div>
@@ -166,7 +166,7 @@ const Contact = () => {
                       value={formData.email}
                       onChange={handleChange}
                       required
-                      className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-white placeholder-gray-400"
+                      className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-white focus:border-gray-500 outline-none transition text-white placeholder-gray-400"
                       placeholder="you@example.com"
                     />
                   </div>
@@ -182,7 +182,7 @@ const Contact = () => {
                       name="phone"
                       value={formData.phone}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-white placeholder-gray-400"
+                      className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-white focus:border-gray-500 outline-none transition text-white placeholder-gray-400"
                       placeholder="+63 912 345 6789"
                     />
                   </div>
@@ -195,16 +195,16 @@ const Contact = () => {
                       value={formData.topic}
                       onChange={handleChange}
                       required
-                      className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-white"
+                      className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-white focus:border-gray-500 outline-none transition text-white"
                     >
-                      <option value="" className="bg-gray-800">
+                      <option value="" className="bg-gray-900">
                         Select inquiry type
                       </option>
                       {topics.map((topic, index) => (
                         <option
                           key={index}
                           value={topic}
-                          className="bg-gray-800"
+                          className="bg-gray-900"
                         >
                           {topic}
                         </option>
@@ -223,19 +223,19 @@ const Contact = () => {
                     onChange={handleChange}
                     required
                     rows="5"
-                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-white placeholder-gray-400"
+                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-white focus:border-gray-500 outline-none transition text-white placeholder-gray-400"
                     placeholder="Tell us about your inquiry or partnership interest..."
                   />
                 </div>
 
-                <div className="flex items-start gap-3 p-4 bg-gray-700/50 rounded-lg border border-gray-600">
+                <div className="flex items-start gap-3 p-4 bg-gray-800/50 rounded-lg border border-gray-700">
                   <input
                     type="checkbox"
                     name="newsletter"
                     id="newsletter"
                     checked={formData.newsletter}
                     onChange={handleChange}
-                    className="w-4 h-4 text-blue-500 rounded focus:ring-blue-500 mt-1 bg-gray-600 border-gray-500"
+                    className="w-4 h-4 text-white rounded focus:ring-white mt-1 bg-gray-700 border-gray-600"
                   />
                   <div>
                     <label
@@ -254,9 +254,9 @@ const Contact = () => {
 
                 <button
                   type="submit"
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-300 flex items-center justify-center gap-2 text-lg"
+                  className="w-full bg-white hover:bg-gray-200 text-black font-medium py-3 px-4 rounded-lg transition-colors duration-300 flex items-center justify-center gap-2 text-lg"
                 >
-                  <Send className="w-5 h-5" />
+                  <Send className="w-5 h-5 text-black" />
                   Send Message
                 </button>
               </form>
