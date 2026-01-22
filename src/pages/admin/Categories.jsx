@@ -25,7 +25,7 @@ import {
   ChevronLeft,
   ArrowLeft,
 } from "lucide-react";
-import { brandAPI, getImageUrl } from "../../services/api";
+import { categoryAPI } from "../../services/api";
 
 const Categories = () => {
   const location = useLocation();
@@ -118,7 +118,7 @@ const Categories = () => {
       setError("");
       console.log("Fetching categories...");
       
-      const response = await brandAPI.getAllBrands();
+      const response = await categoryAPI.getAllCategories();
 
       console.log("Categories API response:", response);
 
@@ -282,7 +282,7 @@ const Categories = () => {
     if (window.confirm("Are you sure you want to delete this category?")) {
       try {
         console.log("Deleting category:", id);
-        const response = await brandAPI.deleteBrand(id);
+        const response = await categoryAPI.deleteCategory(id);
         
         if (response && response.success) {
           // Remove category from state
@@ -317,7 +317,7 @@ const Categories = () => {
   const handleToggleActive = async (id, currentActive) => {
     try {
       console.log("Toggling category status:", id, "from", currentActive, "to", !currentActive);
-      const response = await brandAPI.updateBrand(id, {
+      const response = await categoryAPI.updateCategory(id, {
         isActive: !currentActive,
       });
       
@@ -386,7 +386,7 @@ const Categories = () => {
         case "activate":
           await Promise.all(
             selectedCategories.map((id) =>
-              brandAPI.updateBrand(id, { isActive: true })
+              categoryAPI.updateCategory(id, { isActive: true })
             )
           );
           successMessage = `${selectedCategories.length} categories activated`;
@@ -395,7 +395,7 @@ const Categories = () => {
         case "deactivate":
           await Promise.all(
             selectedCategories.map((id) =>
-              brandAPI.updateBrand(id, { isActive: false })
+              categoryAPI.updateCategory(id, { isActive: false })
             )
           );
           successMessage = `${selectedCategories.length} categories deactivated`;
@@ -404,7 +404,7 @@ const Categories = () => {
         case "delete":
           if (window.confirm(`Delete ${selectedCategories.length} categories? This action cannot be undone.`)) {
             await Promise.all(
-              selectedCategories.map((id) => brandAPI.deleteBrand(id))
+              selectedCategories.map((id) => categoryAPI.deleteCategory(id))
             );
             successMessage = `${selectedCategories.length} categories deleted`;
           } else {
@@ -545,7 +545,7 @@ const Categories = () => {
               <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
                 {category.image ? (
                   <img
-                    src={getImageUrl(category.image)}
+                    src={categoryAPI.getImageUrl ? categoryAPI.getImageUrl(category.image) : category.image}
                     alt={category.name}
                     className="w-full h-full object-cover"
                     onError={(e) => {
@@ -656,7 +656,7 @@ const Categories = () => {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Categories Management</h1>
-              <p className="text-gray-600">Manage your product categories and brands</p>
+              <p className="text-gray-600">Manage your product categories</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <button
@@ -990,12 +990,12 @@ const Categories = () => {
                   Try adjusting your search or filters
                 </p>
                 <Link
-                  to="/admin/categories/new"
-                  className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-                >
-                  <Plus className="w-5 h-5" />
-                  Add Category
-                </Link>
+                    to="/admin/categories/new"
+                    className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                  >
+                    <Plus className="w-5 h-5" />
+                    Add Category
+                  </Link>
               </div>
             ) : viewMode === "grid" ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1030,7 +1030,7 @@ const Categories = () => {
                           <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
                             {category.image ? (
                               <img
-                                src={getImageUrl(category.image)}
+                                src={categoryAPI.getImageUrl ? categoryAPI.getImageUrl(category.image) : category.image}
                                 alt={category.name}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
@@ -1184,7 +1184,7 @@ const Categories = () => {
                               <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
                                 {category.image ? (
                                   <img
-                                    src={getImageUrl(category.image)}
+                                    src={categoryAPI.getImageUrl ? categoryAPI.getImageUrl(category.image) : category.image}
                                     alt={category.name}
                                     className="w-full h-full object-cover"
                                     onError={(e) => {

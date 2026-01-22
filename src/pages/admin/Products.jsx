@@ -1,4 +1,4 @@
-// src/pages/admin/Products.js - FIXED VERSION
+// src/pages/admin/Products.js - COMPLETE FIXED VERSION WITH PROPER IMAGE LOADING
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { productAPI, categoryAPI, getImageUrl } from "../../services/api";
@@ -26,6 +26,7 @@ import {
   Tag,
   DollarSign,
   Hash,
+  Image as ImageIcon,
 } from "lucide-react";
 
 const AdminProducts = () => {
@@ -58,9 +59,21 @@ const AdminProducts = () => {
   const [sortOrder, setSortOrder] = useState("desc");
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState("table");
+  const [imageErrors, setImageErrors] = useState({});
 
-  // Fallback image URL
-  const fallbackImageUrl = "https://via.placeholder.com/400x400?text=No+Image";
+  // Generate fallback SVG image
+  const createFallbackImage = () => {
+    return `data:image/svg+xml,${encodeURIComponent(`
+      <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="200" height="200" fill="#F3F4F6"/>
+        <path d="M60 70L140 130M140 70L60 130M140 50L180 90M180 50L140 90" stroke="#D1D5DB" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M40 40H160V160H40V40Z" stroke="#D1D5DB" stroke-width="4"/>
+        <text x="100" y="100" font-family="Arial" font-size="16" fill="#9CA3AF" text-anchor="middle" alignment-baseline="middle">No Image</text>
+      </svg>
+    `)}`;
+  };
+
+  const fallbackImageUrl = createFallbackImage();
 
   useEffect(() => {
     fetchProducts();
@@ -81,9 +94,22 @@ const AdminProducts = () => {
     products,
   ]);
 
-  // FIXED: Function to get full image URL
+  // Function to get full image URL with proper error handling
   const getProductImageUrl = (imagePath) => {
-    if (!imagePath) return fallbackImageUrl;
+    if (!imagePath || imagePath === "undefined" || imagePath === "null") {
+      return fallbackImageUrl;
+    }
+
+    // If it's already a full URL or data URL
+    if (
+      typeof imagePath === "string" &&
+      (imagePath.startsWith("http://") ||
+        imagePath.startsWith("https://") ||
+        imagePath.startsWith("blob:") ||
+        imagePath.startsWith("data:"))
+    ) {
+      return imagePath;
+    }
 
     // Use the getImageUrl function from api.js
     const fullUrl = getImageUrl(imagePath, "products");
@@ -96,19 +122,33 @@ const AdminProducts = () => {
     return fullUrl;
   };
 
-  // FIXED: Get first product image with proper URL
+  // Get first product image with proper URL
   const getFirstProductImage = (product) => {
-    if (
-      !product ||
-      !product.images ||
-      !Array.isArray(product.images) ||
-      product.images.length === 0
-    ) {
+    if (!product) return fallbackImageUrl;
+
+    // Handle different image data structures
+    let images = [];
+
+    if (Array.isArray(product.images)) {
+      images = product.images;
+    } else if (product.image) {
+      images = [product.image];
+    }
+
+    if (images.length === 0) {
       return fallbackImageUrl;
     }
 
-    const firstImage = product.images[0];
+    const firstImage = images[0];
     return getProductImageUrl(firstImage);
+  };
+
+  // Handle image loading errors
+  const handleImageError = (productId, imageIndex = 0) => {
+    setImageErrors((prev) => ({
+      ...prev,
+      [`${productId}_${imageIndex}`]: true,
+    }));
   };
 
   const fetchProducts = async () => {
@@ -165,7 +205,6 @@ const AdminProducts = () => {
       let categoriesData = [];
 
       if (response) {
-        // Handle different response structures
         if (Array.isArray(response)) {
           categoriesData = response;
         } else if (response.success && Array.isArray(response.data)) {
@@ -389,7 +428,6 @@ const AdminProducts = () => {
       setError("");
       setSuccess("");
 
-      // Delete each product individually (or implement bulk delete in backend)
       const deletePromises = selectedProducts.map((id) =>
         productAPI.deleteProduct(id)
       );
@@ -400,7 +438,6 @@ const AdminProducts = () => {
         (result) => result.status === "fulfilled" && result.value?.success
       ).length;
 
-      // Refresh products list
       fetchProducts();
       setSelectedProducts([]);
 
@@ -461,7 +498,6 @@ const AdminProducts = () => {
           return;
       }
 
-      // Update each product individually
       const updatePromises = selectedProducts.map((id) =>
         productAPI.updateProduct(id, updateData)
       );
@@ -472,7 +508,6 @@ const AdminProducts = () => {
         (result) => result.status === "fulfilled" && result.value?.success
       ).length;
 
-      // Refresh products list
       fetchProducts();
       setSelectedProducts([]);
       setBulkAction("");
@@ -512,7 +547,6 @@ const AdminProducts = () => {
       });
 
       if (response?.success || response?.updated) {
-        // Update local state
         setProducts(
           products.map((product) =>
             product._id === id
@@ -551,7 +585,6 @@ const AdminProducts = () => {
       });
 
       if (response?.success || response?.updated) {
-        // Update local state
         setProducts(
           products.map((product) =>
             product._id === id
@@ -580,7 +613,6 @@ const AdminProducts = () => {
       const response = await productAPI.exportProducts();
 
       if (response) {
-        // Create a blob from the response data
         const blob = new Blob([response.data], { type: "text/csv" });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -604,6 +636,7 @@ const AdminProducts = () => {
 
   const handleRefresh = () => {
     fetchProducts();
+    setImageErrors({});
   };
 
   const handleSort = (field) => {
@@ -1135,10 +1168,7 @@ const AdminProducts = () => {
                               alt={product.name}
                               className="w-14 h-14 object-cover"
                               onError={(e) => {
-                                console.error("Failed to load product image:", {
-                                  product: product.name,
-                                  image: product.images?.[0],
-                                });
+                                handleImageError(product._id, 0);
                                 e.target.onerror = null;
                                 e.target.src = fallbackImageUrl;
                               }}
@@ -1324,13 +1354,7 @@ const AdminProducts = () => {
                         alt={product.name}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         onError={(e) => {
-                          console.error(
-                            "Failed to load product image in grid:",
-                            {
-                              product: product.name,
-                              image: product.images?.[0],
-                            }
-                          );
+                          handleImageError(product._id, 0);
                           e.target.onerror = null;
                           e.target.src = fallbackImageUrl;
                         }}

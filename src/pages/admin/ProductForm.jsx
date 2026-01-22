@@ -1,12 +1,7 @@
-// src/pages/admin/ProductForm.jsx - FIXED VERSION
+// src/pages/admin/ProductForm.jsx - COMPLETE FIXED VERSION WITH IMAGE UPLOAD
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import {
-  productAPI,
-  categoryAPI,
-  getImageUrl,
-  getFullImageUrl,
-} from "../../services/api";
+import { productAPI, categoryAPI } from "../../services/api";
 import {
   Save,
   Upload,
@@ -24,6 +19,7 @@ import {
   ChevronUp,
   ChevronDown,
   X,
+  Loader2,
 } from "lucide-react";
 
 const ProductForm = () => {
@@ -37,6 +33,8 @@ const ProductForm = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [formErrors, setFormErrors] = useState({});
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imageErrors, setImageErrors] = useState({});
 
   const [product, setProduct] = useState({
     name: "",
@@ -55,9 +53,8 @@ const ProductForm = () => {
 
   const [specifications, setSpecifications] = useState([]);
   const [newSpec, setNewSpec] = useState({ key: "", value: "" });
-  const [imageUploading, setImageUploading] = useState(false);
 
-  // Simple SVG fallback image
+  // Generate fallback SVG image
   const createFallbackImage = () => {
     return `data:image/svg+xml,${encodeURIComponent(`
       <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -80,12 +77,11 @@ const ProductForm = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await categoryAPI.getAll({ active: true });
+      const response = await categoryAPI.getAllCategories({ active: true });
 
       let categoriesData = [];
 
       if (response) {
-        // Handle different response structures
         if (Array.isArray(response)) {
           categoriesData = response;
         } else if (response.success && Array.isArray(response.data)) {
@@ -123,7 +119,6 @@ const ProductForm = () => {
       let productData = {};
 
       if (response) {
-        // Handle different response structures
         if (response.success && response.data) {
           productData = response.data;
         } else if (response._id) {
@@ -153,10 +148,17 @@ const ProductForm = () => {
           }
         }
 
-        // Handle images
+        // Handle images - ensure they're properly formatted
         let productImages = [];
         if (productData.images && Array.isArray(productData.images)) {
-          productImages = [...productData.images];
+          productImages = productData.images.map((img) => {
+            if (typeof img === "string") {
+              return img;
+            } else if (img && typeof img === "object") {
+              return img.url || img.path || img.filename || img;
+            }
+            return img;
+          }).filter(img => img);
         } else if (productData.image) {
           productImages = [productData.image];
         }
@@ -192,22 +194,17 @@ const ProductForm = () => {
   const validateForm = () => {
     const errors = {};
     
-    // Name is required
     if (!product.name.trim()) {
       errors.name = "Product name is required";
     }
     
-    // Description is required
     if (!product.description.trim()) {
       errors.description = "Description is required";
     }
     
-    // Price is required and must be valid
     if (!product.price || parseFloat(product.price) <= 0) {
       errors.price = "Valid price is required (must be greater than 0)";
     }
-    
-    // Category is NOT required
     
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -220,7 +217,6 @@ const ProductForm = () => {
       [name]: type === "checkbox" ? checked : value,
     });
     
-    // Clear error for this field when user starts typing
     if (formErrors[name]) {
       setFormErrors({
         ...formErrors,
@@ -246,7 +242,6 @@ const ProductForm = () => {
       });
     }
     
-    // Clear error for this field when user starts typing
     if (formErrors[name]) {
       setFormErrors({
         ...formErrors,
@@ -421,7 +416,6 @@ const ProductForm = () => {
 
     // Case 1: It's already a valid URL or data URL
     if (typeof image === "string") {
-      // Check if it's a full URL, blob, or data URL
       if (
         image.startsWith("http://") ||
         image.startsWith("https://") ||
@@ -431,55 +425,23 @@ const ProductForm = () => {
         return image;
       }
 
-      // For absolute paths starting with /
-      if (image.startsWith("/")) {
-        // Use getFullImageUrl for uploads path
-        if (image.startsWith("/uploads/")) {
-          return getFullImageUrl(image);
-        }
-
-        // Try to use getImageUrl
-        const urlFromService = getImageUrl(image, "products");
-        if (urlFromService && urlFromService !== image) {
-          return urlFromService;
-        }
-
-        // Fallback: Construct URL manually
-        const baseUrl =
-          import.meta.env.VITE_API_URL?.replace("/api", "") ||
-          "http://localhost:5000";
-        return `${baseUrl}${image}`;
-      }
-
-      // For filenames
-      const baseUrl =
-        import.meta.env.VITE_API_URL?.replace("/api", "") ||
-        "http://localhost:5000";
-      let fullUrl;
-      if (baseUrl.endsWith("/")) {
-        fullUrl = `${baseUrl}uploads/products/${image}`;
-      } else {
-        fullUrl = `${baseUrl}/uploads/products/${image}`;
-      }
-      return fullUrl;
+      // For filenames or paths, use the productAPI's image handling
+      return image;
     }
 
     // Case 2: It's an object (local image during upload)
     if (image && typeof image === "object") {
       if (image.url) {
-        return getImageDisplayUrl(image.url);
+        return image.url;
       }
       if (image.base64) {
         return image.base64;
       }
       if (image.filename) {
-        return getImageDisplayUrl(image.filename);
+        return image.filename;
       }
       if (image.path) {
-        return getImageDisplayUrl(image.path);
-      }
-      if (image.isLocal && image.url) {
-        return image.url;
+        return image.path;
       }
     }
 
@@ -510,7 +472,6 @@ const ProductForm = () => {
     setSuccess("");
     setFormErrors({});
     
-    // Validate form
     if (!validateForm()) {
       setError("Please fix the errors in the form");
       return;
@@ -519,7 +480,7 @@ const ProductForm = () => {
     setLoading(true);
 
     try {
-      // Prepare specifications object - FIXED: Ensure it's a proper object
+      // Prepare specifications object
       const specs = {};
       specifications.forEach((spec) => {
         if (spec.key && spec.key.trim() && spec.value && spec.value.trim()) {
@@ -527,32 +488,32 @@ const ProductForm = () => {
         }
       });
 
-      // Prepare images - handle both new (base64) and existing (filename) images
-      const finalImages = [];
-      for (const img of product.images) {
-        if (typeof img === "string") {
-          // If it's already a string (filename), use it as is
-          finalImages.push(img);
-        } else if (img && typeof img === "object") {
-          if (img.base64) {
-            // New image: send base64
-            finalImages.push(img.base64);
-          } else if (img.filename) {
-            // Existing image: send filename
-            finalImages.push(img.filename);
-          } else if (typeof img === "string" && img.includes("data:image")) {
-            // If it's already a base64 string
-            finalImages.push(img);
+      // Prepare images - separate local and existing images
+      const localImages = [];
+      const existingImages = [];
+
+      product.images.forEach((img) => {
+        if (isLocalImage(img)) {
+          // This is a new image (either blob URL or base64)
+          if (typeof img === "object" && img.base64) {
+            localImages.push(img.base64);
+          } else if (typeof img === "string" && img.startsWith("data:")) {
+            localImages.push(img);
+          } else if (typeof img === "object" && img.url && img.url.startsWith("blob:")) {
+            // If it's a blob URL but no base64, we need to convert it
+            console.warn("Image has blob URL but no base64 data:", img);
           }
+        } else {
+          // This is an existing image (filename or URL)
+          existingImages.push(img);
         }
-      }
+      });
 
       // Prepare product data
       const productData = {
         name: product.name.trim(),
         description: product.description.trim(),
         price: parseFloat(product.price),
-        images: finalImages,
         stock: parseInt(product.stock, 10) || 0,
         sku: product.sku.trim() || undefined,
         weight: product.weight.trim() || undefined,
@@ -569,6 +530,16 @@ const ProductForm = () => {
       // Only include specifications if there are any
       if (Object.keys(specs).length > 0) {
         productData.specifications = specs;
+      }
+
+      // Handle images differently for create vs update
+      if (isEditMode) {
+        // For update: combine existing images with new base64 images
+        const allImages = [...existingImages, ...localImages];
+        productData.images = allImages;
+      } else {
+        // For create: only send new images
+        productData.images = localImages;
       }
 
       console.log("Submitting product data:", productData);
@@ -674,6 +645,7 @@ const ProductForm = () => {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-6">
             {product.images.map((img, index) => {
               const imageUrl = getImageDisplayUrl(img);
+              const isLocal = isLocalImage(img);
 
               return (
                 <div key={index} className="relative group">
@@ -683,6 +655,10 @@ const ProductForm = () => {
                       alt={`Product ${index + 1}`}
                       className="h-full w-full object-cover"
                       onError={(e) => {
+                        setImageErrors((prev) => ({
+                          ...prev,
+                          [index]: true,
+                        }));
                         e.target.onerror = null;
                         e.target.src = fallbackImage;
                       }}
@@ -718,10 +694,17 @@ const ProductForm = () => {
                       </button>
                     )}
                   </div>
-                  {isLocalImage(img) && (
+                  {isLocal && (
                     <div className="absolute top-2 left-2">
                       <span className="px-2 py-1 text-xs bg-green-500 text-white rounded-full">
                         New
+                      </span>
+                    </div>
+                  )}
+                  {imageErrors[index] && (
+                    <div className="absolute top-2 right-2">
+                      <span className="px-2 py-1 text-xs bg-red-500 text-white rounded-full">
+                        Error
                       </span>
                     </div>
                   )}
@@ -733,8 +716,14 @@ const ProductForm = () => {
             {product.images.length < 10 && (
               <label className="cursor-pointer">
                 <div className="aspect-square w-full border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center hover:border-blue-500 hover:bg-blue-50 transition-colors">
-                  <Upload className="h-8 w-8 text-gray-400 mb-2" />
-                  <span className="text-sm text-gray-600">Add Image</span>
+                  {imageUploading ? (
+                    <Loader2 className="h-8 w-8 text-blue-500 mb-2 animate-spin" />
+                  ) : (
+                    <Upload className="h-8 w-8 text-gray-400 mb-2" />
+                  )}
+                  <span className="text-sm text-gray-600">
+                    {imageUploading ? "Uploading..." : "Add Image"}
+                  </span>
                   <span className="text-xs text-gray-500 mt-1">Max 5MB</span>
                 </div>
                 <input

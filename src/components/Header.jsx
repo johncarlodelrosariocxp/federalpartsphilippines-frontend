@@ -82,7 +82,6 @@ const Header = () => {
   const navItems = [
     { name: "Home", path: "/" },
     { name: "Shop", path: "/shop" },
-    { name: "Brands", path: "/brands" },
     { name: "Categories", path: "/categories" },
     { name: "About", path: "/about" },
     { name: "Contact", path: "/contact" },

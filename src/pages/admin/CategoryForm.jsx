@@ -1,7 +1,7 @@
-// src/pages/admin/CategoryForm.js - UPDATED WITH PRODUCT LINKING
+// src/pages/admin/CategoryForm.js - COMPLETE FIXED VERSION WITH IMAGE LOADING FIX
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { categoryAPI, productAPI } from "../../services/api";
+import { categoryAPI, productAPI, getImageUrl } from "../../services/api";
 import {
   ArrowLeft,
   Save,
@@ -32,62 +32,8 @@ import {
   TrendingUp,
   Clock,
   BarChart3,
-  Crown,
-  FolderOpen,
-  Layers,
-  Tag,
-  Zap,
-  Globe,
-  Shield,
-  Hash,
   DollarSign,
-  Users,
-  ShoppingBag,
 } from "lucide-react";
-
-// Helper function to get image URL
-const getImageUrl = (imagePath) => {
-  if (!imagePath || imagePath === "undefined" || imagePath === "null") {
-    return "";
-  }
-
-  // If it's already a full URL
-  if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
-    return imagePath;
-  }
-
-  // If it's a blob or data URL
-  if (imagePath.startsWith("blob:") || imagePath.startsWith("data:")) {
-    return imagePath;
-  }
-
-  // Get the server URL
-  const API_BASE_URL =
-    import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-  let IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_URL;
-
-  if (!IMAGE_BASE_URL) {
-    IMAGE_BASE_URL = API_BASE_URL.replace("/api", "");
-  }
-
-  if (!IMAGE_BASE_URL) {
-    IMAGE_BASE_URL = "http://localhost:5000";
-  }
-
-  // If it's an absolute path starting with /uploads/
-  if (imagePath.startsWith("/uploads/")) {
-    return `${IMAGE_BASE_URL}${imagePath}`;
-  }
-
-  // If it starts with /
-  if (imagePath.startsWith("/")) {
-    return `${IMAGE_BASE_URL}${imagePath}`;
-  }
-
-  // Otherwise, assume it's a filename in categories folder
-  const cleanFilename = imagePath.replace(/^.*[\\/]/, "");
-  return `${IMAGE_BASE_URL}/uploads/categories/${cleanFilename}`;
-};
 
 const CategoryForm = () => {
   const { id } = useParams();
@@ -151,79 +97,120 @@ const CategoryForm = () => {
     imageUrl: "",
   });
 
+  // Initial data loading
   useEffect(() => {
     if (isEditMode) {
       fetchCategory();
       fetchLinkedProducts();
     }
     fetchAllCategories();
-    fetchAllProducts();
   }, [id]);
 
+  // Fetch all products when modal opens
+  useEffect(() => {
+    if (showLinkProductsModal && allProducts.length === 0) {
+      fetchAllProducts();
+    }
+  }, [showLinkProductsModal]);
+
+  // Update filtered products when filters change
   useEffect(() => {
     if (showLinkProductsModal) {
       filterProducts();
     }
   }, [searchQuery, productFilter, sortBy, sortOrder, allProducts, showLinkProductsModal]);
 
+  // Filter products for linking modal
   const filterProducts = () => {
-    let filtered = allProducts;
-    
-    // Apply search filter
-    if (searchQuery) {
-      filtered = filtered.filter(product => 
-        product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (product.sku && product.sku.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (product.description && product.description.toLowerCase().includes(searchQuery.toLowerCase()))
-      );
-    }
-    
-    // Apply status filter
-    if (productFilter !== "all") {
-      filtered = filtered.filter(product => {
-        switch(productFilter) {
-          case "active": return product.isActive;
-          case "inactive": return !product.isActive;
-          case "featured": return product.featured;
-          case "lowStock": return product.stock > 0 && product.stock <= 10;
-          case "outOfStock": return product.stock === 0;
-          default: return true;
+    try {
+      console.log("Filtering products...");
+      console.log("All products:", allProducts.length);
+      console.log("Linked products:", linkedProducts.length);
+      
+      let filtered = [...allProducts];
+      
+      // Log initial count
+      console.log("Initial filtered count:", filtered.length);
+      
+      // Filter out already linked products
+      if (linkedProducts.length > 0) {
+        const linkedProductIds = new Set(linkedProducts.map(p => p._id));
+        filtered = filtered.filter(product => !linkedProductIds.has(product._id));
+        console.log("After removing linked products:", filtered.length);
+      }
+      
+      // Apply search filter
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase().trim();
+        filtered = filtered.filter(product => {
+          const matchesName = product.name?.toLowerCase().includes(query);
+          const matchesSKU = product.sku?.toLowerCase().includes(query);
+          const matchesDescription = product.description?.toLowerCase().includes(query);
+          return matchesName || matchesSKU || matchesDescription;
+        });
+        console.log("After search filter:", filtered.length);
+      }
+      
+      // Apply status filter
+      if (productFilter !== "all") {
+        filtered = filtered.filter(product => {
+          if (!product) return false;
+          
+          switch(productFilter) {
+            case "active": 
+              return product.isActive === true;
+            case "inactive": 
+              return product.isActive === false;
+            case "featured": 
+              return product.featured === true;
+            case "lowStock": 
+              return product.stock > 0 && product.stock <= 10;
+            case "outOfStock": 
+              return product.stock === 0;
+            default: 
+              return true;
+          }
+        });
+        console.log("After status filter:", filtered.length);
+      }
+      
+      // Apply sorting
+      filtered.sort((a, b) => {
+        let aValue, bValue;
+        
+        switch(sortBy) {
+          case "price":
+            aValue = a.price || 0;
+            bValue = b.price || 0;
+            break;
+          case "stock":
+            aValue = a.stock || 0;
+            bValue = b.stock || 0;
+            break;
+          case "date":
+            aValue = new Date(a.createdAt || 0);
+            bValue = new Date(b.createdAt || 0);
+            break;
+          case "name":
+          default:
+            aValue = a.name?.toLowerCase() || "";
+            bValue = b.name?.toLowerCase() || "";
+            break;
         }
+        
+        if (sortOrder === "desc") {
+          return aValue < bValue ? 1 : -1;
+        }
+        return aValue > bValue ? 1 : -1;
       });
+      
+      console.log("Final filtered count:", filtered.length);
+      setFilteredProducts(filtered);
+      setCurrentPage(1);
+    } catch (err) {
+      console.error("Error filtering products:", err);
+      setFilteredProducts([]);
     }
-    
-    // Apply sorting
-    filtered.sort((a, b) => {
-      let aValue, bValue;
-      
-      switch(sortBy) {
-        case "price":
-          aValue = a.price || 0;
-          bValue = b.price || 0;
-          break;
-        case "stock":
-          aValue = a.stock || 0;
-          bValue = b.stock || 0;
-          break;
-        case "date":
-          aValue = new Date(a.createdAt || 0);
-          bValue = new Date(b.createdAt || 0);
-          break;
-        case "name":
-        default:
-          aValue = a.name?.toLowerCase() || "";
-          bValue = b.name?.toLowerCase() || "";
-          break;
-      }
-      
-      if (sortOrder === "desc") {
-        return aValue < bValue ? 1 : -1;
-      }
-      return aValue > bValue ? 1 : -1;
-    });
-    
-    setFilteredProducts(filtered);
-    setCurrentPage(1);
   };
 
   // Fetch category details
@@ -255,10 +242,34 @@ const CategoryForm = () => {
           imageUrl: categoryData.imageUrl || categoryData.image || "",
         });
 
-        // Set image preview
+        // FIXED: Set image preview with proper URL construction
         const imageUrl = categoryData.imageUrl || categoryData.image;
         if (imageUrl) {
-          setImagePreview(getImageUrl(imageUrl));
+          // Try multiple ways to get the image URL
+          try {
+            // First, try the getImageUrl function
+            const fullImageUrl = getImageUrl(imageUrl, "categories");
+            console.log("Generated image URL:", fullImageUrl);
+            setImagePreview(fullImageUrl);
+          } catch (imgErr) {
+            console.warn("Error using getImageUrl:", imgErr);
+            
+            // Fallback 1: Check if it's already a full URL
+            if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://') || imageUrl.startsWith('/')) {
+              setImagePreview(imageUrl);
+            } 
+            // Fallback 2: Check if it's a Cloudinary URL (common pattern)
+            else if (imageUrl.includes('cloudinary') || imageUrl.includes('res.cloudinary.com')) {
+              setImagePreview(imageUrl);
+            }
+            // Fallback 3: Construct URL from base
+            else {
+              const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+              setImagePreview(`${baseUrl}/uploads/categories/${imageUrl}`);
+            }
+          }
+        } else {
+          setImagePreview("");
         }
       } else {
         setError("Category not found");
@@ -289,39 +300,80 @@ const CategoryForm = () => {
         categories = response.categories;
       }
 
-      setAllCategories(categories || []);
+      // Filter out current category from parent list
+      const filteredCategories = categories.filter(cat => cat._id !== id);
+      setAllCategories(filteredCategories || []);
     } catch (err) {
       console.error("Error fetching categories:", err);
       setAllCategories([]);
     }
   };
 
-  // Fetch all products for linking
+  // Fetch all products for linking - FIXED VERSION
   const fetchAllProducts = async () => {
     try {
       setLoadingAllProducts(true);
-      const response = await productAPI.getAllProducts({
-        page: 1,
-        limit: 1000,
-        sort: "name",
-        order: "asc",
-      });
-
+      console.log("Fetching all products...");
+      
+      // Try multiple API endpoints
+      const endpoints = [
+        { api: productAPI.getAllProducts, params: { page: 1, limit: 1000, sort: "name", order: "asc" } },
+        { api: productAPI.getAllProductsForAdmin, params: { page: 1, limit: 1000, sort: "name", order: "asc" } },
+        { api: productAPI.getAllProducts, params: {} },
+        { api: productAPI.getAllProductsForAdmin, params: {} }
+      ];
+      
       let products = [];
-      if (response?.success && response.data?.products) {
-        products = response.data.products;
-      } else if (response?.success && response.data) {
-        products = response.data;
-      } else if (Array.isArray(response)) {
-        products = response;
-      } else if (response?.products) {
-        products = response.products;
+      let lastError = null;
+      
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`Trying endpoint: ${endpoint.api.name}`);
+          const response = await endpoint.api(endpoint.params);
+          console.log("API Response:", response);
+          
+          // Handle different response structures
+          if (response) {
+            if (Array.isArray(response)) {
+              products = response;
+              break;
+            } else if (response.success && response.data) {
+              if (Array.isArray(response.data)) {
+                products = response.data;
+                break;
+              } else if (response.data.products && Array.isArray(response.data.products)) {
+                products = response.data.products;
+                break;
+              } else if (Array.isArray(response.data)) {
+                products = response.data;
+                break;
+              }
+            } else if (response.products && Array.isArray(response.products)) {
+              products = response.products;
+              break;
+            } else if (response.data && Array.isArray(response.data)) {
+              products = response.data;
+              break;
+            }
+          }
+        } catch (err) {
+          console.warn(`Endpoint failed: ${endpoint.api.name}`, err.message);
+          lastError = err;
+          continue;
+        }
       }
-
+      
+      if (products.length === 0 && lastError) {
+        throw lastError;
+      }
+      
+      console.log("Fetched products:", products.length);
       setAllProducts(products || []);
       setFilteredProducts(products || []);
+      
     } catch (err) {
       console.error("Error fetching all products:", err);
+      setError(`Failed to load products: ${err.message}`);
       setAllProducts([]);
       setFilteredProducts([]);
     } finally {
@@ -335,30 +387,65 @@ const CategoryForm = () => {
     
     try {
       setLoadingProducts(true);
-      const response = await productAPI.getAllProducts({ 
-        page: 1,
-        limit: 1000,
-        category: id,
-        includeStats: true 
-      });
+      console.log("Fetching linked products for category:", id);
       
       let products = [];
-      let stats = {};
       
-      if (response?.success && response.data) {
-        products = response.data.products || response.data;
-        stats = response.data.stats || {};
-      } else if (Array.isArray(response)) {
-        products = response;
-      } else if (response?.products) {
-        products = response.products;
-        stats = response.stats || {};
+      // Try multiple ways to fetch products by category
+      try {
+        // First try: Get all products and filter by category
+        const allProductsResponse = await productAPI.getAllProducts({ limit: 1000 });
+        console.log("All products response for filtering:", allProductsResponse);
+        
+        if (allProductsResponse) {
+          let allProductsData = [];
+          
+          if (Array.isArray(allProductsResponse)) {
+            allProductsData = allProductsResponse;
+          } else if (allProductsResponse.success && allProductsResponse.data) {
+            if (Array.isArray(allProductsResponse.data)) {
+              allProductsData = allProductsResponse.data;
+            } else if (allProductsResponse.data.products && Array.isArray(allProductsResponse.data.products)) {
+              allProductsData = allProductsResponse.data.products;
+            }
+          } else if (allProductsResponse.products && Array.isArray(allProductsResponse.products)) {
+            allProductsData = allProductsResponse.products;
+          } else if (Array.isArray(allProductsResponse.data)) {
+            allProductsData = allProductsResponse.data;
+          }
+          
+          // Filter products by category ID
+          products = allProductsData.filter(product => {
+            if (!product) return false;
+            
+            // Handle different category field structures
+            if (product.category) {
+              if (typeof product.category === 'string') {
+                return product.category === id;
+              } else if (product.category._id) {
+                return product.category._id === id;
+              } else if (product.category.id) {
+                return product.category.id === id;
+              }
+            }
+            
+            // Also check categoryId field
+            if (product.categoryId === id) {
+              return true;
+            }
+            
+            return false;
+          });
+        }
+      } catch (filterErr) {
+        console.warn("Failed to filter products by category:", filterErr);
       }
       
+      console.log("Linked products found:", products.length);
       setLinkedProducts(products || []);
       
-      // Calculate detailed product stats
-      if (Array.isArray(products)) {
+      // Calculate product stats
+      if (products.length > 0) {
         const total = products.length;
         const active = products.filter(p => p.isActive).length;
         const inactive = products.filter(p => !p.isActive).length;
@@ -377,7 +464,17 @@ const CategoryForm = () => {
           lowStock,
           totalValue,
           avgPrice,
-          ...stats,
+        });
+      } else {
+        setProductStats({
+          total: 0,
+          active: 0,
+          inactive: 0,
+          featured: 0,
+          outOfStock: 0,
+          lowStock: 0,
+          totalValue: 0,
+          avgPrice: 0,
         });
       }
     } catch (err) {
@@ -408,10 +505,8 @@ const CategoryForm = () => {
   const selectAllProducts = () => {
     const currentPageProductIds = currentProducts.map(p => p._id);
     if (selectedProducts.length === currentPageProductIds.length) {
-      // Deselect all on current page
       setSelectedProducts(prev => prev.filter(id => !currentPageProductIds.includes(id)));
     } else {
-      // Select all on current page
       setSelectedProducts(prev => {
         const newSelection = [...prev];
         currentPageProductIds.forEach(id => {
@@ -424,46 +519,89 @@ const CategoryForm = () => {
     }
   };
 
-  // Link products to category
+  // Link products to category - FIXED VERSION
   const linkProductsToCategory = async (productIds) => {
     if (!id || !productIds.length) return;
     
     try {
       setLinkingProducts(true);
+      setError("");
+      setSuccess("");
+      
+      console.log("Linking products:", productIds, "to category:", id);
       
       // Update each product with this category
-      const updatePromises = productIds.map(productId => {
-        const productToUpdate = allProducts.find(p => p._id === productId);
-        if (!productToUpdate) return Promise.resolve();
-        
-        // Check if product already has a category
-        const currentCategory = productToUpdate.category || productToUpdate.categoryId;
-        
-        const updateData = {
-          ...productToUpdate,
-          category: id  // Set category to current category ID
-        };
-        
-        // If product already has a category, preserve it in parentCategory field
-        if (currentCategory && currentCategory !== id) {
-          updateData.parentCategory = currentCategory;
+      const updatePromises = productIds.map(async (productId) => {
+        try {
+          console.log(`Linking product ${productId}...`);
+          
+          // Get the current product
+          const productToUpdate = allProducts.find(p => p._id === productId);
+          if (!productToUpdate) {
+            console.warn(`Product ${productId} not found in allProducts`);
+            return { success: false, productId, error: "Product not found" };
+          }
+          
+          // Prepare update data
+          const updateData = {
+            name: productToUpdate.name,
+            description: productToUpdate.description || "",
+            price: productToUpdate.price || 0,
+            stock: productToUpdate.stock || 0,
+            sku: productToUpdate.sku || "",
+            images: productToUpdate.images || [],
+            category: id, // Set category to current category ID
+            isActive: productToUpdate.isActive !== undefined ? productToUpdate.isActive : true,
+            featured: productToUpdate.featured || false,
+            weight: productToUpdate.weight || "",
+            dimensions: productToUpdate.dimensions || "",
+            specifications: productToUpdate.specifications || {},
+          };
+          
+          console.log(`Updating product ${productId} with data:`, updateData);
+          
+          // Send update request
+          const response = await productAPI.updateProduct(productId, updateData);
+          console.log(`Update response for ${productId}:`, response);
+          
+          return { success: true, productId, response };
+        } catch (err) {
+          console.error(`Error updating product ${productId}:`, err);
+          return { success: false, productId, error: err.message };
         }
-        
-        return productAPI.updateProduct(productId, updateData);
       });
       
-      await Promise.all(updatePromises);
+      const results = await Promise.allSettled(updatePromises);
+      console.log("All update results:", results);
       
-      // Refresh linked products
+      const successful = results.filter(r => 
+        r.status === 'fulfilled' && r.value.success
+      ).length;
+      
+      const failed = results.filter(r => 
+        r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success)
+      ).length;
+      
+      // Refresh data
       await fetchLinkedProducts();
-      // Refresh all products to update their category status
-      await fetchAllProducts();
+      await fetchAllProducts(); // Refresh all products list
       
-      setSuccess(`${productIds.length} product(s) linked to category successfully!`);
+      if (successful > 0) {
+        setSuccess(`${successful} product(s) linked to category successfully!`);
+      }
+      
+      if (failed > 0) {
+        setError(`${failed} product(s) failed to link. Please try again.`);
+      }
+      
       setSelectedProducts([]);
       setShowLinkProductsModal(false);
+      setSearchQuery("");
       
-      setTimeout(() => setSuccess(""), 3000);
+      setTimeout(() => {
+        setSuccess("");
+        setError("");
+      }, 3000);
     } catch (err) {
       console.error("Error linking products:", err);
       setError("Failed to link products. Please try again.");
@@ -478,37 +616,59 @@ const CategoryForm = () => {
     
     try {
       setUnlinkingProducts(true);
+      setError("");
+      setSuccess("");
       
       // Update each product to remove category
-      const updatePromises = productIds.map(productId => {
-        const productToUpdate = allProducts.find(p => p._id === productId);
-        if (!productToUpdate) return Promise.resolve();
-        
-        const updateData = {
-          ...productToUpdate,
-          category: null  // Remove category
-        };
-        
-        // If product has parentCategory, move it back to main category
-        if (productToUpdate.parentCategory) {
-          updateData.category = productToUpdate.parentCategory;
-          updateData.parentCategory = null;
+      const updatePromises = productIds.map(async (productId) => {
+        try {
+          const productToUpdate = allProducts.find(p => p._id === productId);
+          if (!productToUpdate) {
+            console.warn(`Product ${productId} not found`);
+            return { success: false, productId, error: "Product not found" };
+          }
+          
+          const updateData = {
+            ...productToUpdate,
+            category: null // Remove category
+          };
+          
+          const response = await productAPI.updateProduct(productId, updateData);
+          return { success: true, productId, response };
+        } catch (err) {
+          console.error(`Error updating product ${productId}:`, err);
+          return { success: false, productId, error: err.message };
         }
-        
-        return productAPI.updateProduct(productId, updateData);
       });
       
-      await Promise.all(updatePromises);
+      const results = await Promise.allSettled(updatePromises);
       
-      // Refresh linked products
+      const successful = results.filter(r => 
+        r.status === 'fulfilled' && r.value.success
+      ).length;
+      
+      const failed = results.filter(r => 
+        r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success)
+      ).length;
+      
+      // Refresh data
       await fetchLinkedProducts();
-      // Refresh all products
       await fetchAllProducts();
       
-      setSuccess(`${productIds.length} product(s) unlinked from category successfully!`);
+      if (successful > 0) {
+        setSuccess(`${successful} product(s) unlinked from category successfully!`);
+      }
+      
+      if (failed > 0) {
+        setError(`${failed} product(s) failed to unlink. Please try again.`);
+      }
+      
       setSelectedProducts([]);
       
-      setTimeout(() => setSuccess(""), 3000);
+      setTimeout(() => {
+        setSuccess("");
+        setError("");
+      }, 3000);
     } catch (err) {
       console.error("Error unlinking products:", err);
       setError("Failed to unlink products. Please try again.");
@@ -521,47 +681,66 @@ const CategoryForm = () => {
   const applyBulkAction = async () => {
     if (!bulkAction || !selectedProducts.length) return;
     
-    switch(bulkAction) {
-      case "link":
-        await linkProductsToCategory(selectedProducts);
-        break;
-      case "unlink":
-        await unlinkProductsFromCategory(selectedProducts);
-        break;
-      case "activate":
-        await updateProductsStatus(selectedProducts, true);
-        break;
-      case "deactivate":
-        await updateProductsStatus(selectedProducts, false);
-        break;
-      default:
-        break;
+    try {
+      switch(bulkAction) {
+        case "link":
+          await linkProductsToCategory(selectedProducts);
+          break;
+        case "unlink":
+          await unlinkProductsFromCategory(selectedProducts);
+          break;
+        case "activate":
+          await updateProductsStatus(selectedProducts, true);
+          break;
+        case "deactivate":
+          await updateProductsStatus(selectedProducts, false);
+          break;
+        default:
+          break;
+      }
+    } catch (err) {
+      console.error("Error applying bulk action:", err);
+      setError("Failed to apply bulk action. Please try again.");
     }
     
     setBulkAction("");
   };
 
+  // Update product status
   const updateProductsStatus = async (productIds, isActive) => {
     try {
-      const updatePromises = productIds.map(productId => {
-        const productToUpdate = allProducts.find(p => p._id === productId);
-        if (!productToUpdate) return Promise.resolve();
-        
-        const updateData = {
-          ...productToUpdate,
-          isActive: isActive
-        };
-        
-        return productAPI.updateProduct(productId, updateData);
+      const updatePromises = productIds.map(async (productId) => {
+        try {
+          const productToUpdate = allProducts.find(p => p._id === productId);
+          if (!productToUpdate) {
+            console.warn(`Product ${productId} not found`);
+            return { success: false, productId, error: "Product not found" };
+          }
+          
+          const updateData = {
+            ...productToUpdate,
+            isActive: isActive
+          };
+          
+          const response = await productAPI.updateProduct(productId, updateData);
+          return { success: true, productId, response };
+        } catch (err) {
+          console.error(`Error updating product ${productId}:`, err);
+          return { success: false, productId, error: err.message };
+        }
       });
       
-      await Promise.all(updatePromises);
+      const results = await Promise.allSettled(updatePromises);
+      
+      const successful = results.filter(r => 
+        r.status === 'fulfilled' && r.value.success
+      ).length;
       
       // Refresh products
       await fetchLinkedProducts();
       await fetchAllProducts();
       
-      setSuccess(`${productIds.length} product(s) ${isActive ? 'activated' : 'deactivated'} successfully!`);
+      setSuccess(`${successful} product(s) ${isActive ? 'activated' : 'deactivated'} successfully!`);
       setSelectedProducts([]);
       
       setTimeout(() => setSuccess(""), 3000);
@@ -584,11 +763,51 @@ const CategoryForm = () => {
     return linkedProducts.some(p => p._id === productId);
   };
 
-  // Check if product is selected
-  const isProductSelected = (productId) => {
-    return selectedProducts.includes(productId);
+  // Format price
+  const formatPrice = (price) => {
+    if (!price && price !== 0) return "₱0.00";
+    return new Intl.NumberFormat('en-PH', {
+      style: 'currency',
+      currency: 'PHP',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(price);
   };
 
+  // Get product image URL - FIXED VERSION
+  const getProductImageUrl = (product) => {
+    if (!product?.images || !Array.isArray(product.images) || product.images.length === 0) {
+      return "https://via.placeholder.com/200x200?text=No+Image";
+    }
+    
+    const imageUrl = product.images[0];
+    
+    // Try multiple ways to construct the image URL
+    try {
+      // First try the getImageUrl function
+      const fullImageUrl = getImageUrl(imageUrl, "products");
+      console.log("Product image URL:", fullImageUrl);
+      return fullImageUrl;
+    } catch (err) {
+      console.warn("Error using getImageUrl for product:", err);
+      
+      // Fallback 1: Check if it's already a full URL
+      if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://') || imageUrl.startsWith('/')) {
+        return imageUrl;
+      }
+      // Fallback 2: Cloudinary URL
+      else if (imageUrl.includes('cloudinary') || imageUrl.includes('res.cloudinary.com')) {
+        return imageUrl;
+      }
+      // Fallback 3: Construct from base
+      else {
+        const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+        return `${baseUrl}/uploads/products/${imageUrl}`;
+      }
+    }
+  };
+
+  // Handle form field changes
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setCategory({
@@ -777,8 +996,6 @@ const CategoryForm = () => {
         }
       }
 
-      console.log("API Response:", response);
-
       if (response?.success) {
         const successMessage = isEditMode
           ? "Category updated successfully!"
@@ -850,11 +1067,6 @@ const CategoryForm = () => {
   // View a specific product
   const viewProduct = (productId) => {
     navigate(`/admin/products/edit/${productId}`);
-  };
-
-  // View product details
-  const viewProductDetails = (productId) => {
-    navigate(`/admin/products/view/${productId}`);
   };
 
   // Quick actions
@@ -1092,7 +1304,12 @@ const CategoryForm = () => {
               </div>
               <div className="flex flex-wrap gap-2">
                 <button
-                  onClick={() => quickAction('refresh')}
+                  onClick={() => {
+                    fetchLinkedProducts();
+                    fetchAllProducts();
+                    setSuccess("Products refreshed!");
+                    setTimeout(() => setSuccess(""), 2000);
+                  }}
                   className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors"
                   title="Refresh products"
                 >
@@ -1100,7 +1317,14 @@ const CategoryForm = () => {
                   Refresh
                 </button>
                 <button
-                  onClick={() => quickAction('openLinkModal')}
+                  onClick={() => {
+                    setShowLinkProductsModal(true);
+                    setTimeout(() => {
+                      if (searchInputRef.current) {
+                        searchInputRef.current.focus();
+                      }
+                    }, 100);
+                  }}
                   className="inline-flex items-center gap-2 bg-green-600 text-white px-3 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors"
                 >
                   <Plus className="w-4 h-4" />
@@ -1222,53 +1446,6 @@ const CategoryForm = () => {
               </div>
             </div>
 
-            {/* Bulk Actions Bar */}
-            {selectedProducts.length > 0 && (
-              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-2">
-                    <Check className="w-5 h-5 text-blue-600" />
-                    <span className="font-medium text-blue-800">
-                      {selectedProducts.length} product(s) selected
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <select
-                      value={bulkAction}
-                      onChange={(e) => setBulkAction(e.target.value)}
-                      className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">Bulk Actions</option>
-                      <option value="link">Link to Category</option>
-                      <option value="unlink">Unlink from Category</option>
-                      <option value="activate">Activate Products</option>
-                      <option value="deactivate">Deactivate Products</option>
-                    </select>
-                    <button
-                      onClick={applyBulkAction}
-                      disabled={!bulkAction || linkingProducts || unlinkingProducts}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {(linkingProducts || unlinkingProducts) ? (
-                        <span className="flex items-center gap-2">
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Applying...
-                        </span>
-                      ) : (
-                        "Apply"
-                      )}
-                    </button>
-                    <button
-                      onClick={() => setSelectedProducts([])}
-                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50"
-                    >
-                      Clear Selection
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Products Display */}
             {loadingProducts ? (
               <div className="text-center py-12">
@@ -1298,13 +1475,6 @@ const CategoryForm = () => {
                       Showing {linkedProducts.length} product(s)
                     </span>
                   </div>
-                  <button
-                    onClick={() => quickAction('exportList')}
-                    className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg font-medium hover:bg-gray-200"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                    Export List
-                  </button>
                 </div>
 
                 {/* Grid View */}
@@ -1315,34 +1485,18 @@ const CategoryForm = () => {
                         <div className="relative">
                           {/* Product Image */}
                           <div className="aspect-square bg-gray-100 overflow-hidden">
-                            {product.images && product.images[0] ? (
-                              <img
-                                src={getImageUrl(product.images[0])}
-                                alt={product.name}
-                                className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                                onError={(e) => {
-                                  e.target.style.display = "none";
-                                  e.target.parentNode.innerHTML = `
-                                    <div class="w-full h-full flex items-center justify-center">
-                                      <Package class="w-12 h-12 text-gray-400" />
-                                    </div>
-                                  `;
-                                }}
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <Package className="w-12 h-12 text-gray-400" />
-                              </div>
-                            )}
-                          </div>
-                          
-                          {/* Selection Checkbox */}
-                          <div className="absolute top-3 left-3">
-                            <input
-                              type="checkbox"
-                              checked={selectedProducts.includes(product._id)}
-                              onChange={() => toggleProductSelection(product._id)}
-                              className="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                            <img
+                              src={getProductImageUrl(product)}
+                              alt={product.name}
+                              className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                              onError={(e) => {
+                                e.target.style.display = "none";
+                                e.target.parentNode.innerHTML = `
+                                  <div class="w-full h-full flex items-center justify-center">
+                                    <Package class="w-12 h-12 text-gray-400" />
+                                  </div>
+                                `;
+                              }}
                             />
                           </div>
                           
@@ -1378,7 +1532,7 @@ const CategoryForm = () => {
                           <div className="space-y-2 mb-4">
                             <div className="flex justify-between items-center">
                               <span className="text-lg font-bold text-gray-900">
-                                ₱{product.price?.toFixed(2) || "0.00"}
+                                {formatPrice(product.price)}
                               </span>
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                 product.stock > 10 
@@ -1401,18 +1555,18 @@ const CategoryForm = () => {
                           {/* Actions */}
                           <div className="flex gap-2">
                             <button
-                              onClick={() => viewProductDetails(product._id)}
+                              onClick={() => navigate(`/admin/products/edit/${product._id}`)}
                               className="flex-1 inline-flex items-center justify-center gap-1 bg-blue-50 text-blue-700 px-3 py-2 rounded-lg font-medium hover:bg-blue-100 transition-colors"
-                            >
-                              <Eye className="w-4 h-4" />
-                              View
-                            </button>
-                            <button
-                              onClick={() => viewProduct(product._id)}
-                              className="flex-1 inline-flex items-center justify-center gap-1 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors"
                             >
                               <Edit className="w-4 h-4" />
                               Edit
+                            </button>
+                            <button
+                              onClick={() => unlinkProductsFromCategory([product._id])}
+                              className="flex-1 inline-flex items-center justify-center gap-1 bg-red-50 text-red-700 px-3 py-2 rounded-lg font-medium hover:bg-red-100 transition-colors"
+                            >
+                              <X className="w-4 h-4" />
+                              Unlink
                             </button>
                           </div>
                         </div>
@@ -1425,20 +1579,6 @@ const CategoryForm = () => {
                     <table className="w-full">
                       <thead>
                         <tr className="border-b border-gray-200">
-                          <th className="text-left py-3 px-4">
-                            <input
-                              type="checkbox"
-                              checked={selectedProducts.length === linkedProducts.length && linkedProducts.length > 0}
-                              onChange={() => {
-                                if (selectedProducts.length === linkedProducts.length) {
-                                  setSelectedProducts([]);
-                                } else {
-                                  setSelectedProducts(linkedProducts.map(p => p._id));
-                                }
-                              }}
-                              className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                            />
-                          </th>
                           <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Product</th>
                           <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Price</th>
                           <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Stock</th>
@@ -1450,27 +1590,21 @@ const CategoryForm = () => {
                         {linkedProducts.map((product) => (
                           <tr key={product._id} className="border-b border-gray-100 hover:bg-gray-50">
                             <td className="py-3 px-4">
-                              <input
-                                type="checkbox"
-                                checked={selectedProducts.includes(product._id)}
-                                onChange={() => toggleProductSelection(product._id)}
-                                className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                              />
-                            </td>
-                            <td className="py-3 px-4">
                               <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                                  {product.images && product.images[0] ? (
-                                    <img
-                                      src={getImageUrl(product.images[0])}
-                                      alt={product.name}
-                                      className="w-full h-full object-cover"
-                                    />
-                                  ) : (
-                                    <div className="w-full h-full flex items-center justify-center">
-                                      <Package className="w-5 h-5 text-gray-400" />
-                                    </div>
-                                  )}
+                                  <img
+                                    src={getProductImageUrl(product)}
+                                    alt={product.name}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      e.target.style.display = "none";
+                                      e.target.parentNode.innerHTML = `
+                                        <div class="w-full h-full flex items-center justify-center">
+                                          <Package class="w-5 h-5 text-gray-400" />
+                                        </div>
+                                      `;
+                                    }}
+                                  />
                                 </div>
                                 <div>
                                   <p className="font-medium text-gray-900">{product.name}</p>
@@ -1481,13 +1615,8 @@ const CategoryForm = () => {
                             <td className="py-3 px-4">
                               <div>
                                 <span className="font-medium text-gray-900">
-                                  ₱{product.price?.toFixed(2) || "0.00"}
+                                  {formatPrice(product.price)}
                                 </span>
-                                {product.discountedPrice && (
-                                  <span className="text-sm text-red-600 line-through ml-2">
-                                    ₱{product.discountedPrice.toFixed(2)}
-                                  </span>
-                                )}
                               </div>
                             </td>
                             <td className="py-3 px-4">
@@ -1520,14 +1649,7 @@ const CategoryForm = () => {
                             <td className="py-3 px-4">
                               <div className="flex gap-2">
                                 <button
-                                  onClick={() => viewProductDetails(product._id)}
-                                  className="text-blue-600 hover:text-blue-700 p-1"
-                                  title="View Details"
-                                >
-                                  <Eye className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => viewProduct(product._id)}
+                                  onClick={() => navigate(`/admin/products/edit/${product._id}`)}
                                   className="text-gray-600 hover:text-gray-700 p-1"
                                   title="Edit Product"
                                 >
@@ -1558,7 +1680,14 @@ const CategoryForm = () => {
                 <p className="text-gray-600 mb-6">Start by linking products to this category</p>
                 <div className="flex flex-wrap justify-center gap-3">
                   <button
-                    onClick={() => quickAction('openLinkModal')}
+                    onClick={() => {
+                      setShowLinkProductsModal(true);
+                      setTimeout(() => {
+                        if (searchInputRef.current) {
+                          searchInputRef.current.focus();
+                        }
+                      }, 100);
+                    }}
                     className="inline-flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors"
                   >
                     <LinkIcon className="w-4 h-4" />
@@ -1577,6 +1706,7 @@ const CategoryForm = () => {
           </div>
         )}
 
+        {/* Main Category Form */}
         <form id="categoryForm" onSubmit={handleSubmit} className="space-y-6">
           {/* Image Upload Card */}
           <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
@@ -1615,13 +1745,16 @@ const CategoryForm = () => {
                           alt="Category preview"
                           className="w-full h-full object-cover"
                           onError={(e) => {
+                            console.error("Image failed to load:", e);
                             e.target.style.display = "none";
                             const fallback = document.createElement("div");
                             fallback.className =
                               "w-full h-full bg-blue-100 flex items-center justify-center";
                             fallback.innerHTML = `
                               <div class="text-center">
-                                <FolderTree class="w-16 h-16 text-blue-600 mx-auto mb-2" />
+                                <svg class="w-16 h-16 text-blue-600 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
+                                </svg>
                                 <p class="text-sm text-blue-800">Image failed to load</p>
                               </div>
                             `;
@@ -2225,8 +2358,21 @@ const CategoryForm = () => {
                 ) : filteredProducts.length === 0 ? (
                   <div className="text-center py-12">
                     <Search className="w-12 h-12 mx-auto text-gray-400 mb-3" />
-                    <p className="text-gray-600">No products found</p>
+                    <p className="text-gray-600">
+                      {allProducts.length === 0 
+                        ? "No products found in the system. Please add products first."
+                        : "No products available to link. All products may already be linked to this category."}
+                    </p>
                     <p className="text-sm text-gray-500 mt-1">Try a different search term or filter</p>
+                    {allProducts.length === 0 && (
+                      <button
+                        onClick={createProductInCategory}
+                        className="mt-4 inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Create New Product
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <>
@@ -2252,26 +2398,28 @@ const CategoryForm = () => {
                         <div
                           key={product._id}
                           className={`border rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer ${
-                            isProductSelected(product._id)
+                            selectedProducts.includes(product._id)
                               ? "border-blue-500 bg-blue-50"
                               : "border-gray-200"
-                          } ${isProductLinked(product._id) ? "opacity-50 cursor-not-allowed" : ""}`}
-                          onClick={() => !isProductLinked(product._id) && toggleProductSelection(product._id)}
+                          }`}
+                          onClick={() => toggleProductSelection(product._id)}
                         >
                           <div className="flex items-start gap-3">
                             <div className="flex-shrink-0">
                               <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100">
-                                {product.images && product.images[0] ? (
-                                  <img
-                                    src={getImageUrl(product.images[0])}
-                                    alt={product.name}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center">
-                                    <Package className="w-6 h-6 text-gray-400" />
-                                  </div>
-                                )}
+                                <img
+                                  src={getProductImageUrl(product)}
+                                  alt={product.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.style.display = "none";
+                                    e.target.parentNode.innerHTML = `
+                                      <div class="w-full h-full flex items-center justify-center">
+                                        <Package class="w-6 h-6 text-gray-400" />
+                                      </div>
+                                    `;
+                                  }}
+                                />
                               </div>
                             </div>
                             <div className="flex-1 min-w-0">
@@ -2286,19 +2434,18 @@ const CategoryForm = () => {
                                 </div>
                                 <input
                                   type="checkbox"
-                                  checked={isProductSelected(product._id)}
+                                  checked={selectedProducts.includes(product._id)}
                                   onChange={(e) => {
                                     e.stopPropagation();
                                     toggleProductSelection(product._id);
                                   }}
-                                  disabled={isProductLinked(product._id)}
                                   className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                                 />
                               </div>
                               <div className="mt-2 space-y-1">
                                 <div className="flex items-center justify-between">
                                   <span className="font-medium text-gray-900">
-                                    ₱{product.price?.toFixed(2) || "0.00"}
+                                    {formatPrice(product.price)}
                                   </span>
                                   <span className={`text-xs px-2 py-1 rounded-full ${
                                     product.stock > 10
@@ -2321,11 +2468,6 @@ const CategoryForm = () => {
                                   {product.featured && (
                                     <span className="text-xs px-2 py-1 rounded-full bg-yellow-100 text-yellow-800">
                                       Featured
-                                    </span>
-                                  )}
-                                  {isProductLinked(product._id) && (
-                                    <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800">
-                                      Already Linked
                                     </span>
                                   )}
                                 </div>

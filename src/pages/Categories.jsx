@@ -30,7 +30,20 @@ import {
   Maximize2,
   Minimize2,
   ChevronsDown,
-  ChevronsUp
+  ChevronsUp,
+  ShoppingBag,
+  DollarSign,
+  Hash,
+  Calendar,
+  Clock,
+  Percent,
+  Users,
+  Globe,
+  Shield,
+  Zap,
+  Menu,
+  Grid3x3,
+  MoreVertical
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { categoryAPI } from "../services/api";
@@ -231,7 +244,7 @@ const SubCategoryPicture = ({
               </span>
               <div className="flex items-center gap-1 text-purple-300">
                 <ArrowRight className="w-3 h-3" />
-                <span className="text-xs font-medium">View</span>
+                <span className="text-xs font-medium">View Products</span>
               </div>
             </div>
           </div>
@@ -242,6 +255,262 @@ const SubCategoryPicture = ({
       <div className="mt-3 text-center px-1">
         <h4 className="font-medium text-white text-sm truncate">{subCategory.name}</h4>
         <p className="text-xs text-gray-400 mt-0.5">{subCategory.productCount || 0} products</p>
+      </div>
+    </div>
+  );
+};
+
+// Product Card Component
+const ProductCard = ({ product }) => {
+  const [imageError, setImageError] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+
+  const getProductImageUrl = (imagePath) => {
+    if (!imagePath) return "";
+    
+    if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+      return imagePath;
+    }
+    
+    const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+    let IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_URL || API_BASE_URL.replace("/api", "");
+    
+    if (imagePath.startsWith("/uploads/")) {
+      return `${IMAGE_BASE_URL}${imagePath}`;
+    }
+    
+    return `${IMAGE_BASE_URL}/uploads/products/${imagePath}`;
+  };
+
+  const imageUrl = getProductImageUrl(product.image || product.imageUrl);
+
+  return (
+    <div 
+      className="group bg-gradient-to-br from-gray-800/50 to-gray-900/30 backdrop-blur-sm rounded-xl border border-gray-700 overflow-hidden hover:border-blue-500/50 transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/10 cursor-pointer"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onClick={() => window.open(`/products/${product._id}`, '_blank')}
+    >
+      {/* Product Image */}
+      <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800">
+        {imageUrl && !imageError ? (
+          <img
+            src={imageUrl}
+            alt={product.name}
+            className={`w-full h-full object-cover transition-transform duration-500 ${
+              isHovered ? 'scale-110' : 'scale-100'
+            }`}
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center p-4">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-3 shadow-lg">
+              <Package className="w-8 h-8 text-white" />
+            </div>
+            <span className="text-sm font-medium text-blue-300 text-center px-2">
+              {product.name}
+            </span>
+          </div>
+        )}
+        
+        {/* Product Status Badge */}
+        <div className="absolute top-3 left-3">
+          {product.featured && (
+            <span className="px-2.5 py-1 text-xs font-semibold bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-full shadow flex items-center gap-1">
+              <Award className="w-3 h-3" />
+              Featured
+            </span>
+          )}
+        </div>
+        
+        {/* Price Badge */}
+        <div className="absolute top-3 right-3">
+          <span className="px-2.5 py-1 text-xs font-semibold bg-gradient-to-r from-green-600 to-green-500 text-white rounded-full shadow flex items-center gap-1">
+            <DollarSign className="w-3 h-3" />
+            ${product.price || 0}
+          </span>
+        </div>
+        
+        {/* Hover Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
+          <div className="text-white transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+            <h3 className="font-bold text-lg mb-2">{product.name}</h3>
+            <p className="text-xs text-gray-300 line-clamp-2 mb-3">
+              {product.description || 'No description available'}
+            </p>
+            <div className="flex items-center justify-between">
+              <span className="text-xs bg-black/70 backdrop-blur-sm px-2 py-1 rounded-full border border-white/10">
+                {product.category?.name || 'Uncategorized'}
+              </span>
+              <button className="text-xs bg-gradient-to-r from-blue-600 to-blue-500 text-white px-3 py-1.5 rounded-full flex items-center gap-1 group-hover:scale-105 transition-transform">
+                View Details
+                <ArrowRight className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Product Info */}
+      <div className="p-4">
+        <div className="flex items-start justify-between mb-2">
+          <h3 className="font-semibold text-white text-sm line-clamp-1">{product.name}</h3>
+          <span className="font-bold text-blue-300">${product.price || 0}</span>
+        </div>
+        
+        <p className="text-xs text-gray-400 line-clamp-2 mb-3">
+          {product.shortDescription || product.description || 'No description available'}
+        </p>
+        
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1">
+            <Star className="w-3 h-3 text-amber-400 fill-current" />
+            <span className="text-xs text-gray-300">{product.rating || '4.5'}</span>
+          </div>
+          
+          <div className="flex items-center gap-1 text-xs text-gray-400">
+            <Package className="w-3 h-3" />
+            <span>{product.stock || 0} in stock</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Products Section Component
+const ProductsSection = ({ 
+  products, 
+  category, 
+  onClose,
+  loading 
+}) => {
+  if (loading) {
+    return (
+      <div className="mt-6 mb-8 relative">
+        <div className="relative bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-gray-700/70 shadow-xl overflow-hidden p-8">
+          <div className="flex flex-col items-center justify-center h-64">
+            <div className="relative">
+              <div className="w-16 h-16 rounded-full border-4 border-gray-700 border-t-blue-500 animate-spin mx-auto mb-4"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Package className="w-8 h-8 text-blue-400 animate-pulse" />
+              </div>
+            </div>
+            <p className="text-gray-400 mt-4">Loading products...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!products || products.length === 0) {
+    return (
+      <div className="mt-6 mb-8 relative">
+        <div className="relative bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-gray-700/70 shadow-xl overflow-hidden p-8">
+          <div className="flex flex-col items-center justify-center h-64">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center mb-4 shadow-lg">
+              <Package className="w-10 h-10 text-gray-600" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">No products found</h3>
+            <p className="text-gray-400 text-center max-w-md">
+              There are no products available in this category at the moment.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-6 mb-8 relative">
+      {/* Connector line */}
+      <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 w-0.5 h-6 bg-gradient-to-b from-green-500 to-transparent"></div>
+      
+      {/* Main container */}
+      <div className="relative bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-gray-700/70 shadow-xl overflow-hidden">
+        {/* Decorative gradient border */}
+        <div className="absolute inset-0 bg-gradient-to-r from-green-500/5 via-blue-500/5 to-transparent pointer-events-none"></div>
+        
+        {/* Header */}
+        <div className="relative p-6 border-b border-gray-700/50">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <div className="absolute inset-0 bg-green-500/20 rounded-full blur-xl"></div>
+                <div className="relative w-12 h-12 rounded-full bg-gradient-to-br from-green-600 to-green-500 flex items-center justify-center shadow-lg">
+                  <ShoppingBag className="w-6 h-6 text-white" />
+                </div>
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-white">
+                  Products in <span className="text-green-400">{category?.name}</span>
+                </h2>
+                <div className="flex items-center gap-3 mt-1">
+                  <span className="text-sm text-gray-300 bg-gray-800/50 backdrop-blur-sm px-3 py-1 rounded-full border border-gray-700">
+                    {products.length} products
+                  </span>
+                  <span className="text-sm text-green-300 bg-green-900/20 backdrop-blur-sm px-3 py-1 rounded-full border border-green-700/30">
+                    Total Value: ${products.reduce((sum, p) => sum + (p.price || 0), 0)}
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <button
+                onClick={onClose}
+                className="p-2.5 text-gray-400 hover:text-white hover:bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 transition-all hover:border-gray-600"
+                title="Close products view"
+              >
+                <ChevronsUp className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        {/* Products Grid */}
+        <div className="p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {products.map((product) => (
+              <ProductCard key={product._id} product={product} />
+            ))}
+          </div>
+        </div>
+        
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-700/50 bg-gray-800/20 backdrop-blur-sm">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-semibold text-white mb-1">Product Summary</h3>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-400 bg-gray-800/50 backdrop-blur-sm px-3 py-1 rounded-full border border-gray-700">
+                  Average Price: ${(products.reduce((sum, p) => sum + (p.price || 0), 0) / products.length).toFixed(2)}
+                </span>
+                <span className="text-sm text-blue-300 bg-blue-900/20 backdrop-blur-sm px-3 py-1 rounded-full border border-blue-700/30">
+                  In Stock: {products.filter(p => p.stock > 0).length}
+                </span>
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 bg-gray-800/50 hover:bg-gray-800 text-gray-300 rounded-lg border border-gray-700 transition-all duration-300 hover:border-gray-600 flex items-center gap-2"
+              >
+                <ChevronsUp className="w-4 h-4" />
+                <span className="text-sm font-medium">Back to Categories</span>
+              </button>
+              
+              <button
+                onClick={() => window.open(`/products?category=${category?._id}`, '_blank')}
+                className="px-4 py-2 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-green-500/25 flex items-center gap-2"
+              >
+                <ShoppingBag className="w-4 h-4" />
+                <span className="text-sm font-medium">View All in Store</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -371,7 +640,10 @@ const CategoryListItem = ({
   category, 
   onViewProducts, 
   onViewSubCategories, 
-  viewSubCategories
+  viewSubCategories,
+  viewProducts,
+  products,
+  productsLoading
 }) => {
   const [imageError, setImageError] = useState(false);
   const imageUrl = getImageUrl(category.image || category.imageUrl);
@@ -380,7 +652,7 @@ const CategoryListItem = ({
 
   return (
     <div className={`bg-gradient-to-br from-gray-800/50 to-gray-900/30 backdrop-blur-sm rounded-xl border p-6 transition-all duration-300 ${
-      viewSubCategories === category._id 
+      viewSubCategories === category._id || viewProducts === category._id
         ? 'border-blue-500/50 shadow-lg shadow-blue-500/10' 
         : 'border-gray-700 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/5'
     }`}>
@@ -465,7 +737,24 @@ const CategoryListItem = ({
               </span>
             </div>
             
-            
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onViewProducts(category._id)}
+                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/25 flex items-center gap-2"
+              >
+                <ShoppingBag className="w-4 h-4" />
+                <span className="font-medium">View Products</span>
+              </button>
+              {hasSubCategories && isMainCategory && (
+                <button
+                  onClick={() => onViewSubCategories(category._id)}
+                  className="px-4 py-2 bg-gray-800/50 hover:bg-gray-800 text-gray-300 rounded-lg border border-gray-700 transition-all duration-300 hover:border-gray-600 flex items-center gap-2"
+                >
+                  <Layers className="w-4 h-4" />
+                  <span className="font-medium">View Subs</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -478,6 +767,18 @@ const CategoryListItem = ({
             onViewProducts={onViewProducts}
             onClose={() => onViewSubCategories(null)}
             onViewAllProducts={onViewProducts}
+          />
+        </div>
+      )}
+      
+      {/* Show Products if expanded */}
+      {viewProducts === category._id && (
+        <div className="mt-6 pt-6 border-t border-gray-700/30">
+          <ProductsSection
+            products={products}
+            category={category}
+            onClose={() => onViewProducts(null)}
+            loading={productsLoading}
           />
         </div>
       )}
@@ -497,6 +798,9 @@ const Categories = () => {
   const [error, setError] = useState(null);
   const [viewMode, setViewMode] = useState("grid");
   const [expandedCategory, setExpandedCategory] = useState(null);
+  const [viewingProducts, setViewingProducts] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [productsLoading, setProductsLoading] = useState(false);
   
   // Filters from URL
   const [filters, setFilters] = useState({
@@ -605,6 +909,119 @@ const Categories = () => {
     }
   };
 
+  // Fetch products for a specific category
+  const fetchCategoryProducts = async (categoryId) => {
+    try {
+      setProductsLoading(true);
+      setProducts([]);
+      
+      // In a real application, you would make an API call here
+      // For now, we'll use mock data
+      const mockProducts = [
+        {
+          _id: "1",
+          name: "Premium Product 1",
+          description: "High-quality premium product with excellent features",
+          price: 99.99,
+          image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&h=500&fit=crop",
+          category: { name: "Electronics" },
+          featured: true,
+          stock: 15,
+          rating: 4.5
+        },
+        {
+          _id: "2",
+          name: "Standard Product 2",
+          description: "Reliable standard product for everyday use",
+          price: 49.99,
+          image: "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=500&h=500&fit=crop",
+          category: { name: "Accessories" },
+          featured: false,
+          stock: 30,
+          rating: 4.2
+        },
+        {
+          _id: "3",
+          name: "Deluxe Product 3",
+          description: "Luxury deluxe product with premium features",
+          price: 199.99,
+          image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&h=500&fit=crop",
+          category: { name: "Premium" },
+          featured: true,
+          stock: 8,
+          rating: 4.8
+        },
+        {
+          _id: "4",
+          name: "Budget Product 4",
+          description: "Affordable budget product with good value",
+          price: 29.99,
+          image: "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=500&h=500&fit=crop",
+          category: { name: "Basics" },
+          featured: false,
+          stock: 50,
+          rating: 3.9
+        },
+        {
+          _id: "5",
+          name: "Professional Product 5",
+          description: "Professional grade product for experts",
+          price: 149.99,
+          image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=500&h=500&fit=crop",
+          category: { name: "Professional" },
+          featured: true,
+          stock: 12,
+          rating: 4.7
+        },
+        {
+          _id: "6",
+          name: "Basic Product 6",
+          description: "Simple basic product for essential needs",
+          price: 19.99,
+          image: "https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?w=500&h=500&fit=crop",
+          category: { name: "Essentials" },
+          featured: false,
+          stock: 100,
+          rating: 4.0
+        },
+        {
+          _id: "7",
+          name: "Smart Product 7",
+          description: "Intelligent smart product with advanced features",
+          price: 129.99,
+          image: "https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=500&h=500&fit=crop",
+          category: { name: "Smart" },
+          featured: true,
+          stock: 20,
+          rating: 4.6
+        },
+        {
+          _id: "8",
+          name: "Compact Product 8",
+          description: "Compact and portable product for on-the-go use",
+          price: 79.99,
+          image: "https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?w=500&h=500&fit=crop",
+          category: { name: "Portable" },
+          featured: false,
+          stock: 25,
+          rating: 4.3
+        }
+      ];
+      
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      setProducts(mockProducts);
+      toast.success(`Loaded ${mockProducts.length} products`);
+      
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      toast.error("Failed to load products");
+    } finally {
+      setProductsLoading(false);
+    }
+  };
+
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({
       ...prev,
@@ -616,13 +1033,22 @@ const Categories = () => {
   const handleViewSubCategories = (categoryId) => {
     if (expandedCategory === categoryId) {
       setExpandedCategory(null);
+      setViewingProducts(null);
     } else {
       setExpandedCategory(categoryId);
+      setViewingProducts(null);
     }
   };
 
-  const handleViewProducts = (categoryId) => {
-    navigate(`/products?category=${categoryId}`);
+  const handleViewProducts = async (categoryId) => {
+    if (viewingProducts === categoryId) {
+      setViewingProducts(null);
+      setProducts([]);
+    } else {
+      setViewingProducts(categoryId);
+      setExpandedCategory(null);
+      await fetchCategoryProducts(categoryId);
+    }
   };
 
   const clearFilters = () => {
@@ -635,6 +1061,8 @@ const Categories = () => {
       limit: 12,
     });
     setExpandedCategory(null);
+    setViewingProducts(null);
+    setProducts([]);
   };
 
   const handleRefresh = () => {
@@ -694,6 +1122,11 @@ const Categories = () => {
 
   const filteredCategories = getFilteredCategories();
 
+  // Find the category currently showing products
+  const currentCategoryWithProducts = viewingProducts 
+    ? allCategories.find(cat => cat._id === viewingProducts)
+    : null;
+
   // Hero Banner
   const renderHeroBanner = () => (
     <div className="relative pt-24 pb-20 overflow-hidden">
@@ -725,23 +1158,42 @@ const Categories = () => {
           </Link>
           <ChevronRight className="w-4 h-4 text-gray-600" />
           <span className="text-white font-medium">Categories</span>
+          {viewingProducts && currentCategoryWithProducts && (
+            <>
+              <ChevronRight className="w-4 h-4 text-gray-600" />
+              <span className="text-blue-400 font-medium">Products</span>
+              <ChevronRight className="w-4 h-4 text-gray-600" />
+              <span className="text-green-400 font-medium">{currentCategoryWithProducts.name}</span>
+            </>
+          )}
         </nav>
 
         <div className="text-center">
           <div className="inline-flex items-center gap-3 px-4 py-2 bg-gradient-to-r from-blue-500/20 to-blue-600/20 backdrop-blur-sm rounded-full border border-blue-500/30 mb-6">
             <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center">
-              <FolderTree className="w-4 h-4 text-white" />
+              {viewingProducts ? (
+                <ShoppingBag className="w-4 h-4 text-white" />
+              ) : (
+                <FolderTree className="w-4 h-4 text-white" />
+              )}
             </div>
-            <span className="text-blue-300 font-medium">Premium Categories Collection</span>
+            <span className="text-blue-300 font-medium">
+              {viewingProducts ? "Premium Products Collection" : "Premium Categories Collection"}
+            </span>
           </div>
           
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-white via-blue-100 to-blue-200 bg-clip-text text-transparent">
-            Browse Our Categories
+            {viewingProducts 
+              ? `Products in ${currentCategoryWithProducts?.name || 'Category'}`
+              : "Browse Our Categories"}
           </h1>
           
           <p className="text-xl text-gray-300 max-w-3xl mx-auto mb-10 leading-relaxed">
-            Discover our curated collection of premium product categories. 
-            From essential accessories to high-performance gear, find exactly what you need.
+            {viewingProducts
+              ? `Explore our premium collection of products in this category. 
+                 From high-quality essentials to exclusive items, find exactly what you need.`
+              : `Discover our curated collection of premium product categories. 
+                 From essential accessories to high-performance gear, find exactly what you need.`}
           </p>
           
           {/* Search Bar */}
@@ -756,7 +1208,11 @@ const Categories = () => {
                   type="text"
                   value={filters.search}
                   onChange={(e) => handleFilterChange("search", e.target.value)}
-                  placeholder="Search categories by name, description..."
+                  placeholder={
+                    viewingProducts 
+                      ? "Search products by name, description..."
+                      : "Search categories by name, description..."
+                  }
                   className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-gray-900/90 backdrop-blur-sm border border-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400 shadow-lg"
                 />
               </div>
@@ -813,20 +1269,34 @@ const Categories = () => {
               <option value="featured">Featured First</option>
             </select>
 
-            {/* Category Type Filter */}
-            <select
-              value={filters.type}
-              onChange={(e) => handleFilterChange("type", e.target.value)}
-              className="bg-gray-900/50 backdrop-blur-sm border border-gray-700 text-white px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none rounded-lg min-w-[180px]"
-            >
-              <option value="main">Main Categories</option>
-              <option value="sub">Sub-categories</option>
-              <option value="all">All Categories</option>
-            </select>
+            {/* Category Type Filter - Only show when not viewing products */}
+            {!viewingProducts && (
+              <select
+                value={filters.type}
+                onChange={(e) => handleFilterChange("type", e.target.value)}
+                className="bg-gray-900/50 backdrop-blur-sm border border-gray-700 text-white px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none rounded-lg min-w-[180px]"
+              >
+                <option value="main">Main Categories</option>
+                <option value="sub">Sub-categories</option>
+                <option value="all">All Categories</option>
+              </select>
+            )}
           </div>
         </div>
 
         <div className="flex items-center gap-3">
+          {viewingProducts && (
+            <button
+              onClick={() => {
+                setViewingProducts(null);
+                setProducts([]);
+              }}
+              className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/25 flex items-center gap-2"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Back to Categories
+            </button>
+          )}
           <button
             onClick={clearFilters}
             className="px-4 py-2.5 border border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800/50 backdrop-blur-sm transition-all rounded-lg flex items-center gap-2"
@@ -890,15 +1360,21 @@ const Categories = () => {
       return (
         <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/30 backdrop-blur-sm p-12 text-center border border-gray-700 rounded-2xl shadow-lg">
           <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-gray-800 to-gray-900 mb-6 shadow-lg">
-            <FolderTree className="w-12 h-12 text-gray-600" />
+            {viewingProducts ? (
+              <ShoppingBag className="w-12 h-12 text-gray-600" />
+            ) : (
+              <FolderTree className="w-12 h-12 text-gray-600" />
+            )}
           </div>
           <h3 className="text-2xl font-bold text-white mb-3">
-            No categories found
+            {viewingProducts ? "No products found" : "No categories found"}
           </h3>
           <p className="text-gray-400 mb-8 max-w-md mx-auto leading-relaxed">
             {filters.search
-              ? "No categories match your search. Try different keywords or clear the search."
-              : "Try adjusting your filters to find more categories."}
+              ? viewingProducts
+                ? "No products match your search. Try different keywords or clear the search."
+                : "No categories match your search. Try different keywords or clear the search."
+              : "Try adjusting your filters to find more results."}
           </p>
           <button
             onClick={clearFilters}
@@ -913,32 +1389,55 @@ const Categories = () => {
     if (viewMode === "grid") {
       return (
         <div className="space-y-8">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-            {filteredCategories.map((category) => (
-              <div key={category._id} className="relative">
-                <MainCategoryPicture
-                  category={category}
-                  onViewSubCategories={handleViewSubCategories}
-                  onViewProducts={handleViewProducts}
-                  isExpanded={expandedCategory === category._id}
-                />
+          {!viewingProducts ? (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                {filteredCategories.map((category) => (
+                  <div key={category._id} className="relative">
+                    <MainCategoryPicture
+                      category={category}
+                      onViewSubCategories={handleViewSubCategories}
+                      onViewProducts={handleViewProducts}
+                      isExpanded={expandedCategory === category._id}
+                    />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          
-          {/* Render expanded sub-categories sections after the grid */}
-          {filteredCategories
-            .filter(category => expandedCategory === category._id && category.children && category.children.length > 0)
-            .map((category) => (
-              <div key={`expanded-${category._id}`} className="mt-4">
-                <ExpandedSubCategoriesSection
-                  category={category}
-                  onViewProducts={handleViewProducts}
-                  onClose={() => handleViewSubCategories(null)}
-                  onViewAllProducts={handleViewProducts}
-                />
-              </div>
-            ))}
+              
+              {/* Render expanded sub-categories sections after the grid */}
+              {filteredCategories
+                .filter(category => expandedCategory === category._id && category.children && category.children.length > 0)
+                .map((category) => (
+                  <div key={`expanded-${category._id}`} className="mt-4">
+                    <ExpandedSubCategoriesSection
+                      category={category}
+                      onViewProducts={handleViewProducts}
+                      onClose={() => handleViewSubCategories(null)}
+                      onViewAllProducts={handleViewProducts}
+                    />
+                  </div>
+                ))}
+              
+              {/* Render products section if viewing products */}
+              {viewingProducts && currentCategoryWithProducts && (
+                <div className="mt-6">
+                  <ProductsSection
+                    products={products}
+                    category={currentCategoryWithProducts}
+                    onClose={() => setViewingProducts(null)}
+                    loading={productsLoading}
+                  />
+                </div>
+              )}
+            </>
+          ) : (
+            // Show products in grid view
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {products.map((product) => (
+                <ProductCard key={product._id} product={product} />
+              ))}
+            </div>
+          )}
         </div>
       );
     } else {
@@ -951,6 +1450,9 @@ const Categories = () => {
               onViewProducts={handleViewProducts}
               onViewSubCategories={handleViewSubCategories}
               viewSubCategories={expandedCategory}
+              viewProducts={viewingProducts}
+              products={viewingProducts === category._id ? products : []}
+              productsLoading={viewingProducts === category._id && productsLoading}
             />
           ))}
         </div>
@@ -958,8 +1460,10 @@ const Categories = () => {
     }
   };
 
-  // Featured Categories Section
+  // Featured Categories Section (only when not viewing products)
   const renderFeaturedCategories = () => {
+    if (viewingProducts) return null;
+    
     const featuredCategories = mainCategories.filter(cat => cat.featured).slice(0, 3);
     
     if (featuredCategories.length === 0) return null;
@@ -1060,66 +1564,81 @@ const Categories = () => {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500/20 to-blue-600/20 flex items-center justify-center">
-                <Filter className="w-4 h-4 text-blue-400" />
+                {viewingProducts ? (
+                  <ShoppingBag className="w-4 h-4 text-blue-400" />
+                ) : (
+                  <Filter className="w-4 h-4 text-blue-400" />
+                )}
               </div>
-              <span className="font-medium text-gray-300">Filter & Sort Categories</span>
+              <span className="font-medium text-gray-300">
+                {viewingProducts ? "Filter & Sort Products" : "Filter & Sort Categories"}
+              </span>
             </div>
             
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => handleFilterChange("type", "main")}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  filters.type === "main"
-                    ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/25"
-                    : "bg-gray-800/50 backdrop-blur-sm text-gray-300 hover:text-white hover:bg-gray-800 border border-gray-700"
-                }`}
-              >
-                <span className="flex items-center gap-1.5">
-                  <Crown className="w-4 h-4" />
-                  Main
-                </span>
-              </button>
-              <button
-                onClick={() => handleFilterChange("type", "sub")}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  filters.type === "sub"
-                    ? "bg-gradient-to-r from-purple-600 to-purple-500 text-white shadow-lg shadow-purple-500/25"
-                    : "bg-gray-800/50 backdrop-blur-sm text-gray-300 hover:text-white hover:bg-gray-800 border border-gray-700"
-                }`}
-              >
-                <span className="flex items-center gap-1.5">
-                  <FolderOpen className="w-4 h-4" />
-                  Sub
-                </span>
-              </button>
-              
-              <button
-                onClick={() => handleFilterChange("featured", "featured")}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  filters.featured === "featured"
-                    ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg shadow-amber-500/25"
-                    : "bg-gray-800/50 backdrop-blur-sm text-gray-300 hover:text-white hover:bg-gray-800 border border-gray-700"
-                }`}
-              >
-                <span className="flex items-center gap-1.5">
-                  <Award className="w-4 h-4" />
-                  Featured
-                </span>
-              </button>
-              
-              <button
-                onClick={() => setExpandedCategory(null)}
-                className="px-4 py-2 bg-gray-800/50 backdrop-blur-sm text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg border border-gray-700 flex items-center gap-1.5"
-              >
-                <ChevronsUp className="w-4 h-4" />
-                Collapse All
-              </button>
-            </div>
+            {!viewingProducts && (
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => handleFilterChange("type", "main")}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    filters.type === "main"
+                      ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/25"
+                      : "bg-gray-800/50 backdrop-blur-sm text-gray-300 hover:text-white hover:bg-gray-800 border border-gray-700"
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Crown className="w-4 h-4" />
+                    Main
+                  </span>
+                </button>
+                <button
+                  onClick={() => handleFilterChange("type", "sub")}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    filters.type === "sub"
+                      ? "bg-gradient-to-r from-purple-600 to-purple-500 text-white shadow-lg shadow-purple-500/25"
+                      : "bg-gray-800/50 backdrop-blur-sm text-gray-300 hover:text-white hover:bg-gray-800 border border-gray-700"
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <FolderOpen className="w-4 h-4" />
+                    Sub
+                  </span>
+                </button>
+                
+                <button
+                  onClick={() => handleFilterChange("featured", "featured")}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    filters.featured === "featured"
+                      ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg shadow-amber-500/25"
+                      : "bg-gray-800/50 backdrop-blur-sm text-gray-300 hover:text-white hover:bg-gray-800 border border-gray-700"
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Award className="w-4 h-4" />
+                    Featured
+                  </span>
+                </button>
+                
+                <button
+                  onClick={() => {
+                    setExpandedCategory(null);
+                    setViewingProducts(null);
+                  }}
+                  className="px-4 py-2 bg-gray-800/50 backdrop-blur-sm text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg border border-gray-700 flex items-center gap-1.5"
+                >
+                  <ChevronsUp className="w-4 h-4" />
+                  Collapse All
+                </button>
+              </div>
+            )}
 
             <div className="text-sm bg-gray-800/50 backdrop-blur-sm px-4 py-2 rounded-lg border border-gray-700">
               <span className="text-gray-300">Showing </span>
-              <span className="font-semibold text-white">{filteredCategories.length}</span>
-              <span className="text-gray-300"> categories</span>
+              <span className="font-semibold text-white">
+                {viewingProducts ? products.length : filteredCategories.length}
+              </span>
+              <span className="text-gray-300">
+                {viewingProducts ? " products" : " categories"}
+              </span>
             </div>
           </div>
         </div>
@@ -1130,18 +1649,41 @@ const Categories = () => {
         {/* Controls */}
         {renderControls()}
 
-        {/* Categories */}
+        {/* Categories/Products */}
         {renderCategories()}
 
         {/* Featured Categories */}
         {renderFeaturedCategories()}
 
         {/* Stats Footer */}
-        {filteredCategories.length > 0 && (
+        {(filteredCategories.length > 0 || products.length > 0) && (
           <div className="mt-16 pt-12 border-t border-gray-800/50">
-            
-            
-           
+            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="flex-1">
+                <h3 className="text-xl font-bold text-white mb-3">Need Help?</h3>
+                <p className="text-gray-400 max-w-lg">
+                  {viewingProducts
+                    ? "Can't find what you're looking for? Contact our support team for personalized assistance."
+                    : "Explore our categories to find exactly what you need. Each category contains carefully curated products."}
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => navigate('/contact')}
+                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/25 flex items-center gap-2"
+                >
+                  <Users className="w-4 h-4" />
+                  Contact Support
+                </button>
+                <button
+                  onClick={() => window.open('/store', '_blank')}
+                  className="px-6 py-3 bg-gray-800/50 hover:bg-gray-800 text-gray-300 rounded-lg border border-gray-700 transition-all duration-300 hover:border-gray-600 flex items-center gap-2"
+                >
+                  <Globe className="w-4 h-4" />
+                  Visit Store
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

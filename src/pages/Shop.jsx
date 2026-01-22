@@ -14,21 +14,12 @@ import {
   ChevronRight as ChevronRightIcon,
   Factory,
   Award,
-  TrendingUp,
-  MapPin,
-  Calendar,
-  Globe,
-  ExternalLink,
+  Star,
   Sparkles,
   Tag,
-  DollarSign,
-  Star,
-  Truck,
-  Shield,
-  Zap
 } from "lucide-react";
 import ProductCard from "../components/ProductCard";
-import { productAPI, categoryAPI, brandAPI } from "../services/api";
+import { productAPI, categoryAPI } from "../services/api";
 
 const Shop = () => {
   const [viewMode, setViewMode] = useState("grid");
@@ -141,37 +132,48 @@ const Shop = () => {
       if (response?.success) {
         const categoriesData = response.data || response.categories || [];
         setCategories(categoriesData);
+      } else {
+        console.warn("Failed to fetch categories:", response?.message);
+        setCategories([]);
       }
     } catch (error) {
       console.error("Error fetching categories:", error);
+      setCategories([]);
     }
   };
 
   const fetchBrands = async () => {
     try {
-      const response = await brandAPI.getAllBrands();
-      console.log("🔄 Brands API Response:", response);
+      // Extract brands from products instead of separate brand API
+      const response = await productAPI.getAllProducts({ limit: 100 });
       
-      // Handle different API response structures
-      let brandsData = [];
-      
-      if (Array.isArray(response)) {
-        brandsData = response;
-      } else if (response?.data && Array.isArray(response.data)) {
-        brandsData = response.data;
-      } else if (response?.brands && Array.isArray(response.brands)) {
-        brandsData = response.brands;
-      } else if (response?.success && Array.isArray(response.data)) {
-        brandsData = response.data;
-      } else if (response?.success && Array.isArray(response.brands)) {
-        brandsData = response.brands;
+      if (response?.success) {
+        const productsData = response.products || response.data?.products || [];
+        
+        // Extract unique brands from products
+        const brandSet = new Set();
+        const brandsList = [];
+        
+        productsData.forEach(product => {
+          if (product.brand && !brandSet.has(product.brand)) {
+            brandSet.add(product.brand);
+            brandsList.push({
+              id: product.brand.toLowerCase().replace(/\s+/g, '-'),
+              name: product.brand,
+              productCount: productsData.filter(p => p.brand === product.brand).length
+            });
+          }
+        });
+        
+        console.log("✅ Extracted brands from products:", brandsList);
+        setBrands(brandsList);
+      } else {
+        console.warn("Failed to extract brands from products");
+        setBrands([]);
       }
-      
-      console.log("✅ Parsed brands data:", brandsData);
-      setBrands(brandsData);
     } catch (error) {
-      console.error("Error fetching brands:", error);
-      setBrands([]); // Set to empty array on error
+      console.error("Error extracting brands:", error);
+      setBrands([]);
     }
   };
 
@@ -375,14 +377,14 @@ const Shop = () => {
             </label>
             {Array.isArray(brands) && brands.slice(0, 10).map((brand) => (
               <label
-                key={brand._id || brand.id}
+                key={brand.id}
                 className="flex items-center gap-2 p-2 hover:bg-gray-700 cursor-pointer rounded-lg transition-colors"
               >
                 <input
                   type="radio"
                   name="brand"
-                  checked={filters.brand === (brand._id || brand.id)}
-                  onChange={() => handleFilterChange("brand", brand._id || brand.id)}
+                  checked={filters.brand === brand.name}
+                  onChange={() => handleFilterChange("brand", brand.name)}
                   className="text-blue-500"
                 />
                 <span className="text-gray-300">{brand.name}</span>
@@ -634,16 +636,6 @@ const Shop = () => {
                   Top Rated
                 </span>
               </button>
-              <button
-                onClick={() => setFilters(prev => ({...prev, sort: "popular"}))}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  filters.sort === "popular"
-                    ? "bg-purple-600 text-white shadow-lg shadow-purple-500/25"
-                    : "bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700"
-                }`}
-              >
-                Popular
-              </button>
             </div>
 
             <div className="text-sm text-gray-400">
@@ -722,15 +714,6 @@ const Shop = () => {
                   <ChevronRightIcon className="w-4 h-4 text-gray-500 group-hover:text-blue-400" />
                 </Link>
                 <Link
-                  to="/brands"
-                  className="flex items-center justify-between p-3 border border-gray-700 rounded-lg hover:border-purple-500/50 hover:bg-purple-500/10 transition-colors group"
-                >
-                  <span className="font-medium text-gray-300 group-hover:text-purple-400">
-                    View Brands
-                  </span>
-                  <Factory className="w-4 h-4 text-gray-500 group-hover:text-purple-400" />
-                </Link>
-                <Link
                   to="/products/featured"
                   className="flex items-center justify-between p-3 border border-gray-700 rounded-lg hover:border-amber-500/50 hover:bg-amber-500/10 transition-colors group"
                 >
@@ -802,31 +785,32 @@ const Shop = () => {
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                     <Sparkles className="w-6 h-6 text-amber-400" />
-                    Featured Brands
+                    Available Brands
                   </h2>
-                  <Link
-                    to="/brands"
-                    className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
-                  >
-                    View All Brands →
-                  </Link>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {brands
-                    .filter(b => b.featured)
-                    .slice(0, 4)
+                    .slice(0, 8)
                     .map((brand) => (
-                      <Link
-                        key={brand._id || brand.id}
-                        to={`/brands/${brand._id || brand.id}`}
-                        className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 p-4 hover:border-blue-500/50 transition-all duration-300 group"
+                      <button
+                        key={brand.id}
+                        onClick={() => handleFilterChange("brand", brand.name)}
+                        className={`bg-gray-800/50 backdrop-blur-sm rounded-xl border p-4 transition-all duration-300 group ${
+                          filters.brand === brand.name
+                            ? "border-blue-500 bg-blue-500/10"
+                            : "border-gray-700 hover:border-blue-500/50"
+                        }`}
                       >
                         <div className="flex items-center gap-3">
                           <div className="w-12 h-12 bg-gray-900 border border-gray-700 rounded-lg flex items-center justify-center">
                             <Factory className="w-6 h-6 text-blue-400" />
                           </div>
-                          <div>
-                            <h4 className="font-bold text-white group-hover:text-blue-300 transition-colors">
+                          <div className="text-left">
+                            <h4 className={`font-bold transition-colors ${
+                              filters.brand === brand.name
+                                ? "text-blue-300"
+                                : "text-white group-hover:text-blue-300"
+                            }`}>
                               {brand.name}
                             </h4>
                             <p className="text-sm text-gray-400">
@@ -834,7 +818,7 @@ const Shop = () => {
                             </p>
                           </div>
                         </div>
-                      </Link>
+                      </button>
                     ))}
                 </div>
               </div>
