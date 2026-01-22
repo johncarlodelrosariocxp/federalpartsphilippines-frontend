@@ -1,53 +1,96 @@
-// src/services/api.js - COMPLETE API SERVICE WITH FULL PRODUCT SUPPORT
+// src/services/api.js - COMPLETE FIXED VERSION FOR VERCEL DEPLOYMENT
 import axios from "axios";
 import authService from "./auth.js";
 
-// Use environment variable with fallback
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+// ========== ENVIRONMENT CONFIGURATION ==========
+// For Vercel deployment, ensure these are set in Vercel dashboard
+const API_BASE_URL = import.meta.env.VITE_API_URL || "https://federalpartsphilippines-backend.onrender.com/api";
+const IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_URL || "https://federalpartsphilippines-backend.onrender.com";
 
 // Check if running in browser environment
 const isBrowser = typeof window !== "undefined";
 
+// ========== URL VALIDATION ==========
+const validateAndFixUrl = (url) => {
+  if (!url) return "https://federalpartsphilippines-backend.onrender.com/api";
+  
+  // Remove duplicate /api
+  if (url.includes('/api/api')) {
+    url = url.replace('/api/api', '/api');
+  }
+  
+  // Ensure URL ends with /api
+  if (!url.endsWith('/api')) {
+    url = url.endsWith('/') ? `${url}api` : `${url}/api`;
+  }
+  
+  return url;
+};
+
+const validatedApiUrl = validateAndFixUrl(API_BASE_URL);
+console.log("🌐 API Base URL:", validatedApiUrl);
+
+// ========== AXIOS INSTANCE ==========
 const API = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: validatedApiUrl,
   headers: {
     "Content-Type": "application/json",
+    "Accept": "application/json",
   },
   timeout: 30000,
-  withCredentials: true,
+  withCredentials: false, // Important for Vercel compatibility
 });
 
-// Request interceptor
+// ========== REQUEST INTERCEPTOR ==========
 API.interceptors.request.use(
   (config) => {
     if (isBrowser) {
-      const token = authService?.getToken?.();
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+      // Add authentication token if available
+      try {
+        const token = authService?.getToken?.();
+        if (token && token.trim() !== "") {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+      } catch (error) {
+        console.warn("❌ Error getting auth token:", error);
       }
 
-      // Remove cache control for all requests to prevent issues
+      // Prevent caching for GET requests
       if (config.method === "get") {
         config.headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
         config.headers["Pragma"] = "no-cache";
         config.headers["Expires"] = "0";
       }
 
-      // For multipart/form-data, let the browser set the content-type
+      // Let browser set content-type for FormData
       if (config.data instanceof FormData) {
         delete config.headers["Content-Type"];
       }
+      
+      // Add timestamp to prevent caching
+      if (config.method === "get" && !config.params) {
+        config.params = { _t: Date.now() };
+      } else if (config.method === "get" && config.params) {
+        config.params._t = Date.now();
+      }
     }
+    
+    // Log request for debugging
+    console.log(`➡️ ${config.method?.toUpperCase()} ${config.url}`, config.params || "");
+    
     return config;
   },
   (error) => {
+    console.error("❌ Request interceptor error:", error);
     return Promise.reject(error);
   }
 );
 
-// Response interceptor
+// ========== RESPONSE INTERCEPTOR ==========
 API.interceptors.response.use(
   (response) => {
+    console.log(`✅ ${response.status} ${response.config.url}`);
+    
     // Handle different response structures
     if (response && response.data) {
       // If response.data has success property, return it directly
@@ -68,6 +111,14 @@ API.interceptors.response.use(
     return response;
   },
   (error) => {
+    console.error("❌ API Error:", {
+      message: error.message,
+      code: error.code,
+      status: error.response?.status,
+      url: error.config?.url,
+      method: error.config?.method
+    });
+
     // Handle timeout
     if (error.code === "ECONNABORTED") {
       return Promise.reject({
@@ -78,10 +129,24 @@ API.interceptors.response.use(
     }
 
     // Handle network errors
-    if (error.code === "ERR_NETWORK") {
+    if (error.code === "ERR_NETWORK" || error.message === "Network Error") {
+      console.error("🌐 Network error detected!");
+      console.error("Backend URL:", validatedApiUrl);
+      
       return Promise.reject({
         success: false,
-        message: "Network error. Please check your internet connection.",
+        message: "Cannot connect to server. Please check your internet connection and try again.",
+        details: `Failed to connect to: ${validatedApiUrl.replace('/api', '')}`,
+        status: 0,
+      });
+    }
+
+    // Handle CORS errors
+    if (error.message && error.message.includes("CORS")) {
+      return Promise.reject({
+        success: false,
+        message: "CORS error. Please check backend CORS configuration.",
+        details: "Backend needs to allow requests from your domain.",
         status: 0,
       });
     }
@@ -92,13 +157,17 @@ API.interceptors.response.use(
 
       // Handle 401 Unauthorized
       if (status === 401 && isBrowser) {
-        authService?.logout?.();
-        if (!window.location.pathname.includes("/login")) {
-          sessionStorage.setItem(
-            "redirectAfterLogin",
-            window.location.pathname
-          );
-          window.location.href = "/login";
+        try {
+          authService?.logout?.();
+          if (!window.location.pathname.includes("/login")) {
+            sessionStorage.setItem(
+              "redirectAfterLogin",
+              window.location.pathname
+            );
+            window.location.href = "/login";
+          }
+        } catch (authError) {
+          console.warn("Auth logout error:", authError);
         }
       }
 
@@ -113,7 +182,6 @@ API.interceptors.response.use(
 
       // Handle 404 Not Found
       if (status === 404) {
-        console.warn(`API Endpoint not found: ${error.config.url}`);
         return Promise.reject({
           success: false,
           message: data?.message || "Resource not found",
@@ -157,9 +225,74 @@ API.interceptors.response.use(
   }
 );
 
-// ========== HELPER FUNCTIONS ==========
+// ========== CONNECTION TESTING UTILITY ==========
+export const testApiConnection = async () => {
+  console.log("🔍 Testing API connection...");
+  
+  const endpointsToTest = [
+    validatedApiUrl.replace('/api', ''), // root
+    validatedApiUrl, // /api
+    `${validatedApiUrl.replace('/api', '')}/health`, // health endpoint
+    "https://federalpartsphilippines-backend.onrender.com",
+    "https://federalpartsphilippines-backend.onrender.com/api",
+  ];
 
-// Image URL helper
+  const results = [];
+
+  for (const endpoint of endpointsToTest) {
+    try {
+      console.log(`🔄 Testing: ${endpoint}`);
+      const response = await axios.get(endpoint, {
+        timeout: 10000,
+        headers: {
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      console.log(`✅ Connected to: ${endpoint}`);
+      results.push({
+        endpoint,
+        success: true,
+        status: response.status,
+        data: response.data
+      });
+      
+      // Return first successful connection
+      return {
+        success: true,
+        connected: true,
+        message: `Connected to ${endpoint}`,
+        endpoint,
+        data: response.data,
+        allResults: results
+      };
+    } catch (error) {
+      console.log(`❌ Failed: ${endpoint} - ${error.message}`);
+      results.push({
+        endpoint,
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
+  // All endpoints failed
+  return {
+    success: false,
+    connected: false,
+    message: "Cannot connect to any API endpoint",
+    allResults: results,
+    suggestions: [
+      "1. Check if backend server is running on Render",
+      "2. Verify CORS is configured on backend",
+      "3. Check network connectivity",
+      `4. Backend URL should be: https://federalpartsphilippines-backend.onrender.com`
+    ]
+  };
+};
+
+// ========== IMAGE URL HELPER ==========
 export const getImageUrl = (imagePath, type = "products") => {
   if (!imagePath || imagePath === "undefined" || imagePath === "null") {
     return "";
@@ -181,35 +314,35 @@ export const getImageUrl = (imagePath, type = "products") => {
     return imagePath;
   }
 
-  // Get base URL
-  let IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_URL;
-
-  if (!IMAGE_BASE_URL) {
-    IMAGE_BASE_URL = API_BASE_URL.replace("/api", "");
-  }
-
-  if (!IMAGE_BASE_URL) {
-    IMAGE_BASE_URL = "http://localhost:5000";
-  }
+  // Use environment variable or default to Render backend
+  const baseUrl = IMAGE_BASE_URL || "https://federalpartsphilippines-backend.onrender.com";
 
   // Handle absolute paths
   if (typeof imagePath === "string" && imagePath.startsWith("/")) {
-    return `${IMAGE_BASE_URL}${imagePath}`;
+    return `${baseUrl}${imagePath}`;
   }
 
   // Handle relative paths/filenames
   if (typeof imagePath === "string") {
+    // Clean the filename
     const cleanFilename = imagePath.replace(/^.*[\\/]/, "");
-    return `${IMAGE_BASE_URL}/uploads/${type}/${cleanFilename}`;
+    
+    // Check if already contains uploads path
+    if (imagePath.includes('uploads/')) {
+      const path = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
+      return `${baseUrl}${path}`;
+    }
+    
+    return `${baseUrl}/uploads/${type}/${cleanFilename}`;
   }
 
   return "";
 };
 
-// Alias for getFullImageUrl for backward compatibility
+// Alias for getFullImageUrl
 export const getFullImageUrl = getImageUrl;
 
-// Price formatting helper
+// ========== PRICE FORMATTING ==========
 export const formatPrice = (price, currency = "PHP") => {
   try {
     if (price === null || price === undefined) {
@@ -257,33 +390,13 @@ export const getFinalPrice = (price, discountedPrice) => {
   return discountedPrice && discountedPrice < price ? discountedPrice : price;
 };
 
-// ========== GENERIC API HELPER WITH FALLBACK ==========
-const tryEndpoints = async (endpoints, params = {}) => {
-  for (const endpoint of endpoints) {
-    try {
-      console.log(`Trying endpoint: ${endpoint}`);
-      const response = await API.get(endpoint, { params });
-      console.log(`Success from endpoint: ${endpoint}`, response);
-      return response;
-    } catch (error) {
-      console.warn(`Failed endpoint: ${endpoint}`, error.message);
-      // Continue to next endpoint
-    }
-  }
-  
-  // All endpoints failed
-  throw new Error("All API endpoints failed");
-};
-
-// ========== PRODUCT API - COMPLETE WITH ALL ENDPOINTS ==========
+// ========== PRODUCT API ==========
 export const productAPI = {
-  // ========== PUBLIC ENDPOINTS ==========
-  
   // Get all products with filters
   getAllProducts: async (params = {}) => {
     try {
       console.log("📦 Fetching products with params:", params);
-      const response = await API.get("/api/products", { params });
+      const response = await API.get("/products", { params });
       
       if (response.success && response.products) {
         // Process images for each product
@@ -315,7 +428,7 @@ export const productAPI = {
   getProductById: async (id) => {
     try {
       console.log(`📦 Fetching product ${id}`);
-      const response = await API.get(`/api/products/${id}`);
+      const response = await API.get(`/products/${id}`);
       
       if (response.success && response.product) {
         // Process images
@@ -339,7 +452,7 @@ export const productAPI = {
   // Search products
   searchProducts: async (query, params = {}) => {
     try {
-      const response = await API.get("/api/products", {
+      const response = await API.get("/products", {
         params: { search: query, ...params }
       });
       
@@ -366,7 +479,7 @@ export const productAPI = {
   // Get products by category
   getProductsByCategory: async (categoryId, params = {}) => {
     try {
-      const response = await API.get("/api/products", {
+      const response = await API.get("/products", {
         params: { category: categoryId, ...params }
       });
       
@@ -393,7 +506,7 @@ export const productAPI = {
   // Get featured products
   getFeaturedProducts: async (params = {}) => {
     try {
-      const response = await API.get("/api/products", {
+      const response = await API.get("/products", {
         params: { featured: true, ...params }
       });
       
@@ -419,7 +532,7 @@ export const productAPI = {
   // Get products in stock
   getProductsInStock: async (params = {}) => {
     try {
-      const response = await API.get("/api/products", {
+      const response = await API.get("/products", {
         params: { inStock: true, ...params }
       });
       
@@ -445,7 +558,7 @@ export const productAPI = {
   // Get products by price range
   getProductsByPriceRange: async (minPrice, maxPrice, params = {}) => {
     try {
-      const response = await API.get("/api/products", {
+      const response = await API.get("/products", {
         params: { minPrice, maxPrice, ...params }
       });
       
@@ -468,13 +581,11 @@ export const productAPI = {
     }
   },
 
-  // ========== ADMIN ENDPOINTS ==========
-  
-  // Get all products for admin (including inactive)
+  // ADMIN ENDPOINTS
   getAllProductsForAdmin: async (params = {}) => {
     try {
       console.log("👑 Fetching admin products with params:", params);
-      const response = await API.get("/api/admin/products", { params });
+      const response = await API.get("/admin/products", { params });
       
       if (response.success && response.products) {
         // Process images
@@ -507,7 +618,6 @@ export const productAPI = {
     try {
       console.log("➕ Creating product:", productData);
       
-      // Handle images
       const formData = new FormData();
       
       // Add all product data to formData
@@ -526,7 +636,6 @@ export const productAPI = {
           } else if (key === 'specifications' && typeof productData[key] === 'object') {
             formData.append(key, JSON.stringify(productData[key]));
           } else if (key === 'category' && productData[key] === '') {
-            // Handle empty category
             formData.append(key, '');
           } else {
             formData.append(key, productData[key]);
@@ -534,7 +643,7 @@ export const productAPI = {
         }
       });
       
-      const response = await API.post("/api/admin/products", formData, {
+      const response = await API.post("/admin/products", formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -570,11 +679,9 @@ export const productAPI = {
       Object.keys(productData).forEach(key => {
         if (productData[key] !== null && productData[key] !== undefined) {
           if (key === 'images' && Array.isArray(productData.images)) {
-            // Handle images array - could be Files, URLs, or base64
             const imagesJSON = JSON.stringify(productData.images);
             formData.append('images', imagesJSON);
           } else if (key === 'removeImages' && Array.isArray(productData[key])) {
-            // Handle images to remove
             formData.append('removeImages', JSON.stringify(productData[key]));
           } else if (key === 'specifications' && typeof productData[key] === 'object') {
             formData.append(key, JSON.stringify(productData[key]));
@@ -595,7 +702,7 @@ export const productAPI = {
         });
       }
       
-      const response = await API.put(`/api/admin/products/${id}`, formData, {
+      const response = await API.put(`/admin/products/${id}`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -620,11 +727,11 @@ export const productAPI = {
     }
   },
 
-  // Delete product (soft delete)
+  // Delete product
   deleteProduct: async (id) => {
     try {
       console.log(`🗑️ Deleting product ${id}`);
-      const response = await API.delete(`/api/admin/products/${id}`);
+      const response = await API.delete(`/admin/products/${id}`);
       return response;
     } catch (error) {
       console.error(`❌ Error deleting product ${id}:`, error);
@@ -635,11 +742,11 @@ export const productAPI = {
     }
   },
 
-  // Hard delete product (permanent)
+  // Hard delete product
   hardDeleteProduct: async (id) => {
     try {
       console.log(`💀 Hard deleting product ${id}`);
-      const response = await API.delete(`/api/admin/products/${id}/hard`);
+      const response = await API.delete(`/admin/products/${id}/hard`);
       return response;
     } catch (error) {
       console.error(`❌ Error hard deleting product ${id}:`, error);
@@ -650,17 +757,16 @@ export const productAPI = {
     }
   },
 
-  // Toggle product active status
+  // Toggle product status
   toggleProductStatus: async (id) => {
     try {
       console.log(`🔄 Toggling status for product ${id}`);
-      // First get current product
-      const productResponse = await API.get(`/api/admin/products/${id}`);
+      const productResponse = await API.get(`/admin/products/${id}`);
       
       if (productResponse.success && productResponse.product) {
         const newStatus = !productResponse.product.isActive;
         
-        const updateResponse = await API.put(`/api/admin/products/${id}`, {
+        const updateResponse = await API.put(`/admin/products/${id}`, {
           isActive: newStatus
         });
         
@@ -681,7 +787,7 @@ export const productAPI = {
   updateProductStock: async (id, stock) => {
     try {
       console.log(`📊 Updating stock for product ${id} to ${stock}`);
-      const response = await API.put(`/api/admin/products/${id}`, {
+      const response = await API.put(`/admin/products/${id}`, {
         stock: parseInt(stock)
       });
       return response;
@@ -705,7 +811,7 @@ export const productAPI = {
         formData.append('productId', productId);
       }
       
-      const response = await API.post("/api/upload", formData, {
+      const response = await API.post("/upload", formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -727,7 +833,7 @@ export const productAPI = {
     try {
       console.log(`📸 Uploading base64 ${type} image`);
       
-      const response = await API.post("/api/upload/base64", {
+      const response = await API.post("/upload/base64", {
         image: base64Data,
         type: type
       });
@@ -748,8 +854,7 @@ export const productAPI = {
     try {
       console.log(`🗑️ Deleting image from product ${productId}:`, imageUrlOrIndex);
       
-      // Get current product
-      const productResponse = await API.get(`/api/admin/products/${productId}`);
+      const productResponse = await API.get(`/admin/products/${productId}`);
       
       if (!productResponse.success) {
         return productResponse;
@@ -758,18 +863,14 @@ export const productAPI = {
       const product = productResponse.product;
       let updatedImages = [...(product.images || [])];
       
-      // Determine which image to remove
       if (typeof imageUrlOrIndex === 'number') {
-        // Remove by index
         if (imageUrlOrIndex >= 0 && imageUrlOrIndex < updatedImages.length) {
           const removedImage = updatedImages[imageUrlOrIndex];
           updatedImages.splice(imageUrlOrIndex, 1);
           
-          // Extract filename for server deletion
           const filename = removedImage.split('/').pop();
           
-          // Update product with new images array
-          const updateResponse = await API.put(`/api/admin/products/${productId}`, {
+          const updateResponse = await API.put(`/admin/products/${productId}`, {
             images: updatedImages,
             removeImages: [filename]
           });
@@ -782,15 +883,13 @@ export const productAPI = {
           };
         }
       } else {
-        // Remove by URL/filename
         const filename = imageUrlOrIndex.split('/').pop();
         updatedImages = updatedImages.filter(img => {
           const imgFilename = img.split('/').pop();
           return imgFilename !== filename;
         });
         
-        // Update product
-        const updateResponse = await API.put(`/api/admin/products/${productId}`, {
+        const updateResponse = await API.put(`/admin/products/${productId}`, {
           images: updatedImages,
           removeImages: [filename]
         });
@@ -804,539 +903,6 @@ export const productAPI = {
         message: error.message || "Failed to delete product image"
       };
     }
-  },
-
-  // Bulk operations
-  bulkDeleteProducts: async (productIds) => {
-    try {
-      console.log("🗑️ Bulk deleting products:", productIds);
-      
-      // Delete products one by one (or implement bulk endpoint on backend)
-      const results = await Promise.all(
-        productIds.map(id => productAPI.deleteProduct(id))
-      );
-      
-      const allSuccess = results.every(result => result.success);
-      const failedIds = results
-        .map((result, index) => result.success ? null : productIds[index])
-        .filter(id => id !== null);
-      
-      return {
-        success: allSuccess,
-        message: allSuccess 
-          ? "All products deleted successfully" 
-          : `Failed to delete some products: ${failedIds.join(', ')}`,
-        deletedCount: results.filter(r => r.success).length,
-        failedCount: failedIds.length,
-        failedIds
-      };
-    } catch (error) {
-      console.error("❌ Error bulk deleting products:", error);
-      return {
-        success: false,
-        message: error.message || "Failed to bulk delete products",
-        deletedCount: 0,
-        failedCount: productIds.length,
-        failedIds: productIds
-      };
-    }
-  },
-
-  bulkUpdateProducts: async (productIds, updateData) => {
-    try {
-      console.log("✏️ Bulk updating products:", productIds, updateData);
-      
-      // Update products one by one
-      const results = await Promise.all(
-        productIds.map(id => productAPI.updateProduct(id, updateData))
-      );
-      
-      const allSuccess = results.every(result => result.success);
-      const failedIds = results
-        .map((result, index) => result.success ? null : productIds[index])
-        .filter(id => id !== null);
-      
-      return {
-        success: allSuccess,
-        message: allSuccess 
-          ? "All products updated successfully" 
-          : `Failed to update some products: ${failedIds.join(', ')}`,
-        updatedCount: results.filter(r => r.success).length,
-        failedCount: failedIds.length,
-        failedIds
-      };
-    } catch (error) {
-      console.error("❌ Error bulk updating products:", error);
-      return {
-        success: false,
-        message: error.message || "Failed to bulk update products",
-        updatedCount: 0,
-        failedCount: productIds.length,
-        failedIds: productIds
-      };
-    }
-  },
-
-  // Get product statistics
-  getProductStats: async () => {
-    try {
-      console.log("📊 Fetching product statistics");
-      
-      // Get all products
-      const response = await API.get("/api/admin/products", {
-        params: { limit: 1000 }
-      });
-      
-      if (!response.success || !response.products) {
-        return {
-          success: false,
-          message: "Failed to fetch products for statistics",
-          stats: {}
-        };
-      }
-      
-      const products = response.products;
-      
-      // Calculate statistics
-      const stats = {
-        totalProducts: products.length,
-        activeProducts: products.filter(p => p.isActive).length,
-        outOfStockProducts: products.filter(p => p.stock <= 0).length,
-        lowStockProducts: products.filter(p => p.stock > 0 && p.stock <= 10).length,
-        featuredProducts: products.filter(p => p.featured).length,
-        totalValue: products.reduce((sum, p) => sum + (p.price * p.stock), 0),
-        
-        // Category distribution
-        categories: {},
-        
-        // Price range
-        minPrice: Math.min(...products.map(p => p.price)),
-        maxPrice: Math.max(...products.map(p => p.price)),
-        avgPrice: products.reduce((sum, p) => sum + p.price, 0) / products.length,
-        
-        // Stock analysis
-        totalStock: products.reduce((sum, p) => sum + p.stock, 0),
-        avgStock: products.reduce((sum, p) => sum + p.stock, 0) / products.length,
-        
-        // Discount analysis
-        discountedProducts: products.filter(p => p.discountedPrice && p.discountedPrice < p.price).length,
-        avgDiscount: products
-          .filter(p => p.discountedPrice && p.discountedPrice < p.price)
-          .reduce((sum, p) => sum + ((p.price - p.discountedPrice) / p.price * 100), 0) /
-          products.filter(p => p.discountedPrice && p.discountedPrice < p.price).length || 0
-      };
-      
-      // Calculate category distribution
-      products.forEach(product => {
-        const category = product.category || 'Uncategorized';
-        stats.categories[category] = (stats.categories[category] || 0) + 1;
-      });
-      
-      return {
-        success: true,
-        stats,
-        lastUpdated: new Date().toISOString()
-      };
-    } catch (error) {
-      console.error("❌ Error fetching product stats:", error);
-      return {
-        success: false,
-        message: error.message || "Failed to fetch product statistics",
-        stats: {}
-      };
-    }
-  },
-
-  // Get low stock products
-  getLowStockProducts: async (threshold = 10) => {
-    try {
-      console.log(`📉 Fetching low stock products (threshold: ${threshold})`);
-      
-      const response = await API.get("/api/admin/products", {
-        params: { limit: 1000 }
-      });
-      
-      if (!response.success || !response.products) {
-        return {
-          success: false,
-          message: "Failed to fetch products",
-          products: []
-        };
-      }
-      
-      const lowStockProducts = response.products.filter(
-        p => p.stock > 0 && p.stock <= threshold
-      );
-      
-      // Process images
-      const processedProducts = lowStockProducts.map(product => ({
-        ...product,
-        images: product.images?.map(img => getImageUrl(img, "products")) || []
-      }));
-      
-      return {
-        success: true,
-        products: processedProducts,
-        count: processedProducts.length,
-        threshold
-      };
-    } catch (error) {
-      console.error("❌ Error fetching low stock products:", error);
-      return {
-        success: false,
-        message: error.message || "Failed to fetch low stock products",
-        products: []
-      };
-    }
-  },
-
-  // Export products
-  exportProducts: async (format = 'csv') => {
-    try {
-      console.log(`📤 Exporting products as ${format}`);
-      
-      // Get all products
-      const response = await API.get("/api/admin/products", {
-        params: { limit: 5000 }
-      });
-      
-      if (!response.success || !response.products) {
-        throw new Error("Failed to fetch products for export");
-      }
-      
-      const products = response.products;
-      
-      // Convert to CSV format
-      if (format === 'csv') {
-        const headers = ['ID', 'Name', 'SKU', 'Category', 'Price', 'Discounted Price', 'Stock', 'Brand', 'Status', 'Featured', 'Created At'];
-        const rows = products.map(p => [
-          p._id,
-          `"${p.name?.replace(/"/g, '""')}"`,
-          p.sku,
-          p.category,
-          p.price,
-          p.discountedPrice || '',
-          p.stock,
-          p.brand,
-          p.isActive ? 'Active' : 'Inactive',
-          p.featured ? 'Yes' : 'No',
-          new Date(p.createdAt).toLocaleDateString()
-        ]);
-        
-        const csvContent = [
-          headers.join(','),
-          ...rows.map(row => row.join(','))
-        ].join('\n');
-        
-        // Create download link
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', `products_export_${new Date().toISOString().split('T')[0]}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        return {
-          success: true,
-          message: `Exported ${products.length} products successfully`
-        };
-      }
-      
-      // JSON export
-      if (format === 'json') {
-        const jsonContent = JSON.stringify(products, null, 2);
-        const blob = new Blob([jsonContent], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', `products_export_${new Date().toISOString().split('T')[0]}.json`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        return {
-          success: true,
-          message: `Exported ${products.length} products successfully`
-        };
-      }
-      
-      return {
-        success: false,
-        message: `Unsupported export format: ${format}`
-      };
-    } catch (error) {
-      console.error("❌ Error exporting products:", error);
-      return {
-        success: false,
-        message: error.message || "Failed to export products"
-      };
-    }
-  },
-
-  // Import products
-  importProducts: async (file) => {
-    try {
-      console.log("📥 Importing products from file:", file.name);
-      
-      if (!file) {
-        return {
-          success: false,
-          message: "No file provided"
-        };
-      }
-      
-      const formData = new FormData();
-      formData.append('file', file);
-      
-      // This would require a backend endpoint
-      // For now, we'll read the file and parse it
-      
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        
-        reader.onload = async (event) => {
-          try {
-            const content = event.target.result;
-            let products = [];
-            
-            if (file.name.endsWith('.csv')) {
-              // Parse CSV
-              const lines = content.split('\n');
-              const headers = lines[0].split(',').map(h => h.trim());
-              
-              for (let i = 1; i < lines.length; i++) {
-                if (!lines[i].trim()) continue;
-                
-                const values = lines[i].split(',');
-                const product = {};
-                
-                headers.forEach((header, index) => {
-                  if (values[index]) {
-                    let value = values[index].trim();
-                    
-                    // Remove quotes if present
-                    if (value.startsWith('"') && value.endsWith('"')) {
-                      value = value.slice(1, -1);
-                    }
-                    
-                    // Parse based on header
-                    switch (header) {
-                      case 'Price':
-                      case 'Discounted Price':
-                        product[header.toLowerCase().replace(' ', '')] = parseFloat(value) || 0;
-                        break;
-                      case 'Stock':
-                        product[header] = parseInt(value) || 0;
-                        break;
-                      case 'Featured':
-                      case 'Status':
-                        product[header] = value === 'Yes' || value === 'Active';
-                        break;
-                      default:
-                        product[header] = value;
-                    }
-                  }
-                });
-                
-                if (product.Name) {
-                  products.push({
-                    name: product.Name,
-                    sku: product.SKU || `SKU-${Date.now()}-${i}`,
-                    category: product.Category,
-                    price: product.Price || 0,
-                    discountedPrice: product.DiscountedPrice || null,
-                    stock: product.Stock || 0,
-                    brand: product.Brand || '',
-                    isActive: product.Status !== false,
-                    featured: product.Featured || false,
-                    description: product.Description || `${product.Name} - Imported product`
-                  });
-                }
-              }
-            } else if (file.name.endsWith('.json')) {
-              // Parse JSON
-              try {
-                products = JSON.parse(content);
-              } catch (e) {
-                throw new Error("Invalid JSON file");
-              }
-            } else {
-              throw new Error("Unsupported file format. Please use CSV or JSON.");
-            }
-            
-            // Import products one by one
-            const results = [];
-            let successCount = 0;
-            let errorCount = 0;
-            
-            for (const productData of products) {
-              try {
-                const result = await productAPI.createProduct(productData);
-                results.push({
-                  product: productData.name,
-                  success: result.success,
-                  message: result.message
-                });
-                
-                if (result.success) {
-                  successCount++;
-                } else {
-                  errorCount++;
-                }
-                
-                // Small delay to avoid overwhelming the server
-                await new Promise(resolve => setTimeout(resolve, 100));
-              } catch (error) {
-                results.push({
-                  product: productData.name,
-                  success: false,
-                  message: error.message
-                });
-                errorCount++;
-              }
-            }
-            
-            resolve({
-              success: true,
-              message: `Imported ${successCount} products successfully, ${errorCount} failed`,
-              imported: successCount,
-              failed: errorCount,
-              results
-            });
-          } catch (error) {
-            reject({
-              success: false,
-              message: error.message || "Failed to parse import file"
-            });
-          }
-        };
-        
-        reader.onerror = () => {
-          reject({
-            success: false,
-            message: "Failed to read file"
-          });
-        };
-        
-        if (file.name.endsWith('.csv')) {
-          reader.readAsText(file);
-        } else if (file.name.endsWith('.json')) {
-          reader.readAsText(file);
-        } else {
-          reject({
-            success: false,
-            message: "Unsupported file format"
-          });
-        }
-      });
-    } catch (error) {
-      console.error("❌ Error importing products:", error);
-      return {
-        success: false,
-        message: error.message || "Failed to import products"
-      };
-    }
-  },
-
-  // Duplicate product
-  duplicateProduct: async (id) => {
-    try {
-      console.log(`📋 Duplicating product ${id}`);
-      
-      // Get original product
-      const originalResponse = await productAPI.getProductById(id);
-      
-      if (!originalResponse.success || !originalResponse.product) {
-        return originalResponse;
-      }
-      
-      const originalProduct = originalResponse.product;
-      
-      // Create new product with "Copy of " prefix
-      const newProductData = {
-        ...originalProduct,
-        name: `Copy of ${originalProduct.name}`,
-        sku: `${originalProduct.sku}-COPY-${Date.now()}`,
-        images: originalProduct.images, // Will be copied if backend handles it
-        createdBy: 'duplicate',
-        createdAt: undefined,
-        updatedAt: undefined,
-        _id: undefined,
-        __v: undefined
-      };
-      
-      // Remove MongoDB-specific fields
-      delete newProductData._id;
-      delete newProductData.__v;
-      delete newProductData.createdAt;
-      delete newProductData.updatedAt;
-      
-      const createResponse = await productAPI.createProduct(newProductData);
-      
-      return createResponse;
-    } catch (error) {
-      console.error(`❌ Error duplicating product ${id}:`, error);
-      return {
-        success: false,
-        message: error.message || "Failed to duplicate product"
-      };
-    }
-  },
-
-  // Get similar products
-  getSimilarProducts: async (productId, limit = 4) => {
-    try {
-      console.log(`🔍 Finding similar products to ${productId}`);
-      
-      // Get the target product
-      const productResponse = await productAPI.getProductById(productId);
-      
-      if (!productResponse.success || !productResponse.product) {
-        return productResponse;
-      }
-      
-      const targetProduct = productResponse.product;
-      
-      // Search for similar products
-      const similarParams = {
-        category: targetProduct.category,
-        limit: limit + 1, // +1 to exclude the target product
-        excludeId: productId
-      };
-      
-      const similarResponse = await API.get("/api/products", {
-        params: similarParams
-      });
-      
-      if (!similarResponse.success || !similarResponse.products) {
-        return similarResponse;
-      }
-      
-      // Filter out the target product and process images
-      const similarProducts = similarResponse.products
-        .filter(p => p._id !== productId)
-        .slice(0, limit)
-        .map(product => ({
-          ...product,
-          images: product.images?.map(img => getImageUrl(img, "products")) || []
-        }));
-      
-      return {
-        success: true,
-        products: similarProducts,
-        count: similarProducts.length,
-        basedOn: targetProduct.name
-      };
-    } catch (error) {
-      console.error(`❌ Error finding similar products for ${productId}:`, error);
-      return {
-        success: false,
-        message: error.message || "Failed to find similar products",
-        products: []
-      };
-    }
   }
 };
 
@@ -1346,7 +912,7 @@ export const categoryAPI = {
   getAllCategories: async (params = {}) => {
     try {
       console.log("📁 Fetching categories with params:", params);
-      const response = await API.get("/api/categories", { params });
+      const response = await API.get("/categories", { params });
       
       if (response.success && response.categories) {
         // Process category images
@@ -1376,7 +942,7 @@ export const categoryAPI = {
   getCategoryById: async (id) => {
     try {
       console.log(`📁 Fetching category ${id}`);
-      const response = await API.get(`/api/categories/${id}`);
+      const response = await API.get(`/categories/${id}`);
       
       if (response.success && response.category) {
         // Process image
@@ -1413,7 +979,7 @@ export const categoryAPI = {
         }
       });
       
-      const response = await API.post("/api/categories", formData, {
+      const response = await API.post("/categories", formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -1454,7 +1020,7 @@ export const categoryAPI = {
         }
       });
       
-      const response = await API.put(`/api/categories/${id}`, formData, {
+      const response = await API.put(`/categories/${id}`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -1483,41 +1049,13 @@ export const categoryAPI = {
   deleteCategory: async (id) => {
     try {
       console.log(`🗑️ Deleting category ${id}`);
-      const response = await API.delete(`/api/categories/${id}`);
+      const response = await API.delete(`/categories/${id}`);
       return response;
     } catch (error) {
       console.error(`❌ Error deleting category ${id}:`, error);
       return {
         success: false,
         message: error.message || "Failed to delete category"
-      };
-    }
-  },
-
-  // Get products by category
-  getCategoryProducts: async (categoryId, params = {}) => {
-    try {
-      console.log(`📦 Fetching products for category ${categoryId}`);
-      
-      const productResponse = await productAPI.getProductsByCategory(categoryId, params);
-      
-      // Also get category info
-      const categoryResponse = await categoryAPI.getCategoryById(categoryId);
-      
-      return {
-        success: productResponse.success,
-        products: productResponse.products || [],
-        category: categoryResponse.category,
-        count: productResponse.products?.length || 0,
-        total: productResponse.total || 0
-      };
-    } catch (error) {
-      console.error(`❌ Error fetching category products ${categoryId}:`, error);
-      return {
-        success: false,
-        message: error.message || "Failed to fetch category products",
-        products: [],
-        category: null
       };
     }
   }
@@ -1540,63 +1078,20 @@ export const authAPI = {
     API.post("/auth/resend-verification", { email }),
 };
 
-// ========== ORDER API ==========
-export const orderAPI = {
-  // Public endpoints
-  placeOrder: (orderData) => API.post("/orders", orderData),
-  getMyOrders: (params = {}) => API.get("/orders/my-orders", { params }),
-  getOrderById: (id) => API.get(`/orders/${id}`),
-  cancelOrder: (id) => API.post(`/orders/${id}/cancel`),
-  trackOrder: (id) => API.get(`/orders/${id}/track`),
-  
-  // Admin endpoints
-  getAllOrders: (params = {}) => API.get("/admin/orders", { params }),
-  updateOrderStatus: (id, statusData) => 
-    API.put(`/admin/orders/${id}/status`, statusData),
-  updateOrder: (id, orderData) => API.put(`/admin/orders/${id}`, orderData),
-  deleteOrder: (id) => API.delete(`/admin/orders/${id}`),
-  
-  // Stats and analytics
-  getOrderStats: () => API.get("/admin/orders/stats"),
-  getRecentOrders: (limit = 10) => 
-    API.get("/admin/orders/recent", { params: { limit } }),
-  
-  // Bulk operations
-  bulkUpdateOrders: async (orderIds, updateData) => {
-    const results = await Promise.all(
-      orderIds.map(id => orderAPI.updateOrder(id, updateData))
-    );
-    
-    return {
-      success: results.every(r => r.success),
-      results
-    };
-  },
-  
-  // Export/Import
-  exportOrders: (params = {}) => {
-    // Implementation for exporting orders
-    return Promise.resolve({ success: true, message: "Export functionality" });
-  },
-  
-  importOrders: (file) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    return API.post("/admin/orders/import", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-  },
-};
-
 // ========== CART API ==========
 export const cartAPI = {
-  // Get cart from localStorage or API
+  // Get cart from localStorage
   getCart: () => {
     if (isBrowser) {
-      const cart = localStorage.getItem('cart');
-      return cart ? JSON.parse(cart) : { items: [], total: 0 };
+      try {
+        const cart = localStorage.getItem('cart');
+        return cart ? JSON.parse(cart) : { items: [], total: 0, count: 0 };
+      } catch (error) {
+        console.error("Error parsing cart from localStorage:", error);
+        return { items: [], total: 0, count: 0 };
+      }
     }
-    return { items: [], total: 0 };
+    return { items: [], total: 0, count: 0 };
   },
   
   // Add to cart
@@ -1628,6 +1123,9 @@ export const cartAPI = {
         const price = item.product.discountedPrice || item.product.price;
         return sum + (price * item.quantity);
       }, 0);
+      
+      // Update count
+      cart.count = cart.items.reduce((sum, item) => sum + item.quantity, 0);
       
       localStorage.setItem('cart', JSON.stringify(cart));
       
@@ -1666,6 +1164,9 @@ export const cartAPI = {
           return sum + (price * item.quantity);
         }, 0);
         
+        // Update count
+        cart.count = cart.items.reduce((sum, item) => sum + item.quantity, 0);
+        
         localStorage.setItem('cart', JSON.stringify(cart));
         
         return {
@@ -1698,7 +1199,7 @@ export const cartAPI = {
     if (!isBrowser) return { success: false, message: "Not in browser" };
     
     try {
-      localStorage.setItem('cart', JSON.stringify({ items: [], total: 0 }));
+      localStorage.setItem('cart', JSON.stringify({ items: [], total: 0, count: 0 }));
       return {
         success: true,
         message: "Cart cleared"
@@ -1715,7 +1216,7 @@ export const cartAPI = {
   // Get cart count
   getCartCount: () => {
     const cart = cartAPI.getCart();
-    return cart.items.reduce((sum, item) => sum + item.quantity, 0);
+    return cart.count || 0;
   }
 };
 
@@ -1763,36 +1264,6 @@ export const dashboardAPI = {
   }
 };
 
-// ========== CUSTOMER API ==========
-export const customerAPI = {
-  // For now, we'll use localStorage for guest customers
-  getProfile: () => {
-    if (isBrowser) {
-      const profile = localStorage.getItem('customerProfile');
-      return profile ? JSON.parse(profile) : null;
-    }
-    return null;
-  },
-  
-  updateProfile: (profileData) => {
-    if (!isBrowser) return { success: false, message: "Not in browser" };
-    
-    try {
-      localStorage.setItem('customerProfile', JSON.stringify(profileData));
-      return {
-        success: true,
-        profile: profileData,
-        message: "Profile updated"
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error.message || "Failed to update profile"
-      };
-    }
-  }
-};
-
 // ========== MAIN API SERVICE OBJECT ==========
 const apiService = {
   // Axios instance
@@ -1802,10 +1273,8 @@ const apiService = {
   productAPI,
   categoryAPI,
   authAPI,
-  orderAPI,
   cartAPI,
   dashboardAPI,
-  customerAPI,
   
   // Helper functions
   getImageUrl,
@@ -1814,8 +1283,12 @@ const apiService = {
   calculateDiscountPercentage,
   getFinalPrice,
   
-  // Base URL
-  API_BASE_URL,
+  // Connection testing
+  testApiConnection,
+  
+  // Base URLs
+  API_BASE_URL: validatedApiUrl,
+  IMAGE_BASE_URL: IMAGE_BASE_URL || "https://federalpartsphilippines-backend.onrender.com",
   
   // Direct methods for convenience
   getProducts: productAPI.getAllProducts,
@@ -1833,7 +1306,7 @@ const apiService = {
   // Utility function to check API connection
   checkConnection: async () => {
     try {
-      const response = await API.get("/api");
+      const response = await API.get("/");
       return {
         success: true,
         connected: true,
@@ -1841,6 +1314,7 @@ const apiService = {
         data: response
       };
     } catch (error) {
+      console.error("❌ API connection check failed:", error);
       return {
         success: false,
         connected: false,
@@ -1865,7 +1339,7 @@ const apiService = {
   },
   
   // Upload helper
-  uploadFile: async (file, endpoint = "/api/upload", fieldName = "image") => {
+  uploadFile: async (file, endpoint = "/upload", fieldName = "image") => {
     try {
       const formData = new FormData();
       formData.append(fieldName, file);
@@ -1884,6 +1358,28 @@ const apiService = {
         message: error.message || "Failed to upload file"
       };
     }
+  },
+  
+  // Initialize function to test connection on app start
+  initialize: async () => {
+    console.log("🚀 Initializing API Service...");
+    console.log("📡 API URL:", validatedApiUrl);
+    console.log("🖼️ Image URL:", IMAGE_BASE_URL || "Using API URL");
+    
+    // Test connection
+    const connection = await testApiConnection();
+    console.log("🔌 Connection Status:", connection.success ? "✅ Connected" : "❌ Failed");
+    
+    if (connection.success) {
+      console.log("🌐 Connected to:", connection.endpoint);
+    } else {
+      console.error("⚠️ Connection failed. Please check:");
+      console.error("1. Backend server is running");
+      console.error("2. CORS is properly configured");
+      console.error("3. Network connectivity");
+    }
+    
+    return connection;
   }
 };
 
