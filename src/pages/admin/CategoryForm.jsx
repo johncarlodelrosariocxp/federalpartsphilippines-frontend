@@ -1,4 +1,4 @@
-// src/pages/admin/CategoryForm.js - COMPLETE FIXED VERSION WITH IMAGE LOADING FIX
+// src/pages/admin/CategoryForm.js - COMPLETE FIXED VERSION WITH IMAGE UPLOAD
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { categoryAPI, productAPI, getImageUrl } from "../../services/api";
@@ -123,20 +123,12 @@ const CategoryForm = () => {
   // Filter products for linking modal
   const filterProducts = () => {
     try {
-      console.log("Filtering products...");
-      console.log("All products:", allProducts.length);
-      console.log("Linked products:", linkedProducts.length);
-      
       let filtered = [...allProducts];
-      
-      // Log initial count
-      console.log("Initial filtered count:", filtered.length);
       
       // Filter out already linked products
       if (linkedProducts.length > 0) {
         const linkedProductIds = new Set(linkedProducts.map(p => p._id));
         filtered = filtered.filter(product => !linkedProductIds.has(product._id));
-        console.log("After removing linked products:", filtered.length);
       }
       
       // Apply search filter
@@ -148,7 +140,6 @@ const CategoryForm = () => {
           const matchesDescription = product.description?.toLowerCase().includes(query);
           return matchesName || matchesSKU || matchesDescription;
         });
-        console.log("After search filter:", filtered.length);
       }
       
       // Apply status filter
@@ -171,7 +162,6 @@ const CategoryForm = () => {
               return true;
           }
         });
-        console.log("After status filter:", filtered.length);
       }
       
       // Apply sorting
@@ -204,7 +194,6 @@ const CategoryForm = () => {
         return aValue > bValue ? 1 : -1;
       });
       
-      console.log("Final filtered count:", filtered.length);
       setFilteredProducts(filtered);
       setCurrentPage(1);
     } catch (err) {
@@ -242,29 +231,19 @@ const CategoryForm = () => {
           imageUrl: categoryData.imageUrl || categoryData.image || "",
         });
 
-        // FIXED: Set image preview with proper URL construction
+        // Set image preview
         const imageUrl = categoryData.imageUrl || categoryData.image;
         if (imageUrl) {
-          // Try multiple ways to get the image URL
           try {
-            // First, try the getImageUrl function
             const fullImageUrl = getImageUrl(imageUrl, "categories");
-            console.log("Generated image URL:", fullImageUrl);
             setImagePreview(fullImageUrl);
           } catch (imgErr) {
-            console.warn("Error using getImageUrl:", imgErr);
-            
-            // Fallback 1: Check if it's already a full URL
             if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://') || imageUrl.startsWith('/')) {
               setImagePreview(imageUrl);
-            } 
-            // Fallback 2: Check if it's a Cloudinary URL (common pattern)
-            else if (imageUrl.includes('cloudinary') || imageUrl.includes('res.cloudinary.com')) {
+            } else if (imageUrl.includes('cloudinary') || imageUrl.includes('res.cloudinary.com')) {
               setImagePreview(imageUrl);
-            }
-            // Fallback 3: Construct URL from base
-            else {
-              const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+            } else {
+              const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
               setImagePreview(`${baseUrl}/uploads/categories/${imageUrl}`);
             }
           }
@@ -309,13 +288,11 @@ const CategoryForm = () => {
     }
   };
 
-  // Fetch all products for linking - FIXED VERSION
+  // Fetch all products for linking
   const fetchAllProducts = async () => {
     try {
       setLoadingAllProducts(true);
-      console.log("Fetching all products...");
       
-      // Try multiple API endpoints
       const endpoints = [
         { api: productAPI.getAllProducts, params: { page: 1, limit: 1000, sort: "name", order: "asc" } },
         { api: productAPI.getAllProductsForAdmin, params: { page: 1, limit: 1000, sort: "name", order: "asc" } },
@@ -328,11 +305,8 @@ const CategoryForm = () => {
       
       for (const endpoint of endpoints) {
         try {
-          console.log(`Trying endpoint: ${endpoint.api.name}`);
           const response = await endpoint.api(endpoint.params);
-          console.log("API Response:", response);
           
-          // Handle different response structures
           if (response) {
             if (Array.isArray(response)) {
               products = response;
@@ -357,7 +331,6 @@ const CategoryForm = () => {
             }
           }
         } catch (err) {
-          console.warn(`Endpoint failed: ${endpoint.api.name}`, err.message);
           lastError = err;
           continue;
         }
@@ -367,7 +340,6 @@ const CategoryForm = () => {
         throw lastError;
       }
       
-      console.log("Fetched products:", products.length);
       setAllProducts(products || []);
       setFilteredProducts(products || []);
       
@@ -387,15 +359,11 @@ const CategoryForm = () => {
     
     try {
       setLoadingProducts(true);
-      console.log("Fetching linked products for category:", id);
       
       let products = [];
       
-      // Try multiple ways to fetch products by category
       try {
-        // First try: Get all products and filter by category
         const allProductsResponse = await productAPI.getAllProducts({ limit: 1000 });
-        console.log("All products response for filtering:", allProductsResponse);
         
         if (allProductsResponse) {
           let allProductsData = [];
@@ -418,7 +386,6 @@ const CategoryForm = () => {
           products = allProductsData.filter(product => {
             if (!product) return false;
             
-            // Handle different category field structures
             if (product.category) {
               if (typeof product.category === 'string') {
                 return product.category === id;
@@ -429,7 +396,6 @@ const CategoryForm = () => {
               }
             }
             
-            // Also check categoryId field
             if (product.categoryId === id) {
               return true;
             }
@@ -441,7 +407,6 @@ const CategoryForm = () => {
         console.warn("Failed to filter products by category:", filterErr);
       }
       
-      console.log("Linked products found:", products.length);
       setLinkedProducts(products || []);
       
       // Calculate product stats
@@ -519,7 +484,7 @@ const CategoryForm = () => {
     }
   };
 
-  // Link products to category - FIXED VERSION
+  // Link products to category
   const linkProductsToCategory = async (productIds) => {
     if (!id || !productIds.length) return;
     
@@ -528,14 +493,9 @@ const CategoryForm = () => {
       setError("");
       setSuccess("");
       
-      console.log("Linking products:", productIds, "to category:", id);
-      
       // Update each product with this category
       const updatePromises = productIds.map(async (productId) => {
         try {
-          console.log(`Linking product ${productId}...`);
-          
-          // Get the current product
           const productToUpdate = allProducts.find(p => p._id === productId);
           if (!productToUpdate) {
             console.warn(`Product ${productId} not found in allProducts`);
@@ -550,7 +510,7 @@ const CategoryForm = () => {
             stock: productToUpdate.stock || 0,
             sku: productToUpdate.sku || "",
             images: productToUpdate.images || [],
-            category: id, // Set category to current category ID
+            category: id,
             isActive: productToUpdate.isActive !== undefined ? productToUpdate.isActive : true,
             featured: productToUpdate.featured || false,
             weight: productToUpdate.weight || "",
@@ -558,12 +518,7 @@ const CategoryForm = () => {
             specifications: productToUpdate.specifications || {},
           };
           
-          console.log(`Updating product ${productId} with data:`, updateData);
-          
-          // Send update request
           const response = await productAPI.updateProduct(productId, updateData);
-          console.log(`Update response for ${productId}:`, response);
-          
           return { success: true, productId, response };
         } catch (err) {
           console.error(`Error updating product ${productId}:`, err);
@@ -572,7 +527,6 @@ const CategoryForm = () => {
       });
       
       const results = await Promise.allSettled(updatePromises);
-      console.log("All update results:", results);
       
       const successful = results.filter(r => 
         r.status === 'fulfilled' && r.value.success
@@ -584,7 +538,7 @@ const CategoryForm = () => {
       
       // Refresh data
       await fetchLinkedProducts();
-      await fetchAllProducts(); // Refresh all products list
+      await fetchAllProducts();
       
       if (successful > 0) {
         setSuccess(`${successful} product(s) linked to category successfully!`);
@@ -630,7 +584,7 @@ const CategoryForm = () => {
           
           const updateData = {
             ...productToUpdate,
-            category: null // Remove category
+            category: null
           };
           
           const response = await productAPI.updateProduct(productId, updateData);
@@ -677,79 +631,6 @@ const CategoryForm = () => {
     }
   };
 
-  // Apply bulk action
-  const applyBulkAction = async () => {
-    if (!bulkAction || !selectedProducts.length) return;
-    
-    try {
-      switch(bulkAction) {
-        case "link":
-          await linkProductsToCategory(selectedProducts);
-          break;
-        case "unlink":
-          await unlinkProductsFromCategory(selectedProducts);
-          break;
-        case "activate":
-          await updateProductsStatus(selectedProducts, true);
-          break;
-        case "deactivate":
-          await updateProductsStatus(selectedProducts, false);
-          break;
-        default:
-          break;
-      }
-    } catch (err) {
-      console.error("Error applying bulk action:", err);
-      setError("Failed to apply bulk action. Please try again.");
-    }
-    
-    setBulkAction("");
-  };
-
-  // Update product status
-  const updateProductsStatus = async (productIds, isActive) => {
-    try {
-      const updatePromises = productIds.map(async (productId) => {
-        try {
-          const productToUpdate = allProducts.find(p => p._id === productId);
-          if (!productToUpdate) {
-            console.warn(`Product ${productId} not found`);
-            return { success: false, productId, error: "Product not found" };
-          }
-          
-          const updateData = {
-            ...productToUpdate,
-            isActive: isActive
-          };
-          
-          const response = await productAPI.updateProduct(productId, updateData);
-          return { success: true, productId, response };
-        } catch (err) {
-          console.error(`Error updating product ${productId}:`, err);
-          return { success: false, productId, error: err.message };
-        }
-      });
-      
-      const results = await Promise.allSettled(updatePromises);
-      
-      const successful = results.filter(r => 
-        r.status === 'fulfilled' && r.value.success
-      ).length;
-      
-      // Refresh products
-      await fetchLinkedProducts();
-      await fetchAllProducts();
-      
-      setSuccess(`${successful} product(s) ${isActive ? 'activated' : 'deactivated'} successfully!`);
-      setSelectedProducts([]);
-      
-      setTimeout(() => setSuccess(""), 3000);
-    } catch (err) {
-      console.error("Error updating products status:", err);
-      setError("Failed to update product status. Please try again.");
-    }
-  };
-
   // Pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -758,23 +639,7 @@ const CategoryForm = () => {
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
-  // Check if product is already linked
-  const isProductLinked = (productId) => {
-    return linkedProducts.some(p => p._id === productId);
-  };
-
-  // Format price
-  const formatPrice = (price) => {
-    if (!price && price !== 0) return "₱0.00";
-    return new Intl.NumberFormat('en-PH', {
-      style: 'currency',
-      currency: 'PHP',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(price);
-  };
-
-  // Get product image URL - FIXED VERSION
+  // Get product image URL
   const getProductImageUrl = (product) => {
     if (!product?.images || !Array.isArray(product.images) || product.images.length === 0) {
       return "https://via.placeholder.com/200x200?text=No+Image";
@@ -782,26 +647,16 @@ const CategoryForm = () => {
     
     const imageUrl = product.images[0];
     
-    // Try multiple ways to construct the image URL
     try {
-      // First try the getImageUrl function
       const fullImageUrl = getImageUrl(imageUrl, "products");
-      console.log("Product image URL:", fullImageUrl);
       return fullImageUrl;
     } catch (err) {
-      console.warn("Error using getImageUrl for product:", err);
-      
-      // Fallback 1: Check if it's already a full URL
       if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://') || imageUrl.startsWith('/')) {
         return imageUrl;
-      }
-      // Fallback 2: Cloudinary URL
-      else if (imageUrl.includes('cloudinary') || imageUrl.includes('res.cloudinary.com')) {
+      } else if (imageUrl.includes('cloudinary') || imageUrl.includes('res.cloudinary.com')) {
         return imageUrl;
-      }
-      // Fallback 3: Construct from base
-      else {
-        const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      } else {
+        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
         return `${baseUrl}/uploads/products/${imageUrl}`;
       }
     }
@@ -929,6 +784,38 @@ const CategoryForm = () => {
     return Object.keys(errors).length === 0;
   };
 
+  // Custom upload image function
+  const uploadImageToServer = async (file) => {
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/upload`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.message || 'Upload failed');
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      throw error;
+    }
+  };
+
+  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -949,7 +836,32 @@ const CategoryForm = () => {
     setSuccess("");
 
     try {
-      let response;
+      let imageUrl = category.imageUrl;
+      
+      // Upload image if there's a new image
+      if (imageFile) {
+        try {
+          setUploadingImage(true);
+          const uploadResponse = await uploadImageToServer(imageFile);
+          
+          if (uploadResponse?.success && uploadResponse.data?.url) {
+            imageUrl = uploadResponse.data.url;
+          } else if (uploadResponse?.imageUrl) {
+            imageUrl = uploadResponse.imageUrl;
+          } else if (uploadResponse?.url) {
+            imageUrl = uploadResponse.url;
+          } else if (uploadResponse?.data) {
+            imageUrl = uploadResponse.data;
+          }
+          setUploadingImage(false);
+        } catch (uploadErr) {
+          console.error("Error uploading image:", uploadErr);
+          setError("Failed to upload image. Please try again.");
+          setSaving(false);
+          return;
+        }
+      }
+
       const categoryData = {
         name: category.name.trim(),
         description: category.description.trim(),
@@ -960,40 +872,20 @@ const CategoryForm = () => {
         seoKeywords: category.seoKeywords.trim(),
       };
 
+      if (imageUrl) {
+        categoryData.image = imageUrl;
+        categoryData.imageUrl = imageUrl;
+      }
+
       if (category.parentCategory) {
         categoryData.parentCategory = category.parentCategory;
       }
 
-      if (imageFile) {
-        // Use FormData for file upload
-        const formData = new FormData();
-
-        // Append all category data
-        Object.keys(categoryData).forEach((key) => {
-          if (categoryData[key] !== null && categoryData[key] !== undefined) {
-            formData.append(key, categoryData[key]);
-          }
-        });
-
-        // Append image with correct field name
-        formData.append("image", imageFile);
-
-        if (isEditMode) {
-          response = await categoryAPI.updateCategory(id, formData);
-        } else {
-          response = await categoryAPI.createCategory(formData);
-        }
+      let response;
+      if (isEditMode) {
+        response = await categoryAPI.updateCategory(id, categoryData);
       } else {
-        // Use regular JSON for non-image updates
-        if (isEditMode && category.imageUrl && !imagePreview) {
-          categoryData.image = category.imageUrl;
-        }
-
-        if (isEditMode) {
-          response = await categoryAPI.updateCategory(id, categoryData);
-        } else {
-          response = await categoryAPI.createCategory(categoryData);
-        }
+        response = await categoryAPI.createCategory(categoryData);
       }
 
       if (response?.success) {
@@ -1014,16 +906,10 @@ const CategoryForm = () => {
       } else {
         const errorMessage =
           response?.message || response?.error || "Unknown error occurred";
-
-        if (
-          errorMessage.toLowerCase().includes("required") &&
-          errorMessage.toLowerCase().includes("name")
-        ) {
+        
+        if (errorMessage.toLowerCase().includes("required") && errorMessage.toLowerCase().includes("name")) {
           setValidationErrors({ name: "Category name is required" });
-        } else if (
-          errorMessage.toLowerCase().includes("unique") ||
-          errorMessage.toLowerCase().includes("exists")
-        ) {
+        } else if (errorMessage.toLowerCase().includes("unique") || errorMessage.toLowerCase().includes("exists")) {
           setValidationErrors({ name: "Category name already exists" });
         } else {
           setError(errorMessage);
@@ -1033,24 +919,16 @@ const CategoryForm = () => {
       console.error("Error saving category:", err);
       let errorMsg = "Failed to save category. Please try again.";
 
-      if (err.response) {
-        const errorData = err.response.data;
-        if (errorData?.message) {
-          errorMsg = errorData.message;
-        } else if (errorData?.error) {
-          errorMsg = errorData.error;
-        }
-
-        if (err.response.status === 413) {
-          errorMsg = "Image file is too large. Maximum size is 5MB.";
-        } else if (err.response.status === 415) {
-          errorMsg = "Unsupported file type. Please upload an image file.";
-        }
+      if (err.response?.data?.message) {
+        errorMsg = err.response.data.message;
+      } else if (err.message) {
+        errorMsg = err.message;
       }
 
       setError(errorMsg);
     } finally {
       setSaving(false);
+      setUploadingImage(false);
     }
   };
 
@@ -1062,11 +940,6 @@ const CategoryForm = () => {
   // Navigate to create a new product in this category
   const createProductInCategory = () => {
     navigate(`/admin/products/new?category=${id}`);
-  };
-
-  // View a specific product
-  const viewProduct = (productId) => {
-    navigate(`/admin/products/edit/${productId}`);
   };
 
   // Quick actions
@@ -1175,6 +1048,17 @@ const CategoryForm = () => {
     };
 
     return findCategory(allCategories, category.parentCategory) || "Unknown";
+  };
+
+  // Format price
+  const formatPrice = (price) => {
+    if (!price && price !== 0) return "₱0.00";
+    return new Intl.NumberFormat('en-PH', {
+      style: 'currency',
+      currency: 'PHP',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(price);
   };
 
   if (loading) {

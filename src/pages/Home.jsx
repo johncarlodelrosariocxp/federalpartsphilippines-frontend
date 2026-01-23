@@ -33,7 +33,7 @@ const Home = () => {
   const [usingFallback, setUsingFallback] = useState(false);
   const [loadingProducts, setLoadingProducts] = useState({});
   const [selectedCategory, setSelectedCategory] = useState(null);
-  const [categoryView, setCategoryView] = useState("grid"); // "grid" or "list"
+  const [categoryView, setCategoryView] = useState("grid");
 
   // Fetch categories on component mount and when retryCount changes
   useEffect(() => {
@@ -53,22 +53,37 @@ const Home = () => {
       setApiStatus("pending");
       console.log("Fetching categories...");
 
-      // Try different approaches to get categories
       let categoriesData = [];
-      let isFallback = false;
+      const API_BASE_URL = import.meta.env.VITE_API_URL || "https://federalpartsphilippines-backend.onrender.com";
 
       try {
         // First, check if API is reachable
-        const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
-        const healthCheck = await fetch(`${API_BASE_URL}/api/health`);
-        
-        if (!healthCheck.ok) {
-          throw new Error("API not reachable");
+        try {
+          const healthCheck = await fetch(`${API_BASE_URL}/api/health`);
+          if (!healthCheck.ok) {
+            throw new Error("API health check failed");
+          }
+        } catch (healthError) {
+          console.log("Health check failed:", healthError);
+          // Continue anyway - some APIs might not have /health endpoint
         }
 
+        // Try different approaches to get categories
+        let response;
+        
         // Approach 1: Use categoryAPI service
-        const response = await categoryAPI.getAll();
-        console.log("API Response:", response);
+        try {
+          response = await categoryAPI.getAll();
+          console.log("Category API Response:", response);
+        } catch (apiError) {
+          console.log("Category API service failed, trying direct fetch...", apiError);
+          // Approach 2: Direct fetch
+          response = await fetch(`${API_BASE_URL}/api/categories`);
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          response = await response.json();
+        }
 
         // Parse response based on different possible structures
         if (response?.success && response.data) {
@@ -88,39 +103,12 @@ const Home = () => {
         setApiStatus("success");
         setUsingFallback(false);
       } catch (apiError) {
-        console.log("API approach failed, trying fallback...", apiError);
+        console.log("All API approaches failed, using fallback...", apiError);
         
-        // Approach 2: Direct fetch to categories endpoint
-        try {
-          const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
-          const fallbackResponse = await fetch(`${API_BASE_URL}/api/categories`);
-          
-          if (!fallbackResponse.ok) {
-            throw new Error(`HTTP ${fallbackResponse.status}`);
-          }
-          
-          const data = await fallbackResponse.json();
-          
-          if (data?.success && data.data) {
-            categoriesData = data.data;
-          } else if (Array.isArray(data)) {
-            categoriesData = data;
-          } else if (data?.categories) {
-            categoriesData = data.categories;
-          } else {
-            throw new Error("Invalid fallback response");
-          }
-          
-          setApiStatus("success");
-          setUsingFallback(false);
-        } catch (fetchError) {
-          console.log("Fallback also failed:", fetchError);
-          // Use hardcoded categories as last resort
-          categoriesData = getHardcodedCategories();
-          isFallback = true;
-          setApiStatus("error");
-          setUsingFallback(true);
-        }
+        // Use hardcoded categories as last resort
+        categoriesData = getHardcodedCategories();
+        setApiStatus("error");
+        setUsingFallback(true);
       }
 
       console.log("Processed categories data:", categoriesData);
@@ -133,7 +121,7 @@ const Home = () => {
           const icon = getCategoryIcon(categoryName);
           const image = getCategoryImage(cat);
           const slug = cat.slug || categoryName.toLowerCase().replace(/\s+/g, "-").replace(/[^\w-]/g, "") || "category";
-          const categoryId = cat._id || Math.random().toString(36).substr(2, 9);
+          const categoryId = cat._id || cat.id || Math.random().toString(36).substr(2, 9);
           
           // Get subcategories from the category data
           const subcategories = cat.subcategories || cat.subCategories || 
@@ -144,7 +132,7 @@ const Home = () => {
             ? subcategories
                 .filter(sub => sub && sub.name)
                 .map(sub => ({
-                  _id: sub._id || Math.random().toString(36).substr(2, 9),
+                  _id: sub._id || sub.id || Math.random().toString(36).substr(2, 9),
                   name: sub.name || "Unnamed Subcategory",
                   slug: sub.slug || sub.name.toLowerCase().replace(/\s+/g, "-").replace(/[^\w-]/g, ""),
                   productCount: sub.productCount || sub.count || 0
@@ -228,6 +216,8 @@ const Home = () => {
             const response = await productAPI.getProductsByCategory(category._id, { limit: 3 });
             if (response.success && response.products) {
               products = response.products.slice(0, 3);
+            } else if (response.data && Array.isArray(response.data)) {
+              products = response.data.slice(0, 3);
             } else {
               // If API fails, use demo products
               products = getDemoProductsForCategory(category.slug);
@@ -262,7 +252,222 @@ const Home = () => {
     }
   };
 
-  
+  // Get demo products for category
+  const getDemoProductsForCategory = (categorySlug) => {
+    const demoProducts = {
+      'engine-parts': [
+        {
+          _id: 'demo-engine-1',
+          name: 'High Performance Pistons',
+          description: 'Premium forged pistons for increased power and durability',
+          price: 125000,
+          discountedPrice: 110000,
+          images: ['https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop'],
+          category: { name: 'Engine Parts' },
+          rating: 4.5,
+          reviewCount: 24,
+          stock: 15
+        },
+        {
+          _id: 'demo-engine-2',
+          name: 'Performance Camshaft',
+          description: 'Racing camshaft for improved valve timing',
+          price: 95000,
+          images: ['https://images.unsplash.com/photo-1626818590247-6d0c26e0279b?w=600&h=400&fit=crop'],
+          category: { name: 'Engine Parts' },
+          rating: 4.2,
+          reviewCount: 18,
+          stock: 8
+        },
+        {
+          _id: 'demo-engine-3',
+          name: 'High Flow Air Filter',
+          description: 'Increased airflow for better engine performance',
+          price: 45000,
+          discountedPrice: 38000,
+          images: ['https://images.unsplash.com/photo-1624025712141-3d2f82c17db4?w=600&h=400&fit=crop'],
+          category: { name: 'Engine Parts' },
+          rating: 4.7,
+          reviewCount: 32,
+          stock: 25
+        }
+      ],
+      'brake-systems': [
+        {
+          _id: 'demo-brake-1',
+          name: 'Performance Brake Pads',
+          description: 'High-friction brake pads for better stopping power',
+          price: 75000,
+          images: ['https://images.unsplash.com/photo-1558981806-ec527fa0b4c9?w=600&h=400&fit=crop'],
+          category: { name: 'Brake Systems' },
+          rating: 4.4,
+          reviewCount: 21,
+          stock: 12
+        },
+        {
+          _id: 'demo-brake-2',
+          name: 'Drilled Brake Rotors',
+          description: 'Vented and drilled rotors for improved heat dissipation',
+          price: 180000,
+          discountedPrice: 150000,
+          images: ['https://images.unsplash.com/photo-1558980664-10e717d7d3d8?w=600&h=400&fit=crop'],
+          category: { name: 'Brake Systems' },
+          rating: 4.6,
+          reviewCount: 29,
+          stock: 6
+        },
+        {
+          _id: 'demo-brake-3',
+          name: 'Brake Caliper Kit',
+          description: 'Complete brake caliper replacement kit',
+          price: 220000,
+          images: ['https://images.unsplash.com/photo-1558980664-10e717d7d3d8?w=600&h=400&fit=crop'],
+          category: { name: 'Brake Systems' },
+          rating: 4.3,
+          reviewCount: 15,
+          stock: 4
+        }
+      ],
+      'tires-wheels': [
+        {
+          _id: 'demo-tire-1',
+          name: 'Sport Performance Tires',
+          description: 'High-grip tires for sport motorcycles',
+          price: 85000,
+          discountedPrice: 72000,
+          images: ['https://images.unsplash.com/photo-1603584173870-7f23fdae1b7a?w=600&h=400&fit=crop'],
+          category: { name: 'Tires & Wheels' },
+          rating: 4.8,
+          reviewCount: 42,
+          stock: 18
+        },
+        {
+          _id: 'demo-tire-2',
+          name: 'Alloy Racing Wheels',
+          description: 'Lightweight alloy wheels for racing',
+          price: 350000,
+          images: ['https://images.unsplash.com/photo-1593941707882-a5bba5338fe2?w=600&h=400&fit=crop'],
+          category: { name: 'Tires & Wheels' },
+          rating: 4.9,
+          reviewCount: 37,
+          stock: 7
+        }
+      ],
+      'electrical': [
+        {
+          _id: 'demo-electrical-1',
+          name: 'Performance Battery',
+          description: 'High-capacity motorcycle battery',
+          price: 65000,
+          discountedPrice: 55000,
+          images: ['https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=600&h=400&fit=crop'],
+          category: { name: 'Electrical' },
+          rating: 4.4,
+          reviewCount: 28,
+          stock: 22
+        },
+        {
+          _id: 'demo-electrical-2',
+          name: 'LED Headlight Kit',
+          description: 'Bright LED headlight conversion kit',
+          price: 45000,
+          images: ['https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=600&h=400&fit=crop'],
+          category: { name: 'Electrical' },
+          rating: 4.6,
+          reviewCount: 34,
+          stock: 15
+        }
+      ],
+      'suspension': [
+        {
+          _id: 'demo-suspension-1',
+          name: 'Adjustable Rear Shocks',
+          description: 'Performance adjustable rear shock absorbers',
+          price: 185000,
+          images: ['https://images.unsplash.com/photo-1566473359723-7e3e4d6c8c1b?w=600&h=400&fit=crop'],
+          category: { name: 'Suspension' },
+          rating: 4.7,
+          reviewCount: 31,
+          stock: 9
+        },
+        {
+          _id: 'demo-suspension-2',
+          name: 'Front Fork Springs',
+          description: 'Upgraded front fork springs for better handling',
+          price: 75000,
+          discountedPrice: 65000,
+          images: ['https://images.unsplash.com/photo-1566473359723-7e3e4d6c8c1b?w=600&h=400&fit=crop'],
+          category: { name: 'Suspension' },
+          rating: 4.5,
+          reviewCount: 26,
+          stock: 14
+        }
+      ],
+      'accessories': [
+        {
+          _id: 'demo-accessory-1',
+          name: 'Premium Handlebar Grips',
+          description: 'Comfortable rubber handlebar grips',
+          price: 12000,
+          images: ['https://images.unsplash.com/photo-1580261450035-4d4f04b7b4c5?w=600&h=400&fit=crop'],
+          category: { name: 'Accessories' },
+          rating: 4.3,
+          reviewCount: 45,
+          stock: 35
+        },
+        {
+          _id: 'demo-accessory-2',
+          name: 'Motorcycle Phone Mount',
+          description: 'Secure phone mount for navigation',
+          price: 25000,
+          discountedPrice: 19000,
+          images: ['https://images.unsplash.com/photo-1580261450035-4d4f04b7b4c5?w=600&h=400&fit=crop'],
+          category: { name: 'Accessories' },
+          rating: 4.8,
+          reviewCount: 58,
+          stock: 27
+        },
+        {
+          _id: 'demo-accessory-3',
+          name: 'Motorcycle Cover',
+          description: 'Waterproof motorcycle cover',
+          price: 35000,
+          images: ['https://images.unsplash.com/photo-1580261450035-4d4f04b7b4c5?w=600&h=400&fit=crop'],
+          category: { name: 'Accessories' },
+          rating: 4.4,
+          reviewCount: 39,
+          stock: 16
+        }
+      ],
+      'default': [
+        {
+          _id: 'demo-default-1',
+          name: 'Premium Motorcycle Part',
+          description: 'High quality motorcycle component',
+          price: 85000,
+          images: ['https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop'],
+          category: { name: 'Motorcycle Parts' },
+          rating: 4.3,
+          reviewCount: 15,
+          stock: 10
+        },
+        {
+          _id: 'demo-default-2',
+          name: 'Performance Upgrade Kit',
+          description: 'Complete upgrade kit for improved performance',
+          price: 225000,
+          discountedPrice: 199000,
+          images: ['https://images.unsplash.com/photo-1626818590247-6d0c26e0279b?w=600&h=400&fit=crop'],
+          category: { name: 'Motorcycle Parts' },
+          rating: 4.8,
+          reviewCount: 37,
+          stock: 5
+        }
+      ]
+    };
+
+    return demoProducts[categorySlug] || demoProducts['default'];
+  };
 
   // Hardcoded fallback categories with subcategories
   const getHardcodedCategories = () => {
@@ -374,12 +579,12 @@ const Home = () => {
       
       // If it's a relative path that starts with /
       if (category.image.startsWith("/")) {
-        const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+        const API_BASE_URL = import.meta.env.VITE_API_URL || "https://federalpartsphilippines-backend.onrender.com";
         return `${API_BASE_URL}${category.image}`;
       }
       
       // If it's just a filename, construct the full URL
-      const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+      const API_BASE_URL = import.meta.env.VITE_API_URL || "https://federalpartsphilippines-backend.onrender.com";
       return `${API_BASE_URL}/uploads/categories/${category.image}`;
     }
 
@@ -389,7 +594,7 @@ const Home = () => {
         return category.imageUrl;
       }
       
-      const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+      const API_BASE_URL = import.meta.env.VITE_API_URL || "https://federalpartsphilippines-backend.onrender.com";
       return `${API_BASE_URL}${category.imageUrl}`;
     }
 
@@ -561,11 +766,26 @@ const Home = () => {
               </div>
             )}
             
-            
+            {/* Wishlist Button */}
+            <button
+              onClick={handleWishlistClick}
+              className="absolute top-3 right-3 p-2 bg-black/70 backdrop-blur-sm rounded-full hover:bg-red-600 transition-colors"
+            >
+              <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-red-500 text-red-500' : 'text-gray-300'}`} />
+            </button>
             
             {/* Quick View Overlay */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-4">
-            
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toast.success("Quick view coming soon!");
+                }}
+                className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white text-sm font-medium rounded-lg transition-all transform hover:scale-105"
+              >
+                Quick View
+              </button>
             </div>
           </div>
           
@@ -573,7 +793,7 @@ const Home = () => {
           <div className="p-4 flex-1 flex flex-col">
             {/* Category */}
             <div className="text-xs text-gray-400 mb-1">
-              {product.category?.name }
+              {product.category?.name || "Motorcycle Parts"}
             </div>
             
             {/* Product Name */}
@@ -586,8 +806,41 @@ const Home = () => {
               {product.description}
             </p>
             
-           
+            {/* Rating and Stock */}
+            <div className="flex items-center justify-between mb-4">
+              {getRatingStars(product.rating)}
+              <div className={`text-xs font-medium px-2 py-1 rounded-full ${
+                product.stock > 10 ? 'bg-green-500/20 text-green-400' : 
+                product.stock > 0 ? 'bg-yellow-500/20 text-yellow-400' : 
+                'bg-red-500/20 text-red-400'
+              }`}>
+                {product.stock > 10 ? 'In Stock' : product.stock > 0 ? 'Low Stock' : 'Out of Stock'}
+              </div>
+            </div>
             
+            {/* Price */}
+            <div className="mt-auto">
+              <div className="flex items-baseline gap-2">
+                <span className="text-lg font-bold text-white">
+                  {formatPrice ? formatPrice(finalPrice) : `₱${finalPrice?.toLocaleString() || '0'}`}
+                </span>
+                {discountPercentage > 0 && (
+                  <span className="text-sm text-gray-400 line-through">
+                    {formatPrice ? formatPrice(product.price) : `₱${product.price?.toLocaleString() || '0'}`}
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toast.success("Added to cart!");
+                }}
+                className="w-full mt-3 py-2.5 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-red-600 hover:to-red-700 text-white text-sm font-medium rounded-lg transition-all transform hover:scale-[1.02] border border-gray-700 hover:border-red-500"
+              >
+                Add to Cart
+              </button>
+            </div>
           </div>
         </div>
       </Link>
@@ -696,11 +949,11 @@ const Home = () => {
                 <div>
                   <div className="flex items-baseline gap-3">
                     <span className="text-xl font-bold text-white">
-                      {formatPrice(finalPrice)}
+                      {formatPrice ? formatPrice(finalPrice) : `₱${finalPrice?.toLocaleString() || '0'}`}
                     </span>
                     {discountPercentage > 0 && (
                       <span className="text-sm text-gray-400 line-through">
-                        {formatPrice(product.price)}
+                        {formatPrice ? formatPrice(product.price) : `₱${product.price?.toLocaleString() || '0'}`}
                       </span>
                     )}
                   </div>
@@ -759,7 +1012,7 @@ const Home = () => {
     </svg>
   );
 
-  // Category Card Component - SIMPLIFIED VERSION
+  // Category Card Component
   const CategoryCard = ({ category, index }) => {
     const [imgError, setImgError] = useState(false);
     const IconComponent = category.icon || FolderTree;
@@ -902,6 +1155,20 @@ const Home = () => {
             0% { background-position: 200% 0; }
             100% { background-position: -200% 0; }
           }
+          
+          .line-clamp-1 {
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 1;
+          }
+          
+          .line-clamp-2 {
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+          }
         `}
       </style>
 
@@ -962,7 +1229,23 @@ const Home = () => {
                       </div>
                     </div>
                     
-                    
+                    {/* View Toggle Buttons */}
+                    <div className="flex items-center gap-2 bg-gradient-to-r from-gray-900 to-black p-1 rounded-lg border border-gray-800">
+                      <button
+                        onClick={() => setCategoryView("grid")}
+                        className={`p-2 rounded-md transition-all ${categoryView === "grid" ? "bg-gray-800 text-white" : "text-gray-400 hover:text-white"}`}
+                        title="Grid View"
+                      >
+                        <Grid className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setCategoryView("list")}
+                        className={`p-2 rounded-md transition-all ${categoryView === "list" ? "bg-gray-800 text-white" : "text-gray-400 hover:text-white"}`}
+                        title="List View"
+                      >
+                        <List className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                   
                   {/* Subcategories */}
@@ -988,7 +1271,6 @@ const Home = () => {
 
                 {/* Products Grid/List */}
                 {categoryView === "grid" ? (
-                  /* CHANGED HERE: grid-cols-2 for mobile view of products */
                   <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {getProductsForSelectedCategory().map((product) => (
                       <ProductCard key={product._id} product={product} />
@@ -1016,7 +1298,7 @@ const Home = () => {
             ) : (
               /* Categories Grid View */
               <div>
-                {/* Categories Grid - CHANGED HERE: grid-cols-2 for mobile */}
+                {/* Categories Grid */}
                 {categoriesLoading ? (
                   <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {Array.from({ length: 6 }).map((_, index) => (
@@ -1073,7 +1355,7 @@ const Home = () => {
                         <h4 className="text-white font-semibold mb-2">Troubleshooting Tips:</h4>
                         <ul className="text-sm text-gray-400 space-y-1">
                           <li>• Check if your backend server is running</li>
-                          <li>• Verify the API endpoint: {import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/categories</li>
+                          <li>• Verify the API endpoint: {import.meta.env.VITE_API_URL || "https://federalpartsphilippines-backend.onrender.com"}/api/categories</li>
                           <li>• Ensure CORS is properly configured on the backend</li>
                           <li>• Check browser console for detailed error messages</li>
                         </ul>
@@ -1082,7 +1364,6 @@ const Home = () => {
                   </div>
                 ) : (
                   <>
-                    {/* CHANGED HERE: grid-cols-2 for mobile view */}
                     <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                       {categories.map((category, index) => (
                         <CategoryCard key={category._id} category={category} index={index} />
