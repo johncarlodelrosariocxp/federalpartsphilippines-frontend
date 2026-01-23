@@ -36,6 +36,14 @@ const Home = () => {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [categoryView, setCategoryView] = useState("grid");
 
+  // Get API base URL
+  const getApiBaseUrl = () => {
+    // Remove trailing slash if present and ensure no double /api
+    let baseUrl = import.meta.env.VITE_API_URL || "https://federalpartsphilippines-backend.onrender.com";
+    baseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash
+    return baseUrl;
+  };
+
   // Fetch categories on component mount
   useEffect(() => {
     fetchCategories();
@@ -55,25 +63,29 @@ const Home = () => {
       console.log("Fetching categories...");
 
       let categoriesData = [];
-      // Use environment variable or default local URL
-      const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+      const API_BASE_URL = getApiBaseUrl();
+      const categoriesEndpoint = `${API_BASE_URL}/api/categories`;
       
       console.log("API Base URL:", API_BASE_URL);
+      console.log("Fetching from:", categoriesEndpoint);
 
       try {
         // Try direct fetch first
-        console.log("Attempting to fetch from:", `${API_BASE_URL}/api/categories`);
-        const response = await fetch(`${API_BASE_URL}/api/categories`, {
+        const response = await fetch(categoriesEndpoint, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
           },
-          mode: 'cors', // Important for Vercel
+          mode: 'cors',
         });
 
+        console.log("Response status:", response.status);
+
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+          const errorText = await response.text();
+          console.error("Response error:", errorText);
+          throw new Error(`HTTP ${response.status}: ${errorText}`);
         }
 
         const data = await response.json();
@@ -88,6 +100,8 @@ const Home = () => {
           categoriesData = data.categories;
         } else if (Array.isArray(data)) {
           categoriesData = data;
+        } else if (data?.success === false) {
+          throw new Error(data.message || "API returned error");
         } else {
           console.warn("Unexpected response format:", data);
           categoriesData = [];
@@ -163,8 +177,7 @@ const Home = () => {
             subcategoryCount: processedSubcategories.length,
             originalData: cat
           };
-        })
-        .slice(0, 6); // Limit to 6 categories
+        });
 
       console.log("Final processed categories:", processedCategories);
       setCategories(processedCategories);
@@ -172,7 +185,7 @@ const Home = () => {
       if (processedCategories.length > 0) {
         toast.success(`Loaded ${processedCategories.length} categories`);
       } else {
-        toast.error("No categories found");
+        toast.info("No categories found");
       }
     } catch (error) {
       console.error("Error in fetchCategories:", error);
@@ -180,7 +193,7 @@ const Home = () => {
       // Show error and let user retry
       setApiStatus("error");
       setUsingFallback(false);
-      toast.error("Failed to load categories. Please check your connection.");
+      toast.error(`Failed to load categories: ${error.message}`);
     } finally {
       setCategoriesLoading(false);
     }
@@ -279,12 +292,12 @@ const Home = () => {
       
       // If it's a relative path that starts with /
       if (category.image.startsWith("/")) {
-        const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+        const API_BASE_URL = getApiBaseUrl();
         return `${API_BASE_URL}${category.image}`;
       }
       
       // If it's just a filename, construct the full URL
-      const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+      const API_BASE_URL = getApiBaseUrl();
       return `${API_BASE_URL}/uploads/categories/${category.image}`;
     }
 
@@ -294,7 +307,7 @@ const Home = () => {
         return category.imageUrl;
       }
       
-      const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+      const API_BASE_URL = getApiBaseUrl();
       return `${API_BASE_URL}${category.imageUrl}`;
     }
 
@@ -752,6 +765,12 @@ const Home = () => {
     );
   };
 
+  // Get the correct API endpoint for troubleshooting display
+  const getApiEndpoint = () => {
+    const baseUrl = getApiBaseUrl();
+    return `${baseUrl}/api/categories`;
+  };
+
   return (
     <>
       {/* Animation Styles */}
@@ -1017,22 +1036,35 @@ const Home = () => {
                         {retryCount >= 3 ? "Max Retries Reached" : `Try Again (${retryCount + 1}/3)`}
                       </button>
                       
-                      <Link
-                        to="/admin/categories"
+                      <button
+                        onClick={() => {
+                          // Reset retry count to allow retrying again
+                          setRetryCount(0);
+                          handleRetry();
+                        }}
                         className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-all hover:scale-105"
                       >
-                        Add Categories
-                      </Link>
+                        Reset & Retry
+                      </button>
                     </div>
                     
                     <div className="mt-8 p-4 bg-gray-900/50 rounded-lg max-w-lg mx-auto">
                       <h4 className="text-white font-semibold mb-2">Troubleshooting Tips:</h4>
                       <ul className="text-sm text-gray-400 space-y-1">
                         <li>• Ensure your backend server is running</li>
-                        <li>• Check the API endpoint: {import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/categories</li>
+                        <li>• Check the API endpoint: <code className="bg-gray-800 px-2 py-1 rounded">{getApiEndpoint()}</code></li>
                         <li>• Verify CORS is enabled on the backend</li>
                         <li>• Check browser console for detailed error messages</li>
+                        <li>• Make sure your backend has the /api/categories endpoint</li>
                       </ul>
+                      <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded">
+                        <p className="text-yellow-500 text-sm">
+                          <strong>Current API URL:</strong> {getApiBaseUrl()}
+                        </p>
+                        <p className="text-yellow-500 text-sm mt-1">
+                          <strong>Full Endpoint:</strong> {getApiEndpoint()}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 ) : categories.length === 0 ? (
@@ -1042,7 +1074,7 @@ const Home = () => {
                       No Categories Available
                     </h3>
                     <p className="text-gray-400 mb-8 max-w-md mx-auto">
-                      Categories will appear here once they are added to the system.
+                      No categories found in the database. Please add categories through the admin panel.
                     </p>
                     
                     <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">

@@ -785,10 +785,15 @@ const CategoryForm = () => {
     return Object.keys(errors).length === 0;
   };
 
-  // FIXED: WORKING IMAGE UPLOAD FUNCTION
+  // FIXED: WORKING IMAGE UPLOAD FUNCTION WITH BETTER ERROR HANDLING
   const uploadImageToServer = async (file) => {
     try {
       console.log("🖼️ Uploading image to server...");
+      console.log("📁 File details:", {
+        name: file.name,
+        type: file.type,
+        size: `${(file.size / 1024 / 1024).toFixed(2)} MB`
+      });
       
       // Get token from localStorage
       const token = localStorage.getItem('token') || localStorage.getItem('accessToken') || '';
@@ -802,7 +807,6 @@ const CategoryForm = () => {
       const uploadUrl = `${baseUrl}/api/upload`;
       
       console.log("📤 Upload URL:", uploadUrl);
-      console.log("📁 File:", file.name, file.type, `${(file.size / 1024 / 1024).toFixed(2)}MB`);
       
       // Make the upload request
       const response = await fetch(uploadUrl, {
@@ -819,7 +823,8 @@ const CategoryForm = () => {
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("❌ Upload failed:", errorText);
+        console.error("❌ Upload failed with status:", response.status);
+        console.error("❌ Error response:", errorText);
         
         // Try to parse as JSON
         try {
@@ -830,33 +835,95 @@ const CategoryForm = () => {
         }
       }
       
-      const data = await response.json();
-      console.log("✅ Upload response data:", data);
+      const responseText = await response.text();
+      console.log("📥 Raw response:", responseText);
       
-      if (!data.success) {
-        throw new Error(data.message || 'Upload failed');
+      let data;
+      try {
+        data = JSON.parse(responseText);
+        console.log("✅ Parsed response data:", data);
+      } catch (parseError) {
+        console.error("❌ Failed to parse response as JSON:", parseError);
+        console.error("Raw response was:", responseText);
+        throw new Error('Server returned invalid JSON response');
       }
       
-      // Handle different response structures
+      // Check if upload was successful
+      if (!data.success && !data.url && !data.imageUrl && !data.filename) {
+        console.error("❌ No valid image data in response:", data);
+        throw new Error('Server did not return valid image data');
+      }
+      
+      // Extract image URL from different possible response formats
       let imageUrl = '';
+      
+      // Try different response formats
       if (data.imageUrl) {
         imageUrl = data.imageUrl;
+        console.log("✅ Got imageUrl:", imageUrl);
       } else if (data.url) {
         imageUrl = data.url;
+        console.log("✅ Got url:", imageUrl);
       } else if (data.data && data.data.url) {
         imageUrl = data.data.url;
+        console.log("✅ Got data.url:", imageUrl);
       } else if (data.data && typeof data.data === 'string') {
         imageUrl = data.data;
+        console.log("✅ Got data string:", imageUrl);
       } else if (data.filename) {
         // Construct URL from filename
-        imageUrl = `/uploads/categories/${data.filename}`;
+        imageUrl = `/uploads/${data.filename}`;
+        console.log("✅ Constructed URL from filename:", imageUrl);
+      } else if (data.data && data.data.filename) {
+        imageUrl = `/uploads/${data.data.filename}`;
+        console.log("✅ Constructed URL from data.filename:", imageUrl);
+      } else if (data.path) {
+        imageUrl = data.path;
+        console.log("✅ Got path:", imageUrl);
+      } else if (data.location) {
+        imageUrl = data.location;
+        console.log("✅ Got location:", imageUrl);
+      }
+      
+      // If still no URL, check for any string that looks like a URL/path
+      if (!imageUrl) {
+        // Search through all properties for something that looks like a URL
+        const findUrlInObject = (obj) => {
+          for (const key in obj) {
+            const value = obj[key];
+            if (typeof value === 'string') {
+              // Check if it looks like a URL or path
+              if (value.includes('http') || value.includes('uploads') || value.includes('.jpg') || value.includes('.png') || value.includes('.jpeg') || value.includes('.webp') || value.includes('.gif')) {
+                return value;
+              }
+            } else if (typeof value === 'object' && value !== null) {
+              const found = findUrlInObject(value);
+              if (found) return found;
+            }
+          }
+          return null;
+        };
+        
+        const foundUrl = findUrlInObject(data);
+        if (foundUrl) {
+          imageUrl = foundUrl;
+          console.log("✅ Found URL in object:", imageUrl);
+        }
       }
       
       if (!imageUrl) {
+        console.error("❌ Could not extract image URL from response:", data);
         throw new Error('No image URL returned from server');
       }
       
-      console.log("🖼️ Image uploaded successfully:", imageUrl);
+      // Make sure URL is absolute
+      if (imageUrl.startsWith('/')) {
+        imageUrl = `${baseUrl}${imageUrl}`;
+      } else if (!imageUrl.startsWith('http')) {
+        imageUrl = `${baseUrl}/uploads/${imageUrl}`;
+      }
+      
+      console.log("🖼️ Final image URL:", imageUrl);
       return {
         success: true,
         imageUrl: imageUrl
@@ -865,19 +932,29 @@ const CategoryForm = () => {
     } catch (error) {
       console.error('❌ Error uploading image:', error);
       
-      // Fallback: Use a placeholder or base64
-      const fallbackImage = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          resolve({
-            success: true,
-            imageUrl: reader.result // base64 string
-          });
+      // Fallback: Use base64 encoded image
+      console.log("🔄 Using fallback: base64 encoding");
+      try {
+        const base64Image = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            resolve(reader.result);
+          };
+          reader.onerror = () => {
+            reject(new Error('Failed to read file as base64'));
+          };
+          reader.readAsDataURL(file);
+        });
+        
+        console.log("✅ Fallback successful, using base64");
+        return {
+          success: true,
+          imageUrl: base64Image // base64 string
         };
-        reader.readAsDataURL(file);
-      });
-      
-      return fallbackImage;
+      } catch (fallbackError) {
+        console.error('❌ Fallback also failed:', fallbackError);
+        throw new Error(`Image upload failed and fallback also failed: ${error.message}`);
+      }
     }
   };
 
@@ -916,7 +993,7 @@ const CategoryForm = () => {
             imageUrl = uploadResult.imageUrl;
             console.log("✅ Image uploaded successfully:", imageUrl);
           } else {
-            throw new Error('Image upload failed');
+            throw new Error('Image upload failed - no URL returned');
           }
           
           setUploadingImage(false);
@@ -924,7 +1001,8 @@ const CategoryForm = () => {
           console.error("❌ Error uploading image:", uploadErr);
           setError(`Failed to upload image: ${uploadErr.message}. You can still save without image.`);
           setUploadingImage(false);
-          // Continue without image
+          // Continue without image - don't set imageUrl
+          imageUrl = category.imageUrl; // Keep existing image if any
         }
       }
 
@@ -940,9 +1018,13 @@ const CategoryForm = () => {
       };
 
       // Add image if available
-      if (imageUrl) {
+      if (imageUrl && imageUrl !== category.imageUrl) {
         categoryData.image = imageUrl;
         categoryData.imageUrl = imageUrl;
+      } else if (category.imageUrl) {
+        // Keep existing image
+        categoryData.image = category.imageUrl;
+        categoryData.imageUrl = category.imageUrl;
       }
 
       // Add parent category if selected
