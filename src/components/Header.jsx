@@ -27,6 +27,8 @@ const Header = () => {
   // Update active nav based on location
   useEffect(() => {
     setActiveNav(location.pathname);
+    // Scroll to top when route changes
+    window.scrollTo(0, 0);
   }, [location]);
 
   // Initialize cart count and user
@@ -202,7 +204,7 @@ const Header = () => {
     setIsMenuOpen(false);
   };
 
-  // Mobile bottom navigation items (removed cart and account)
+  // Mobile bottom navigation items
   const mobileNavItems = [
     { name: "Home", path: "/", icon: Home },
     { name: "Shop", path: "/shop", icon: ShoppingBag },
@@ -276,7 +278,7 @@ const Header = () => {
               })}
             </nav>
 
-            {/* Desktop Right Actions - Keep cart and user for desktop */}
+            {/* Desktop Right Actions - Cart and account removed */}
             <div className="flex items-center space-x-4">
               {/* Desktop Search */}
               <div className="relative" ref={suggestionsRef}>
@@ -288,7 +290,7 @@ const Header = () => {
                     value={searchQuery}
                     onChange={handleSearchChange}
                     onFocus={() => searchQuery.length >= 2 && setShowSuggestions(true)}
-                    placeholder="Search parts & brands..."
+                    placeholder="Search parts"
                     className="pl-10 pr-4 py-2 w-48 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-white/50 bg-white/20 border-white/30 text-white placeholder-white/60"
                   />
                   
@@ -356,26 +358,6 @@ const Header = () => {
                   )}
                 </form>
               </div>
-
-              {/* Desktop Cart & User */}
-              <Link
-                to="/cart"
-                className="relative p-2 rounded-lg transition-colors hover:bg-white/25"
-              >
-                <ShoppingCart className="w-5 h-5 text-white" />
-                {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-white text-[#cc0000] text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                    {cartCount > 9 ? "9+" : cartCount}
-                  </span>
-                )}
-              </Link>
-
-              <Link
-                to={user ? "/account" : "/login"}
-                className="p-2 rounded-lg transition-colors hover:bg-white/25"
-              >
-                <User className="w-5 h-5 text-white" />
-              </Link>
             </div>
           </div>
         </div>
@@ -491,7 +473,10 @@ const Header = () => {
                     ? "bg-white/30 text-white" 
                     : "text-white/90 hover:text-white hover:bg-white/15"
                 }`}
-                onClick={() => setActiveNav(item.path)}
+                onClick={() => {
+                  setActiveNav(item.path);
+                  window.scrollTo(0, 0);
+                }}
               >
                 <Icon className="w-6 h-6" />
                 <span className={`text-xs mt-1 font-medium ${
@@ -550,7 +535,7 @@ const Header = () => {
               )}
             </div>
 
-            {/* Menu Links - Include cart and account here */}
+            {/* Menu Links - Cart and account removed from mobile menu */}
             <div className="space-y-1">
               {[
                 { name: "Home", path: "/", icon: Home },
@@ -558,8 +543,6 @@ const Header = () => {
                 { name: "Categories", path: "/categories", icon: Grid },
                 { name: "About", path: "/about", icon: Info },
                 { name: "Contact", path: "/contact", icon: Phone },
-                { name: "Cart", path: "/cart", icon: ShoppingCart, badge: cartCount },
-                { name: user ? "Account" : "Login", path: user ? "/account" : "/login", icon: User },
               ].map((item) => {
                 const Icon = item.icon;
                 const isActive = activeNav === item.path;
@@ -576,15 +559,11 @@ const Header = () => {
                     onClick={() => {
                       setIsMenuOpen(false);
                       setActiveNav(item.path);
+                      window.scrollTo(0, 0);
                     }}
                   >
                     <Icon className="w-5 h-5 mr-3" />
                     <span className="font-medium">{item.name}</span>
-                    {item.badge && item.badge > 0 && (
-                      <span className="ml-auto bg-white text-[#cc0000] text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
-                        {item.badge > 9 ? "9+" : item.badge}
-                      </span>
-                    )}
                   </Link>
                 );
               })}
