@@ -905,22 +905,7 @@ const AdminProducts = () => {
               </select>
             </div>
 
-            {/* Stock Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-800 mb-2">
-                Stock
-              </label>
-              <select
-                value={stockFilter}
-                onChange={(e) => setStockFilter(e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="all">All Stock</option>
-                <option value="in_stock">In Stock (&gt;10)</option>
-                <option value="low_stock">Low Stock (1-10)</option>
-                <option value="out_of_stock">Out of Stock</option>
-              </select>
-            </div>
+            
 
             {/* Sort By */}
             <div>

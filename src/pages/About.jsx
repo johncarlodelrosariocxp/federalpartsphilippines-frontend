@@ -106,7 +106,7 @@ const About = () => {
                 className="rounded-2xl shadow-2xl border border-gray-800"
               />
               <div className="absolute inset-0 rounded-2xl bg-gradient-to-t from-black/40 to-transparent" />
-              {/* Flags Badge */}
+              {/* Flags Badge - Cleaner design */}
               <div className="absolute bottom-6 right-6 flex gap-2">
                 <div className="bg-white p-2 rounded-lg shadow-lg">
                   <div className="w-12 h-8 bg-gradient-to-r from-red-500 to-white flex items-center justify-center">
@@ -146,9 +146,9 @@ const About = () => {
                 and preferences.
               </p>
               <p>
-                Our mission is simple: to provide Filipino riders, mechanics,
-                and motorcycle enthusiasts with access to premium-quality parts
-                that offer exceptional value, reliability, and performance.
+                Our mission is to provide Filipino riders, mechanics, and
+                motorcycle enthusiasts with access to premium-quality parts that
+                offer exceptional value, reliability, and performance.
               </p>
             </div>
             <div className="mt-6 flex gap-4">

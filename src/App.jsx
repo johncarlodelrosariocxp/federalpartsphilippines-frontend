@@ -19,6 +19,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import SetAdmin from "./pages/SetAdmin";
 import HelpFindingParts from "./pages/HelpFindingParts";
+import SearchResults from "./pages/SearchResults"; // Added import
 import AdminRoutes from "./routes/AdminRoutes";
 import authService from "./services/auth";
 
@@ -56,6 +57,7 @@ function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/set-admin" element={<SetAdmin />} />
             <Route path="/help-finding-parts" element={<HelpFindingParts />} />
+            <Route path="/search" element={<SearchResults />} /> {/* Added route */}
 
             {/* Admin routes - using AdminRoutes component ONLY */}
             <Route path="/admin/*" element={<AdminRoutes />} />
