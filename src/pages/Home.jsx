@@ -36,12 +36,26 @@ const Home = () => {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [categoryView, setCategoryView] = useState("grid");
 
-  // Get API base URL
+  // Get API base URL - FIXED VERSION
   const getApiBaseUrl = () => {
-    // Remove trailing slash if present and ensure no double /api
     let baseUrl = import.meta.env.VITE_API_URL || "https://federalpartsphilippines-backend.onrender.com";
+    
+    // Clean the URL
+    baseUrl = baseUrl.trim();
     baseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash
+    
+    // If URL already ends with /api, remove it (we'll add it back later)
+    if (baseUrl.endsWith('/api')) {
+      baseUrl = baseUrl.slice(0, -4); // Remove '/api'
+    }
+    
     return baseUrl;
+  };
+
+  // Get API endpoint for categories
+  const getCategoriesEndpoint = () => {
+    const baseUrl = getApiBaseUrl();
+    return `${baseUrl}/api/categories`;
   };
 
   // Fetch categories on component mount
@@ -63,10 +77,8 @@ const Home = () => {
       console.log("Fetching categories...");
 
       let categoriesData = [];
-      const API_BASE_URL = getApiBaseUrl();
-      const categoriesEndpoint = `${API_BASE_URL}/api/categories`;
+      const categoriesEndpoint = getCategoriesEndpoint();
       
-      console.log("API Base URL:", API_BASE_URL);
       console.log("Fetching from:", categoriesEndpoint);
 
       try {
@@ -767,8 +779,7 @@ const Home = () => {
 
   // Get the correct API endpoint for troubleshooting display
   const getApiEndpoint = () => {
-    const baseUrl = getApiBaseUrl();
-    return `${baseUrl}/api/categories`;
+    return getCategoriesEndpoint();
   };
 
   return (
@@ -1024,27 +1035,27 @@ const Home = () => {
                     
                     <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                       <button
-                        onClick={handleRetry}
-                        disabled={retryCount >= 3}
-                        className={`px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-all ${
-                          retryCount >= 3
-                            ? "bg-gray-800 cursor-not-allowed"
-                            : "bg-red-600 hover:bg-red-700 hover:scale-105"
-                        }`}
+                        onClick={() => {
+                          // Reset retry count and retry
+                          setRetryCount(0);
+                          fetchCategories();
+                        }}
+                        className="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg font-medium flex items-center gap-2 transition-all hover:scale-105"
                       >
-                        <RefreshCw className={`w-4 h-4 ${retryCount >= 3 ? "" : "animate-spin"}`} />
-                        {retryCount >= 3 ? "Max Retries Reached" : `Try Again (${retryCount + 1}/3)`}
+                        <RefreshCw className="w-4 h-4" />
+                        Reset & Retry
                       </button>
                       
                       <button
                         onClick={() => {
-                          // Reset retry count to allow retrying again
-                          setRetryCount(0);
-                          handleRetry();
+                          // Test the endpoint directly
+                          const endpoint = getApiEndpoint();
+                          window.open(endpoint, '_blank');
+                          toast.info(`Opening endpoint in new tab: ${endpoint}`);
                         }}
                         className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-all hover:scale-105"
                       >
-                        Reset & Retry
+                        Test Endpoint
                       </button>
                     </div>
                     
@@ -1059,7 +1070,10 @@ const Home = () => {
                       </ul>
                       <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded">
                         <p className="text-yellow-500 text-sm">
-                          <strong>Current API URL:</strong> {getApiBaseUrl()}
+                          <strong>Environment Variable:</strong> {import.meta.env.VITE_API_URL || "Not set"}
+                        </p>
+                        <p className="text-yellow-500 text-sm mt-1">
+                          <strong>Calculated Base URL:</strong> {getApiBaseUrl()}
                         </p>
                         <p className="text-yellow-500 text-sm mt-1">
                           <strong>Full Endpoint:</strong> {getApiEndpoint()}
@@ -1079,7 +1093,10 @@ const Home = () => {
                     
                     <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                       <button
-                        onClick={handleRetry}
+                        onClick={() => {
+                          setRetryCount(0);
+                          fetchCategories();
+                        }}
                         className="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg font-medium flex items-center gap-2 transition-all hover:scale-105"
                       >
                         <RefreshCw className="w-4 h-4" />
