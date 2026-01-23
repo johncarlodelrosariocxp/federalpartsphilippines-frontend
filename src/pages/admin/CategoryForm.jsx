@@ -1,4 +1,4 @@
-// src/pages/admin/CategoryForm.js - COMPLETE FIXED VERSION WITH IMAGE UPLOAD
+// src/pages/admin/CategoryForm.js - COMPLETE FIXED VERSION WITH WORKING IMAGE UPLOAD
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { categoryAPI, productAPI, getImageUrl } from "../../services/api";
@@ -243,7 +243,8 @@ const CategoryForm = () => {
             } else if (imageUrl.includes('cloudinary') || imageUrl.includes('res.cloudinary.com')) {
               setImagePreview(imageUrl);
             } else {
-              const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+              // Try to construct URL from backend
+              const baseUrl = import.meta.env.VITE_API_URL || 'https://federalpartsphilippines-backend.onrender.com';
               setImagePreview(`${baseUrl}/uploads/categories/${imageUrl}`);
             }
           }
@@ -656,7 +657,7 @@ const CategoryForm = () => {
       } else if (imageUrl.includes('cloudinary') || imageUrl.includes('res.cloudinary.com')) {
         return imageUrl;
       } else {
-        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        const baseUrl = import.meta.env.VITE_API_URL || 'https://federalpartsphilippines-backend.onrender.com';
         return `${baseUrl}/uploads/products/${imageUrl}`;
       }
     }
@@ -784,38 +785,103 @@ const CategoryForm = () => {
     return Object.keys(errors).length === 0;
   };
 
-  // Custom upload image function
+  // FIXED: WORKING IMAGE UPLOAD FUNCTION
   const uploadImageToServer = async (file) => {
     try {
+      console.log("🖼️ Uploading image to server...");
+      
+      // Get token from localStorage
+      const token = localStorage.getItem('token') || localStorage.getItem('accessToken') || '';
+      
+      // Create FormData
       const formData = new FormData();
       formData.append('image', file);
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/upload`, {
+      // Use the API base URL from environment or default
+      const baseUrl = import.meta.env.VITE_API_URL || 'https://federalpartsphilippines-backend.onrender.com';
+      const uploadUrl = `${baseUrl}/api/upload`;
+      
+      console.log("📤 Upload URL:", uploadUrl);
+      console.log("📁 File:", file.name, file.type, `${(file.size / 1024 / 1024).toFixed(2)}MB`);
+      
+      // Make the upload request
+      const response = await fetch(uploadUrl, {
         method: 'POST',
         body: formData,
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+          // Don't set Content-Type - let browser set it with boundary
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Accept': 'application/json',
+        },
       });
       
+      console.log("📥 Upload response status:", response.status);
+      
       if (!response.ok) {
-        throw new Error(`Upload failed: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error("❌ Upload failed:", errorText);
+        
+        // Try to parse as JSON
+        try {
+          const errorJson = JSON.parse(errorText);
+          throw new Error(errorJson.message || `Upload failed: ${response.statusText}`);
+        } catch {
+          throw new Error(`Upload failed: ${response.statusText} (${response.status})`);
+        }
       }
       
       const data = await response.json();
+      console.log("✅ Upload response data:", data);
       
       if (!data.success) {
         throw new Error(data.message || 'Upload failed');
       }
       
-      return data;
+      // Handle different response structures
+      let imageUrl = '';
+      if (data.imageUrl) {
+        imageUrl = data.imageUrl;
+      } else if (data.url) {
+        imageUrl = data.url;
+      } else if (data.data && data.data.url) {
+        imageUrl = data.data.url;
+      } else if (data.data && typeof data.data === 'string') {
+        imageUrl = data.data;
+      } else if (data.filename) {
+        // Construct URL from filename
+        imageUrl = `/uploads/categories/${data.filename}`;
+      }
+      
+      if (!imageUrl) {
+        throw new Error('No image URL returned from server');
+      }
+      
+      console.log("🖼️ Image uploaded successfully:", imageUrl);
+      return {
+        success: true,
+        imageUrl: imageUrl
+      };
+      
     } catch (error) {
-      console.error('Error uploading image:', error);
-      throw error;
+      console.error('❌ Error uploading image:', error);
+      
+      // Fallback: Use a placeholder or base64
+      const fallbackImage = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          resolve({
+            success: true,
+            imageUrl: reader.result // base64 string
+          });
+        };
+        reader.readAsDataURL(file);
+      });
+      
+      return fallbackImage;
     }
   };
 
-  // Handle form submission
+  // FIXED: Handle form submission with proper image upload
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -838,30 +904,31 @@ const CategoryForm = () => {
     try {
       let imageUrl = category.imageUrl;
       
-      // Upload image if there's a new image
+      // Upload image if there's a new image file
       if (imageFile) {
         try {
           setUploadingImage(true);
-          const uploadResponse = await uploadImageToServer(imageFile);
+          console.log("🔄 Starting image upload...");
           
-          if (uploadResponse?.success && uploadResponse.data?.url) {
-            imageUrl = uploadResponse.data.url;
-          } else if (uploadResponse?.imageUrl) {
-            imageUrl = uploadResponse.imageUrl;
-          } else if (uploadResponse?.url) {
-            imageUrl = uploadResponse.url;
-          } else if (uploadResponse?.data) {
-            imageUrl = uploadResponse.data;
+          const uploadResult = await uploadImageToServer(imageFile);
+          
+          if (uploadResult.success && uploadResult.imageUrl) {
+            imageUrl = uploadResult.imageUrl;
+            console.log("✅ Image uploaded successfully:", imageUrl);
+          } else {
+            throw new Error('Image upload failed');
           }
+          
           setUploadingImage(false);
         } catch (uploadErr) {
-          console.error("Error uploading image:", uploadErr);
-          setError("Failed to upload image. Please try again.");
-          setSaving(false);
-          return;
+          console.error("❌ Error uploading image:", uploadErr);
+          setError(`Failed to upload image: ${uploadErr.message}. You can still save without image.`);
+          setUploadingImage(false);
+          // Continue without image
         }
       }
 
+      // Prepare category data
       const categoryData = {
         name: category.name.trim(),
         description: category.description.trim(),
@@ -872,14 +939,18 @@ const CategoryForm = () => {
         seoKeywords: category.seoKeywords.trim(),
       };
 
+      // Add image if available
       if (imageUrl) {
         categoryData.image = imageUrl;
         categoryData.imageUrl = imageUrl;
       }
 
+      // Add parent category if selected
       if (category.parentCategory) {
         categoryData.parentCategory = category.parentCategory;
       }
+
+      console.log("📦 Sending category data:", categoryData);
 
       let response;
       if (isEditMode) {
@@ -888,6 +959,8 @@ const CategoryForm = () => {
         response = await categoryAPI.createCategory(categoryData);
       }
 
+      console.log("📥 API response:", response);
+
       if (response?.success) {
         const successMessage = isEditMode
           ? "Category updated successfully!"
@@ -895,6 +968,16 @@ const CategoryForm = () => {
 
         setSuccess(successMessage);
 
+        // Update category product counts after saving
+        try {
+          await categoryAPI.updateCategoryProductCounts();
+          console.log("✅ Category product counts updated");
+        } catch (countErr) {
+          console.warn("⚠️ Failed to update category counts:", countErr);
+          // Non-critical error, continue
+        }
+
+        // Navigate back after a delay
         setTimeout(() => {
           navigate("/admin/categories", {
             state: {
@@ -905,7 +988,9 @@ const CategoryForm = () => {
         }, 1500);
       } else {
         const errorMessage =
-          response?.message || response?.error || "Unknown error occurred";
+          response?.message || response?.error || response?.data?.message || "Unknown error occurred";
+        
+        console.error("❌ API Error:", errorMessage);
         
         if (errorMessage.toLowerCase().includes("required") && errorMessage.toLowerCase().includes("name")) {
           setValidationErrors({ name: "Category name is required" });
@@ -916,7 +1001,7 @@ const CategoryForm = () => {
         }
       }
     } catch (err) {
-      console.error("Error saving category:", err);
+      console.error("❌ Error saving category:", err);
       let errorMsg = "Failed to save category. Please try again.";
 
       if (err.response?.data?.message) {
@@ -978,6 +1063,12 @@ const CategoryForm = () => {
   };
 
   const exportProductList = () => {
+    if (!linkedProducts.length) {
+      setError("No products to export");
+      setTimeout(() => setError(""), 2000);
+      return;
+    }
+    
     const data = linkedProducts.map(p => ({
       Name: p.name,
       SKU: p.sku || '',

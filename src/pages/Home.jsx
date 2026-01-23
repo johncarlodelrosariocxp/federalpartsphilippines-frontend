@@ -19,6 +19,7 @@ import {
   Heart,
   Grid,
   List,
+  Loader,
 } from "lucide-react";
 import { categoryAPI, productAPI, getImageUrl, formatPrice } from "../services/api";
 import { toast } from "react-hot-toast";
@@ -35,17 +36,17 @@ const Home = () => {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [categoryView, setCategoryView] = useState("grid");
 
-  // Fetch categories on component mount and when retryCount changes
+  // Fetch categories on component mount
   useEffect(() => {
     fetchCategories();
-  }, [retryCount]);
+  }, []);
 
   // Fetch products for each category when categories change
   useEffect(() => {
-    if (categories.length > 0) {
+    if (categories.length > 0 && !categoriesLoading) {
       fetchCategoryProducts();
     }
-  }, [categories]);
+  }, [categories, categoriesLoading]);
 
   const fetchCategories = async () => {
     try {
@@ -54,66 +55,77 @@ const Home = () => {
       console.log("Fetching categories...");
 
       let categoriesData = [];
-      const API_BASE_URL = import.meta.env.VITE_API_URL || "https://federalpartsphilippines-backend.onrender.com";
+      // Use environment variable or default local URL
+      const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+      
+      console.log("API Base URL:", API_BASE_URL);
 
       try {
-        // First, check if API is reachable
-        try {
-          const healthCheck = await fetch(`${API_BASE_URL}/api/health`);
-          if (!healthCheck.ok) {
-            throw new Error("API health check failed");
-          }
-        } catch (healthError) {
-          console.log("Health check failed:", healthError);
-          // Continue anyway - some APIs might not have /health endpoint
+        // Try direct fetch first
+        console.log("Attempting to fetch from:", `${API_BASE_URL}/api/categories`);
+        const response = await fetch(`${API_BASE_URL}/api/categories`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          mode: 'cors', // Important for Vercel
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${await response.text()}`);
         }
 
-        // Try different approaches to get categories
-        let response;
-        
-        // Approach 1: Use categoryAPI service
-        try {
-          response = await categoryAPI.getAll();
-          console.log("Category API Response:", response);
-        } catch (apiError) {
-          console.log("Category API service failed, trying direct fetch...", apiError);
-          // Approach 2: Direct fetch
-          response = await fetch(`${API_BASE_URL}/api/categories`);
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
-          response = await response.json();
-        }
+        const data = await response.json();
+        console.log("API Response data:", data);
 
-        // Parse response based on different possible structures
-        if (response?.success && response.data) {
-          categoriesData = response.data;
-        } else if (response?.data && Array.isArray(response.data)) {
-          categoriesData = response.data;
-        } else if (response?.categories && Array.isArray(response.categories)) {
-          categoriesData = response.categories;
-        } else if (Array.isArray(response)) {
-          categoriesData = response;
-        } else if (response?.success === false && response.message) {
-          throw new Error(response.message);
+        // Parse different response formats
+        if (data?.success && data.data) {
+          categoriesData = data.data;
+        } else if (data?.data && Array.isArray(data.data)) {
+          categoriesData = data.data;
+        } else if (data?.categories && Array.isArray(data.categories)) {
+          categoriesData = data.categories;
+        } else if (Array.isArray(data)) {
+          categoriesData = data;
         } else {
-          throw new Error("Invalid response format");
+          console.warn("Unexpected response format:", data);
+          categoriesData = [];
         }
 
         setApiStatus("success");
         setUsingFallback(false);
-      } catch (apiError) {
-        console.log("All API approaches failed, using fallback...", apiError);
         
-        // Use hardcoded categories as last resort
-        categoriesData = getHardcodedCategories();
-        setApiStatus("error");
-        setUsingFallback(true);
+      } catch (fetchError) {
+        console.error("Direct fetch failed:", fetchError);
+        
+        // Try using categoryAPI service as fallback
+        try {
+          console.log("Trying categoryAPI service...");
+          const response = await categoryAPI.getAll();
+          console.log("categoryAPI response:", response);
+          
+          if (response?.success && response.data) {
+            categoriesData = response.data;
+          } else if (response?.data && Array.isArray(response.data)) {
+            categoriesData = response.data;
+          } else if (Array.isArray(response)) {
+            categoriesData = response;
+          } else {
+            throw new Error("Invalid response from categoryAPI");
+          }
+          
+          setApiStatus("success");
+          setUsingFallback(false);
+        } catch (apiError) {
+          console.error("categoryAPI also failed:", apiError);
+          throw new Error("All API methods failed");
+        }
       }
 
       console.log("Processed categories data:", categoriesData);
 
-      // Process categories with images and subcategories
+      // Process categories
       const processedCategories = categoriesData
         .filter(cat => cat && cat.name)
         .map((cat) => {
@@ -121,21 +133,19 @@ const Home = () => {
           const icon = getCategoryIcon(categoryName);
           const image = getCategoryImage(cat);
           const slug = cat.slug || categoryName.toLowerCase().replace(/\s+/g, "-").replace(/[^\w-]/g, "") || "category";
-          const categoryId = cat._id || cat.id || Math.random().toString(36).substr(2, 9);
+          const categoryId = cat._id || cat.id || `cat-${Math.random().toString(36).substr(2, 9)}`;
           
-          // Get subcategories from the category data
-          const subcategories = cat.subcategories || cat.subCategories || 
-                              (cat.children && Array.isArray(cat.children) ? cat.children : []);
+          // Get subcategories
+          const subcategories = cat.subcategories || cat.subCategories || [];
           
-          // Process subcategories if they exist
           const processedSubcategories = Array.isArray(subcategories) 
             ? subcategories
                 .filter(sub => sub && sub.name)
                 .map(sub => ({
-                  _id: sub._id || sub.id || Math.random().toString(36).substr(2, 9),
+                  _id: sub._id || sub.id || `sub-${Math.random().toString(36).substr(2, 9)}`,
                   name: sub.name || "Unnamed Subcategory",
                   slug: sub.slug || sub.name.toLowerCase().replace(/\s+/g, "-").replace(/[^\w-]/g, ""),
-                  productCount: sub.productCount || sub.count || 0
+                  count: sub.productCount || sub.count || 0
                 }))
                 .slice(0, 4)
             : [];
@@ -148,49 +158,37 @@ const Home = () => {
             image: image,
             slug: slug,
             title: categoryName,
-            description: cat.description || "",
+            description: cat.description || `Browse our ${categoryName} collection`,
             subcategories: processedSubcategories,
             subcategoryCount: processedSubcategories.length,
             originalData: cat
           };
         })
-        .slice(0, 6);
+        .slice(0, 6); // Limit to 6 categories
 
       console.log("Final processed categories:", processedCategories);
       setCategories(processedCategories);
       
       if (processedCategories.length > 0) {
         toast.success(`Loaded ${processedCategories.length} categories`);
+      } else {
+        toast.error("No categories found");
       }
     } catch (error) {
-      console.error("Error fetching categories:", error);
-      toast.error("Failed to load categories");
+      console.error("Error in fetchCategories:", error);
+      
+      // Show error and let user retry
       setApiStatus("error");
-
-      // Use hardcoded categories as fallback with subcategories
-      const hardcodedCategories = getHardcodedCategories();
-      const processedHardcoded = hardcodedCategories.map((cat, index) => ({
-        _id: `hardcoded-${index}`,
-        ...cat,
-        icon: getCategoryIcon(cat.name),
-        image: cat.image,
-        slug: cat.slug,
-        title: cat.name,
-        count: cat.count,
-        description: cat.description,
-        subcategories: cat.subcategories || [],
-        subcategoryCount: cat.subcategories?.length || 0,
-        isFallback: true
-      }));
-
-      setCategories(processedHardcoded);
-      setUsingFallback(true);
+      setUsingFallback(false);
+      toast.error("Failed to load categories. Please check your connection.");
     } finally {
       setCategoriesLoading(false);
     }
   };
 
   const fetchCategoryProducts = async () => {
+    if (categories.length === 0) return;
+
     const newCategoryProducts = {};
     const newLoadingProducts = {};
 
@@ -207,54 +205,68 @@ const Home = () => {
         
         let products = [];
         
-        if (category.isFallback || category.isDemo) {
-          // Use demo products for fallback categories
-          products = getDemoProductsForCategory(category.slug);
-        } else {
-          // Try to fetch products from API
-          try {
-            const response = await productAPI.getProductsByCategory(category._id, { limit: 3 });
-            if (response.success && response.products) {
-              products = response.products.slice(0, 3);
-            } else if (response.data && Array.isArray(response.data)) {
-              products = response.data.slice(0, 3);
-            } else {
-              // If API fails, use demo products
-              products = getDemoProductsForCategory(category.slug);
-            }
-          } catch (error) {
-            console.error(`Error fetching products for category ${category.name}:`, error);
-            products = getDemoProductsForCategory(category.slug);
+        // Try to fetch products from API
+        try {
+          const response = await productAPI.getProductsByCategory(category._id, { limit: 3 });
+          console.log(`Products response for ${category.name}:`, response);
+          
+          if (response?.success && response.products) {
+            products = response.products.slice(0, 3);
+          } else if (response?.data && Array.isArray(response.data)) {
+            products = response.data.slice(0, 3);
+          } else if (Array.isArray(response)) {
+            products = response.slice(0, 3);
+          } else {
+            console.warn(`No products found for category ${category.name}`);
+            products = [];
           }
+        } catch (error) {
+          console.error(`API error for category ${category.name}:`, error);
+          products = [];
         }
 
-        newCategoryProducts[category._id] = products;
+        // Process products
+        const processedProducts = products.map(product => ({
+          ...product,
+          price: product.price || 0,
+          discountedPrice: product.discountedPrice || product.discountPrice || null,
+          rating: product.rating || product.averageRating || 4.0,
+          reviewCount: product.reviewCount || product.reviews || 0,
+          stock: product.stock || product.quantity || Math.floor(Math.random() * 50) + 1,
+          images: product.images || product.image ? [product.image] : [
+            "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop"
+          ]
+        }));
+
+        newCategoryProducts[category._id] = processedProducts;
         newLoadingProducts[category._id] = false;
-        
-        // Update state for this category
-        setCategoryProducts(prev => ({
-          ...prev,
-          [category._id]: products
-        }));
-        setLoadingProducts(prev => ({
-          ...prev,
-          [category._id]: false
-        }));
         
       } catch (error) {
         console.error(`Error processing category ${category.name}:`, error);
+        newCategoryProducts[category._id] = [];
         newLoadingProducts[category._id] = false;
-        setLoadingProducts(prev => ({
-          ...prev,
-          [category._id]: false
-        }));
       }
     }
+
+    // Update state once
+    setCategoryProducts(newCategoryProducts);
+    setLoadingProducts(newLoadingProducts);
   };
 
+  // Helper function to get appropriate icon based on category name
+  const getCategoryIcon = (categoryName) => {
+    if (!categoryName) return FolderTree;
 
-
-
+    const name = categoryName.toLowerCase();
+    if (name.includes("engine") || name.includes("motor")) return Settings;
+    if (name.includes("brake")) return Disc;
+    if (name.includes("tire") || name.includes("wheel")) return Circle;
+    if (name.includes("suspension") || name.includes("shock")) return TrendingDown;
+    if (name.includes("electrical") || name.includes("battery") || name.includes("light")) return Cable;
+    if (name.includes("accessory") || name.includes("tool")) return Wrench;
+    if (name.includes("exhaust") || name.includes("muffler")) return Flame;
+    return FolderTree;
+  };
 
   // Helper function to get appropriate image based on category
   const getCategoryImage = (category) => {
@@ -267,12 +279,12 @@ const Home = () => {
       
       // If it's a relative path that starts with /
       if (category.image.startsWith("/")) {
-        const API_BASE_URL = import.meta.env.VITE_API_URL || "https://federalpartsphilippines-backend.onrender.com";
+        const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
         return `${API_BASE_URL}${category.image}`;
       }
       
       // If it's just a filename, construct the full URL
-      const API_BASE_URL = import.meta.env.VITE_API_URL || "https://federalpartsphilippines-backend.onrender.com";
+      const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
       return `${API_BASE_URL}/uploads/categories/${category.image}`;
     }
 
@@ -282,7 +294,7 @@ const Home = () => {
         return category.imageUrl;
       }
       
-      const API_BASE_URL = import.meta.env.VITE_API_URL || "https://federalpartsphilippines-backend.onrender.com";
+      const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
       return `${API_BASE_URL}${category.imageUrl}`;
     }
 
@@ -326,45 +338,10 @@ const Home = () => {
   const handleRetry = () => {
     if (retryCount < 3) {
       setRetryCount((prev) => prev + 1);
+      fetchCategories();
     } else {
-      toast.error("Maximum retry attempts reached. Using fallback data.");
-      const hardcodedCategories = getHardcodedCategories();
-      const processed = hardcodedCategories.map((cat, index) => ({
-        _id: `hardcoded-${index}`,
-        ...cat,
-        icon: getCategoryIcon(cat.name),
-        image: cat.image,
-        slug: cat.slug,
-        title: cat.name,
-        count: cat.count,
-        description: cat.description,
-        subcategories: cat.subcategories || [],
-        subcategoryCount: cat.subcategories?.length || 0,
-        isFallback: true
-      }));
-      setCategories(processed);
-      setUsingFallback(true);
+      toast.error("Maximum retry attempts reached. Please check your backend connection.");
     }
-  };
-
-  const handleUseDemoData = () => {
-    const hardcodedCategories = getHardcodedCategories();
-    const processed = hardcodedCategories.map((cat, index) => ({
-      _id: `demo-${index}`,
-      ...cat,
-      icon: getCategoryIcon(cat.name),
-      image: cat.image,
-      slug: cat.slug,
-      title: cat.name,
-      count: cat.count,
-      description: cat.description,
-      subcategories: cat.subcategories || [],
-      subcategoryCount: cat.subcategories?.length || 0,
-      isDemo: true
-    }));
-    setCategories(processed);
-    setUsingFallback(true);
-    toast.success("Using demo categories");
   };
 
   // Handle category click
@@ -386,8 +363,7 @@ const Home = () => {
       return categoryProducts[selectedCategory._id];
     }
     
-    // If not, get demo products
-    return getDemoProductsForCategory(selectedCategory.slug);
+    return [];
   };
 
   // Product Card Component
@@ -958,7 +934,12 @@ const Home = () => {
                 </div>
 
                 {/* Products Grid/List */}
-                {categoryView === "grid" ? (
+                {loadingProducts[selectedCategory._id] ? (
+                  <div className="text-center py-12">
+                    <Loader className="w-8 h-8 animate-spin text-red-500 mx-auto mb-4" />
+                    <p className="text-gray-400">Loading products...</p>
+                  </div>
+                ) : categoryView === "grid" ? (
                   <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {getProductsForSelectedCategory().map((product) => (
                       <ProductCard key={product._id} product={product} />
@@ -969,6 +950,21 @@ const Home = () => {
                     {getProductsForSelectedCategory().map((product) => (
                       <ListProductCard key={product._id} product={product} />
                     ))}
+                  </div>
+                )}
+
+                {/* Empty State for Products */}
+                {!loadingProducts[selectedCategory._id] && getProductsForSelectedCategory().length === 0 && (
+                  <div className="text-center py-12">
+                    <FolderTree className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                    <h4 className="text-xl font-bold text-white mb-2">No Products Found</h4>
+                    <p className="text-gray-400 mb-6">No products available in this category yet.</p>
+                    <button
+                      onClick={() => toast.success("Notification set for when products are added!")}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                    >
+                      Notify Me When Available
+                    </button>
                   </div>
                 )}
 
@@ -997,16 +993,14 @@ const Home = () => {
                       />
                     ))}
                   </div>
-                ) : categories.length === 0 ? (
+                ) : apiStatus === "error" ? (
                   <div className="text-center py-16">
-                    <FolderTree className="w-24 h-24 text-gray-600 mx-auto mb-6" />
+                    <AlertCircle className="w-24 h-24 text-red-500 mx-auto mb-6" />
                     <h3 className="text-2xl font-bold text-white mb-3">
-                      No Categories Available
+                      Connection Error
                     </h3>
                     <p className="text-gray-400 mb-8 max-w-md mx-auto">
-                      {retryCount > 0
-                        ? "Unable to fetch categories. Please check your backend connection or use demo data."
-                        : "Categories will appear here once they are added to the system."}
+                      Unable to connect to the server. Please check your backend connection.
                     </p>
                     
                     <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -1020,14 +1014,7 @@ const Home = () => {
                         }`}
                       >
                         <RefreshCw className={`w-4 h-4 ${retryCount >= 3 ? "" : "animate-spin"}`} />
-                        {retryCount >= 3 ? "Max Retries Reached" : `Try Again (${retryCount}/3)`}
-                      </button>
-                      
-                      <button
-                        onClick={handleUseDemoData}
-                        className="px-6 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg font-medium transition-all hover:scale-105"
-                      >
-                        Use Demo Categories
+                        {retryCount >= 3 ? "Max Retries Reached" : `Try Again (${retryCount + 1}/3)`}
                       </button>
                       
                       <Link
@@ -1038,17 +1025,42 @@ const Home = () => {
                       </Link>
                     </div>
                     
-                    {retryCount > 0 && (
-                      <div className="mt-8 p-4 bg-gray-900/50 rounded-lg max-w-lg mx-auto">
-                        <h4 className="text-white font-semibold mb-2">Troubleshooting Tips:</h4>
-                        <ul className="text-sm text-gray-400 space-y-1">
-                          <li>• Check if your backend server is running</li>
-                          <li>• Verify the API endpoint: {import.meta.env.VITE_API_URL || "https://federalpartsphilippines-backend.onrender.com"}/api/categories</li>
-                          <li>• Ensure CORS is properly configured on the backend</li>
-                          <li>• Check browser console for detailed error messages</li>
-                        </ul>
-                      </div>
-                    )}
+                    <div className="mt-8 p-4 bg-gray-900/50 rounded-lg max-w-lg mx-auto">
+                      <h4 className="text-white font-semibold mb-2">Troubleshooting Tips:</h4>
+                      <ul className="text-sm text-gray-400 space-y-1">
+                        <li>• Ensure your backend server is running</li>
+                        <li>• Check the API endpoint: {import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/categories</li>
+                        <li>• Verify CORS is enabled on the backend</li>
+                        <li>• Check browser console for detailed error messages</li>
+                      </ul>
+                    </div>
+                  </div>
+                ) : categories.length === 0 ? (
+                  <div className="text-center py-16">
+                    <FolderTree className="w-24 h-24 text-gray-600 mx-auto mb-6" />
+                    <h3 className="text-2xl font-bold text-white mb-3">
+                      No Categories Available
+                    </h3>
+                    <p className="text-gray-400 mb-8 max-w-md mx-auto">
+                      Categories will appear here once they are added to the system.
+                    </p>
+                    
+                    <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                      <button
+                        onClick={handleRetry}
+                        className="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg font-medium flex items-center gap-2 transition-all hover:scale-105"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        Refresh
+                      </button>
+                      
+                      <Link
+                        to="/admin/categories"
+                        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-all hover:scale-105"
+                      >
+                        Add Categories
+                      </Link>
+                    </div>
                   </div>
                 ) : (
                   <>
@@ -1069,23 +1081,17 @@ const Home = () => {
                       </Link>
                     </div>
 
-                    {/* Demo Data Notice */}
-                    {usingFallback && (
-                      <div className="mt-8 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                    {/* Status Notice */}
+                    {apiStatus === "success" && categories.length > 0 && (
+                      <div className="mt-8 p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
                         <div className="flex items-center gap-3">
-                          <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0" />
+                          <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
                           <div>
-                            <p className="text-yellow-500 font-medium">
-                              Showing demo categories with products
+                            <p className="text-green-500 font-medium">
+                              Successfully loaded {categories.length} categories
                             </p>
-                            <p className="text-yellow-400/80 text-sm mt-1">
-                              Real categories and products will load automatically when API connection is restored.
-                              <button 
-                                onClick={handleRetry}
-                                className="ml-2 underline hover:text-yellow-300 transition-colors"
-                              >
-                                Retry connection
-                              </button>
+                            <p className="text-green-400/80 text-sm mt-1">
+                              All data is loaded from your backend API
                             </p>
                           </div>
                         </div>
