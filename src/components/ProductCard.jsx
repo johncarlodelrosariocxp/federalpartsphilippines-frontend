@@ -1,162 +1,164 @@
-import React, { useState } from "react";
+// src/components/ProductCard.jsx - SIMPLE WORKING VERSION
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Heart, Star, StarHalf, Eye, Percent } from "lucide-react";
-import {
-  formatPrice,
-  calculateDiscountPercentage,
-  getImageUrl,
-} from "../services/api";
+import { Heart, Star, Eye, ShoppingCart } from "lucide-react";
+import { toast } from "react-hot-toast";
 
-// Image component with error handling
-const ProductImage = ({ src, alt, className = "" }) => {
-  const [imageError, setImageError] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+// StarHalf component
+const StarHalf = ({ className }) => (
+  <svg className={className} viewBox="0 0 24 24">
+    <defs>
+      <linearGradient id="half">
+        <stop offset="50%" stopColor="currentColor" />
+        <stop offset="50%" stopColor="transparent" stopOpacity="1" />
+      </linearGradient>
+    </defs>
+    <polygon
+      points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26 12,2"
+      fill="url(#half)"
+    />
+  </svg>
+);
 
-  const handleError = () => {
-    console.warn(`Failed to load image: ${src}`);
-    setImageError(true);
-    setIsLoading(false);
-  };
-
-  const handleLoad = () => {
-    setIsLoading(false);
-  };
-
-  const imageUrl = getImageUrl(src);
-
-  if (imageError) {
-    return (
-      <div
-        className={`${className} bg-gray-800 flex items-center justify-center`}
-      >
-        <div className="text-center">
-          <div className="text-gray-500 mb-2">⚠️</div>
-          <div className="text-xs text-gray-400">Image not available</div>
-        </div>
-      </div>
-    );
+// Simple image URL helper
+const getImageUrl = (imagePath) => {
+  if (!imagePath || typeof imagePath !== 'string' || imagePath.trim() === "") {
+    return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop";
   }
-
-  return (
-    <>
-      {isLoading && (
-        <div
-          className={`${className} bg-gray-800 animate-pulse absolute inset-0`}
-        />
-      )}
-      <img
-        src={imageUrl}
-        alt={alt}
-        className={`${className} ${
-          isLoading ? "opacity-0" : "opacity-100"
-        } transition-opacity duration-300`}
-        onError={handleError}
-        onLoad={handleLoad}
-        loading="lazy"
-        decoding="async"
-      />
-    </>
-  );
+  
+  if (imagePath.startsWith("http") || imagePath.startsWith("data:") || imagePath.startsWith("blob:")) {
+    return imagePath;
+  }
+  
+  const baseUrl = "https://federalpartsphilippines-backend.onrender.com";
+  
+  // Clean the path
+  let cleanPath = imagePath.trim();
+  if (cleanPath.startsWith('/')) {
+    cleanPath = cleanPath.substring(1);
+  }
+  
+  if (cleanPath.startsWith('uploads/')) {
+    return `${baseUrl}/${cleanPath}`;
+  }
+  
+  return `${baseUrl}/uploads/products/${cleanPath}`;
 };
 
-const ProductCard = ({
-  product,
-  variant = "default",
+const ProductCard = ({ 
+  product, 
+  variant = "grid",
   isClickable = true,
-  onQuickView,
-  onWishlistToggle,
   className = "",
   showCategory = true,
   showRating = true,
-  showActions = false,
+  showActions = true,
 }) => {
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [imageUrl, setImageUrl] = useState("");
 
   if (!product) {
     return (
-      <div className="bg-gray-800 rounded-lg p-4 animate-pulse">
-        <div className="aspect-square bg-gray-700 rounded mb-4"></div>
-        <div className="h-4 bg-gray-700 rounded mb-2"></div>
-        <div className="h-4 bg-gray-700 rounded w-2/3 mb-3"></div>
-        <div className="h-6 bg-gray-700 rounded w-1/2"></div>
+      <div className={`bg-gradient-to-b from-gray-900 to-gray-950 rounded-xl border border-gray-800 ${className}`}>
+        <div className="h-48 bg-gray-800 animate-pulse"></div>
+        <div className="p-4">
+          <div className="h-4 bg-gray-800 rounded mb-2 w-1/3"></div>
+          <div className="h-6 bg-gray-800 rounded mb-3 w-2/3"></div>
+          <div className="h-4 bg-gray-800 rounded mb-4 w-full"></div>
+          <div className="flex items-center justify-between">
+            <div className="h-8 bg-gray-800 rounded w-20"></div>
+            <div className="h-10 bg-gray-800 rounded w-24"></div>
+          </div>
+        </div>
       </div>
     );
   }
 
   const {
     _id,
-    name,
-    description,
-    price,
+    name = "Product",
+    description = "",
+    price = 0,
     discountedPrice,
-    images,
-    category,
-    brand,
-    rating,
-    reviewCount,
-    isActive,
-    isFeatured,
-    isNew,
+    images = [],
+    category = {},
+    rating = 0,
+    reviewCount = 0,
+    stock = 0,
+    isNew = false,
+    isFeatured = false,
   } = product;
 
-  const finalPrice =
-    discountedPrice && discountedPrice < price ? discountedPrice : price;
-  const discountPercentage = calculateDiscountPercentage(
-    price,
-    discountedPrice
-  );
+  // Get main image
+  useEffect(() => {
+    if (Array.isArray(images) && images.length > 0) {
+      const firstImage = images[0];
+      setImageUrl(getImageUrl(firstImage));
+    } else {
+      setImageUrl(getImageUrl(""));
+    }
+  }, [images]);
+
+  // Calculate prices
+  const finalPrice = discountedPrice && discountedPrice < price ? discountedPrice : price;
+  const discountPercentage = discountedPrice && discountedPrice < price
+    ? Math.round(((price - discountedPrice) / price) * 100)
+    : 0;
   const hasDiscount = discountPercentage > 0;
 
-  const getRatingStars = (rating) => {
-    if (!rating) return null;
+  // Get category name
+  const categoryName = category?.name || "Motorcycle Parts";
 
+  // Format price
+  const formatPrice = (price) => {
+    const num = Number(price);
+    if (isNaN(num)) return '₱0.00';
+    return `₱${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  // Rating stars
+  const getRatingStars = (rating) => {
+    const stars = [];
     const fullStars = Math.floor(rating);
     const hasHalfStar = rating % 1 >= 0.5;
-    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+    
+    for (let i = 0; i < 5; i++) {
+      if (i < fullStars) {
+        stars.push(<Star key={i} className="w-3 h-3 fill-yellow-400 text-yellow-400" />);
+      } else if (i === fullStars && hasHalfStar) {
+        stars.push(<StarHalf key={i} className="w-3 h-3 fill-yellow-400 text-yellow-400" />);
+      } else {
+        stars.push(<Star key={i} className="w-3 h-3 text-gray-600" />);
+      }
+    }
+    
+    return <div className="flex items-center gap-0.5">{stars}</div>;
+  };
 
-    return (
-      <div className="flex items-center">
-        {[...Array(fullStars)].map((_, i) => (
-          <Star
-            key={`full-${i}`}
-            className="w-3 h-3 fill-yellow-400 text-yellow-400"
-          />
-        ))}
-        {hasHalfStar && (
-          <StarHalf className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-        )}
-        {[...Array(emptyStars)].map((_, i) => (
-          <Star key={`empty-${i}`} className="w-3 h-3 text-gray-600" />
-        ))}
-      </div>
-    );
+  // Event handlers
+  const handleWishlistClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsWishlisted(!isWishlisted);
+    toast.success(isWishlisted ? "Removed from wishlist" : "Added to wishlist");
   };
 
   const handleQuickView = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (onQuickView) {
-      onQuickView(product);
-    }
+    toast.success("Quick view coming soon!");
   };
 
-  const handleWishlistToggle = (e) => {
+  const handleAddToCart = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    const newWishlistStatus = !isWishlisted;
-    setIsWishlisted(newWishlistStatus);
-    if (onWishlistToggle) {
-      onWishlistToggle(product, newWishlistStatus);
-    }
+    toast.success(`${name} added to cart!`);
   };
 
-  const mainImage = images?.[0] || null;
-  const secondaryImage = images?.[1] || mainImage;
-
-  // Wrapper component for clickable/non-clickable variants
+  // Card wrapper
   const CardWrapper = ({ children }) => {
-    if (!isClickable) {
+    if (!isClickable || !_id) {
       return <div className={`block ${className}`}>{children}</div>;
     }
     return (
@@ -166,50 +168,99 @@ const ProductCard = ({
     );
   };
 
-  // Compact variant
-  if (variant === "compact") {
+  // GRID VARIANT
+  if (variant === "grid") {
     return (
       <CardWrapper>
-        <div className="bg-gray-800 rounded-lg border border-gray-700 hover:border-gray-600 hover:shadow-lg transition-all duration-200 overflow-hidden group">
-          <div className="relative aspect-square overflow-hidden bg-gray-900">
-            <ProductImage
-              src={mainImage}
+        <div 
+          className="bg-gradient-to-b from-gray-900 to-gray-950 rounded-xl overflow-hidden border border-gray-800 hover:border-red-500 transition-all duration-300 hover:shadow-xl h-full flex flex-col group"
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+        >
+          {/* IMAGE */}
+          <div className="relative h-48 overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900">
+            <img
+              src={imageUrl}
               alt={name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.target.src = "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop";
+              }}
             />
-
-            {/* Badges */}
-            <div className="absolute top-2 left-2 flex flex-col gap-1">
-              {hasDiscount && (
-                <span className="px-2 py-1 text-xs font-medium bg-red-600 text-white rounded">
-                  -{discountPercentage}%
-                </span>
-              )}
-              {isNew && (
-                <span className="px-2 py-1 text-xs font-medium bg-blue-600 text-white rounded">
-                  NEW
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="p-3">
-            {showCategory && category && (
-              <div className="text-xs text-gray-400 mb-1 truncate">
-                {typeof category === "object" ? category.name : category}
+            
+            {/* BADGES */}
+            {hasDiscount && (
+              <div className="absolute top-3 left-3 bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-full">
+                -{discountPercentage}%
               </div>
             )}
-
-            <h3
-              className="font-medium text-white mb-2 line-clamp-1 hover:text-white transition-colors"
-              title={name}
-            >
-              {name}
-            </h3>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-lg text-white">
+            {isNew && !hasDiscount && (
+              <div className="absolute top-3 left-3 bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-full">
+                NEW
+              </div>
+            )}
+            {isFeatured && !isNew && !hasDiscount && (
+              <div className="absolute top-3 left-3 bg-green-600 text-white text-xs font-bold px-3 py-1.5 rounded-full">
+                FEATURED
+              </div>
+            )}
+            
+            {/* ACTIONS */}
+            {showActions && (
+              <div className={`absolute bottom-3 left-1/2 transform -translate-x-1/2 flex gap-2 transition-all duration-200 ${
+                isHovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
+              }`}>
+                <button
+                  onClick={handleQuickView}
+                  className="p-2 bg-black/80 rounded-full hover:bg-gray-700 transition-colors"
+                  title="Quick View"
+                >
+                  <Eye className="w-4 h-4 text-white" />
+                </button>
+                <button
+                  onClick={handleWishlistClick}
+                  className="p-2 bg-black/80 rounded-full hover:bg-red-600 transition-colors"
+                  title="Wishlist"
+                >
+                  <Heart className={`w-4 h-4 ${isWishlisted ? "fill-red-500 text-red-500" : "text-white"}`} />
+                </button>
+              </div>
+            )}
+          </div>
+          
+          {/* INFO */}
+          <div className="p-4 flex-1 flex flex-col">
+            {showCategory && (
+              <div className="text-xs text-gray-400 mb-1">{categoryName}</div>
+            )}
+            
+            <h3 className="font-bold text-white mb-2 line-clamp-1">{name}</h3>
+            
+            {description && (
+              <p className="text-sm text-gray-300 mb-3 line-clamp-2 flex-1">{description}</p>
+            )}
+            
+            <div className="flex items-center justify-between mb-4">
+              {showRating && (
+                <div className="flex items-center gap-1">
+                  {getRatingStars(rating)}
+                  {reviewCount > 0 && (
+                    <span className="text-xs text-gray-400 ml-1">({reviewCount})</span>
+                  )}
+                </div>
+              )}
+              <div className={`text-xs font-medium px-2 py-1 rounded-full ${
+                stock > 10 ? "bg-green-500/20 text-green-400" :
+                stock > 0 ? "bg-yellow-500/20 text-yellow-400" :
+                "bg-red-500/20 text-red-400"
+              }`}>
+                {stock > 10 ? "In Stock" : stock > 0 ? "Low Stock" : "Out of Stock"}
+              </div>
+            </div>
+            
+            <div className="mt-auto">
+              <div className="flex items-baseline gap-2 mb-3">
+                <span className="text-lg font-bold text-white">
                   {formatPrice(finalPrice)}
                 </span>
                 {hasDiscount && (
@@ -218,15 +269,13 @@ const ProductCard = ({
                   </span>
                 )}
               </div>
-
-              {showRating && rating && (
-                <div className="flex items-center gap-1">
-                  {getRatingStars(rating)}
-                  <span className="text-xs text-gray-400">
-                    ({reviewCount || 0})
-                  </span>
-                </div>
-              )}
+              <button
+                onClick={handleAddToCart}
+                className="w-full py-2.5 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-red-600 hover:to-red-700 text-white text-sm font-medium rounded-lg transition-all border border-gray-700 hover:border-red-500 flex items-center justify-center gap-2"
+              >
+                <ShoppingCart className="w-4 h-4" />
+                Add to Cart
+              </button>
             </div>
           </div>
         </div>
@@ -234,160 +283,85 @@ const ProductCard = ({
     );
   }
 
-  // Grid variant
-  if (variant === "grid") {
-    return (
-      <CardWrapper>
-        <div className="bg-gray-800 rounded-lg border border-gray-700 hover:border-gray-600 hover:shadow-lg transition-all duration-200 overflow-hidden group">
-          <div className="relative aspect-square overflow-hidden bg-gray-900">
-            <div className="relative h-full">
-              <ProductImage
-                src={mainImage}
-                alt={name}
-                className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-              />
-              {secondaryImage !== mainImage && (
-                <ProductImage
-                  src={secondaryImage}
-                  alt={name}
-                  className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                />
-              )}
-            </div>
-
-            {/* Quick actions */}
-            {showActions && (
-              <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                <div className="flex gap-1">
-                  <button
-                    onClick={handleQuickView}
-                    className="p-2 bg-gray-800/95 backdrop-blur-sm text-gray-200 rounded-full shadow-lg hover:bg-gray-700 hover:text-white transition-all"
-                    title="Quick view"
-                  >
-                    <Eye className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={handleWishlistToggle}
-                    className="p-2 bg-gray-800/95 backdrop-blur-sm text-gray-200 rounded-full shadow-lg hover:bg-gray-700 hover:text-white transition-all"
-                    title="Add to wishlist"
-                  >
-                    <Heart
-                      className={`w-4 h-4 ${
-                        isWishlisted ? "fill-red-500 text-red-500" : ""
-                      }`}
-                    />
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="p-4">
-            {/* Category */}
-            {showCategory && category && (
-              <div className="text-xs font-medium text-gray-400 mb-1">
-                {typeof category === "object" ? category.name : category}
-              </div>
-            )}
-
-            {/* Product name */}
-            <h3
-              className="font-semibold text-white mb-2 line-clamp-2 hover:text-white transition-colors"
-              title={name}
-            >
-              {name}
-            </h3>
-
-            {/* Description */}
-            {description && (
-              <p className="text-sm text-gray-300 mb-3 line-clamp-2">
-                {description}
-              </p>
-            )}
-
-            {/* Price */}
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-xl font-bold text-white">
-                    {formatPrice(finalPrice)}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </CardWrapper>
-    );
-  }
-
-  // List variant
+  // LIST VARIANT
   if (variant === "list") {
     return (
       <CardWrapper>
-        <div className="bg-gray-800 rounded-lg border border-gray-700 hover:border-gray-600 hover:shadow-lg transition-all duration-200 overflow-hidden">
+        <div className="bg-gradient-to-b from-gray-900 to-gray-950 rounded-xl overflow-hidden border border-gray-800 hover:border-red-500 transition-all duration-300">
           <div className="flex flex-col md:flex-row">
-            {/* Image section */}
-            <div className="md:w-1/3 relative">
-              <div className="aspect-square md:aspect-auto md:h-full bg-gray-900">
-                <ProductImage
-                  src={mainImage}
+            <div className="md:w-1/4">
+              <div className="h-48 md:h-full bg-gradient-to-br from-gray-800 to-gray-900">
+                <img
+                  src={imageUrl}
                   alt={name}
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.src = "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop";
+                  }}
                 />
               </div>
             </div>
-
-            {/* Content section */}
-            <div className="md:w-2/3 p-4">
-              <div className="flex flex-col h-full">
-                {/* Header */}
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    {showCategory && category && (
-                      <div className="text-xs font-medium text-gray-400 mb-1">
-                        {typeof category === "object"
-                          ? category.name
-                          : category}
-                      </div>
-                    )}
-                    <h3 className="text-lg font-semibold text-white mb-2 hover:text-white transition-colors">
-                      {name}
-                    </h3>
-                  </div>
-
-                  {/* Price */}
-                  <div className="text-right">
-                    <div className="text-xl font-bold text-white">
-                      {formatPrice(finalPrice)}
+            
+            <div className="md:w-3/4 p-6 flex flex-col justify-between">
+              <div>
+                {showCategory && (
+                  <div className="text-xs text-gray-400 mb-2">{categoryName}</div>
+                )}
+                
+                <h3 className="font-bold text-white text-lg mb-2">{name}</h3>
+                
+                {description && (
+                  <p className="text-gray-300 mb-4 line-clamp-2">{description}</p>
+                )}
+                
+                <div className="flex items-center justify-between mb-4">
+                  {showRating && (
+                    <div className="flex items-center gap-2">
+                      {getRatingStars(rating)}
+                      {reviewCount > 0 && (
+                        <span className="text-sm text-gray-400">({reviewCount})</span>
+                      )}
                     </div>
+                  )}
+                  <div className={`text-sm font-medium px-3 py-1 rounded-full ${
+                    stock > 10 ? "bg-green-500/20 text-green-400" :
+                    stock > 0 ? "bg-yellow-500/20 text-yellow-400" :
+                    "bg-red-500/20 text-red-400"
+                  }`}>
+                    {stock > 10 ? "In Stock" : stock > 0 ? "Low Stock" : "Out of Stock"}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4 border-t border-gray-800">
+                <div>
+                  <div className="flex items-baseline gap-3">
+                    <span className="text-xl font-bold text-white">
+                      {formatPrice(finalPrice)}
+                    </span>
                     {hasDiscount && (
-                      <div className="text-sm text-gray-400 line-through">
+                      <span className="text-sm text-gray-400 line-through">
                         {formatPrice(price)}
-                      </div>
+                      </span>
                     )}
                   </div>
                 </div>
-
-                {/* Description */}
-                {description && (
-                  <p className="text-sm text-gray-300 mb-4 flex-grow">
-                    {description.length > 120
-                      ? `${description.substring(0, 120)}...`
-                      : description}
-                  </p>
-                )}
-
-                {/* Rating */}
-                <div className="flex items-center justify-between mb-4">
-                  {showRating && rating && (
-                    <div className="flex items-center gap-2">
-                      {getRatingStars(rating)}
-                      <span className="text-xs text-gray-400">
-                        ({reviewCount || 0})
-                      </span>
-                    </div>
-                  )}
+                
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleAddToCart}
+                    className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white text-sm font-medium rounded-lg transition-all flex items-center gap-2"
+                  >
+                    <ShoppingCart className="w-4 h-4" />
+                    Add to Cart
+                  </button>
+                  <button
+                    onClick={handleQuickView}
+                    className="px-4 py-2 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800 text-white text-sm font-medium rounded-lg border border-gray-700 hover:border-red-500 transition-all flex items-center gap-2"
+                  >
+                    <Eye className="w-4 h-4" />
+                    Quick View
+                  </button>
                 </div>
               </div>
             </div>
@@ -397,81 +371,16 @@ const ProductCard = ({
     );
   }
 
-  // Default variant
-  return (
-    <CardWrapper>
-      <div
-        className="bg-gray-800 rounded-lg border border-gray-700 hover:border-gray-600 hover:shadow-lg transition-all duration-200 overflow-hidden group"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-      >
-        <div className="relative aspect-square overflow-hidden bg-gray-900">
-          {/* Main image */}
-          <div className="relative h-full">
-            <ProductImage
-              src={mainImage}
-              alt={name}
-              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-            />
-            {/* Secondary image on hover */}
-            {secondaryImage !== mainImage && (
-              <ProductImage
-                src={secondaryImage}
-                alt={name}
-                className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-              />
-            )}
-          </div>
+  return null;
+};
 
-          {/* Quick actions */}
-          {showActions && (
-            <div
-              className={`absolute bottom-3 left-1/2 transform -translate-x-1/2 transition-all duration-200 ${
-                isHovered
-                  ? "opacity-100 translate-y-0"
-                  : "opacity-0 translate-y-2"
-              }`}
-            >
-              <div className="flex gap-1">
-                <button
-                  onClick={handleQuickView}
-                  className="p-2 bg-gray-800/95 backdrop-blur-sm text-gray-200 rounded-full shadow-lg hover:bg-gray-700 hover:text-white transition-all"
-                  title="Quick view"
-                >
-                  <Eye className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={handleWishlistToggle}
-                  className="p-2 bg-gray-800/95 backdrop-blur-sm text-gray-200 rounded-full shadow-lg hover:bg-gray-700 hover:text-white transition-all"
-                  title="Add to wishlist"
-                >
-                  <Heart
-                    className={`w-4 h-4 ${
-                      isWishlisted ? "fill-red-500 text-red-500" : ""
-                    }`}
-                  />
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="p-4">
-          {/* Product name */}
-          <h3 className="font-semibold text-white mb-2 line-clamp-2 hover:text-white transition-colors">
-            {name}
-          </h3>
-
-          {/* Description */}
-          {description && (
-            <p className="text-sm text-gray-300 mb-3 line-clamp-2">
-              {description}
-            </p>
-          )}
-        </div>
-      </div>
-    </CardWrapper>
-  );
+ProductCard.defaultProps = {
+  variant: "grid",
+  isClickable: true,
+  showCategory: true,
+  showRating: true,
+  showActions: true,
+  className: ""
 };
 
 export default ProductCard;

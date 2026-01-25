@@ -14,108 +14,78 @@ import {
   Package,
   FolderTree,
   Sparkles,
-  Eye,
+  ShoppingBag,
+  ChevronsUp,
+  Users,
+  ChevronsDown,
+  MoreVertical,
+  Grid3x3,
+  Layers,
   FolderOpen,
   Crown,
-  Layers,
-  ChevronDown,
-  ChevronUp,
-  ChevronLeft,
-  ChevronRight as ChevronRightIcon,
-  Star,
-  Tag,
-  TrendingUp,
+  Image as ImageIcon,
+  AlertCircle,
   CheckCircle,
-  Truck,
-  Maximize2,
-  Minimize2,
-  ChevronsDown,
-  ChevronsUp,
-  ShoppingBag,
-  DollarSign,
-  Hash,
-  Calendar,
-  Clock,
-  Percent,
-  Users,
-  Globe,
-  Shield,
-  Zap,
-  Menu,
-  Grid3x3,
-  MoreVertical
+  Star
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { categoryAPI, productAPI } from "../services/api";
 
-// Helper function to get image URL
-const getImageUrl = (imagePath) => {
-  if (!imagePath || imagePath === "undefined" || imagePath === "null") {
-    return "";
+// FIXED: Image URL helper function
+const getImageUrl = (imagePath, type = "categories") => {
+  // Handle null/undefined/empty cases
+  if (!imagePath || imagePath === "undefined" || imagePath === "null" || imagePath === "") {
+    return null;
   }
 
-  // If it's already a full URL
-  if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+  // If already a full URL, return as-is
+  if (imagePath.startsWith("http://") || 
+      imagePath.startsWith("https://") ||
+      imagePath.startsWith("blob:") || 
+      imagePath.startsWith("data:")) {
     return imagePath;
   }
 
-  // If it's a blob or data URL
-  if (imagePath.startsWith("blob:") || imagePath.startsWith("data:")) {
-    return imagePath;
+  // Get base URL from environment
+  const API_BASE_URL = import.meta.env.VITE_API_URL || "https://federalpartsphilippines-backend.onrender.com/api";
+  let baseUrl = API_BASE_URL.replace("/api", "");
+  
+  // Remove trailing slash if exists
+  baseUrl = baseUrl.replace(/\/$/, '');
+  
+  // Extract filename from path
+  let filename = imagePath;
+  if (imagePath.includes("/")) {
+    filename = imagePath.substring(imagePath.lastIndexOf("/") + 1);
   }
-
-  // Get the server URL
-  const API_BASE_URL =
-    import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-  let IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_URL;
-
-  if (!IMAGE_BASE_URL) {
-    IMAGE_BASE_URL = API_BASE_URL.replace("/api", "");
-  }
-
-  if (!IMAGE_BASE_URL) {
-    IMAGE_BASE_URL = "http://localhost:5000";
-  }
-
-  // If it's an absolute path starting with /uploads/
-  if (imagePath.startsWith("/uploads/")) {
-    return `${IMAGE_BASE_URL}${imagePath}`;
-  }
-
-  // If it starts with /
-  if (imagePath.startsWith("/")) {
-    return `${IMAGE_BASE_URL}${imagePath}`;
-  }
-
-  // Otherwise, assume it's a filename in categories folder
-  const cleanFilename = imagePath.replace(/^.*[\\/]/, "");
-  return `${IMAGE_BASE_URL}/uploads/categories/${cleanFilename}`;
+  
+  // Construct proper URL - Based on your backend structure
+  return `${baseUrl}/uploads/${type}/${filename}`;
 };
 
-// Product Card Component - UPDATED to navigate to product detail
+// Product Card Component
 const ProductCard = ({ product }) => {
   const [imageError, setImageError] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const navigate = useNavigate();
 
-  const getProductImageUrl = (imagePath) => {
-    if (!imagePath) return "";
+  // Get product images
+  const getProductImages = () => {
+    let images = [];
     
-    if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
-      return imagePath;
+    if (product.images && Array.isArray(product.images)) {
+      images = product.images.map(img => getImageUrl(img, "products"));
+    } else if (product.image) {
+      images = [getImageUrl(product.image, "products")];
+    } else if (product.imageUrl) {
+      images = [getImageUrl(product.imageUrl, "products")];
     }
     
-    const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-    let IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_URL || API_BASE_URL.replace("/api", "");
-    
-    if (imagePath.startsWith("/uploads/")) {
-      return `${IMAGE_BASE_URL}${imagePath}`;
-    }
-    
-    return `${IMAGE_BASE_URL}/uploads/products/${imagePath}`;
+    return images.filter(img => img !== null && img !== undefined);
   };
 
-  const imageUrl = getProductImageUrl(product.images?.[0] || product.image || product.imageUrl);
+  const productImages = getProductImages();
+  const firstImage = productImages[0] || "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop";
 
   const handleProductClick = () => {
     navigate(`/product/${product._id}`);
@@ -123,55 +93,97 @@ const ProductCard = ({ product }) => {
 
   return (
     <div 
-      className="group bg-black rounded-xl border border-gray-700 overflow-hidden hover:border-blue-500/50 transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/10 cursor-pointer"
+      className="group bg-gradient-to-b from-gray-900 to-black rounded-xl border border-gray-800 overflow-hidden hover:border-red-500/50 transition-all duration-300 hover:shadow-xl hover:shadow-red-500/10 cursor-pointer"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={handleProductClick}
     >
       {/* Product Image */}
-      <div className="relative aspect-square overflow-hidden bg-black">
-        {imageUrl && !imageError ? (
-          <img
-            src={imageUrl}
-            alt={product.name}
-            className={`w-full h-full object-cover transition-transform duration-500 ${
-              isHovered ? 'scale-110' : 'scale-100'
-            }`}
-            onError={() => setImageError(true)}
-          />
-        ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-black">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-3 shadow-lg">
-              <Package className="w-8 h-8 text-white" />
-            </div>
-            <span className="text-sm font-medium text-blue-300 text-center px-2">
-              {product.name}
-            </span>
+      <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-gray-900 to-black">
+        <img
+          src={firstImage}
+          alt={product.name}
+          className={`w-full h-full object-cover transition-transform duration-500 ${
+            isHovered ? 'scale-110' : 'scale-100'
+          }`}
+          onError={() => setImageError(true)}
+          loading="lazy"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        
+        {/* Discount Badge */}
+        {product.discountedPrice && product.discountedPrice < product.price && (
+          <div className="absolute top-3 left-3 bg-gradient-to-r from-red-600 to-red-700 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
+            -{Math.round(((product.price - product.discountedPrice) / product.price) * 100)}%
           </div>
         )}
-        
-        {/* Hover Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
-        
-        </div>
       </div>
       
       {/* Product Info */}
-      <div className="p-4 bg-black">
+      <div className="p-4">
         <div className="flex items-start justify-between mb-2">
           <h3 className="font-semibold text-white text-sm line-clamp-1">{product.name}</h3>
+          {product.featured && (
+            <span className="px-1.5 py-0.5 text-[10px] bg-gradient-to-r from-amber-500/20 to-amber-600/20 text-amber-300 rounded-full">
+              <Award className="w-2.5 h-2.5 inline" />
+            </span>
+          )}
         </div>
         
         <p className="text-xs text-gray-400 line-clamp-2 mb-3">
           {product.shortDescription || product.description || 'No description available'}
         </p>
-      
+        
+        {/* Rating */}
+        {product.rating && (
+          <div className="flex items-center gap-1 mb-3">
+            {[...Array(5)].map((_, i) => (
+              <Star
+                key={i}
+                className={`w-3 h-3 ${
+                  i < Math.floor(product.rating)
+                    ? 'fill-yellow-400 text-yellow-400'
+                    : 'text-gray-600'
+                }`}
+              />
+            ))}
+            <span className="text-xs text-gray-400 ml-1">({product.rating})</span>
+          </div>
+        )}
+        
+        <div className="flex items-center justify-between">
+          <span className={`text-xs px-2 py-1 rounded-full ${
+            product.stock > 10 
+              ? 'bg-green-500/20 text-green-400' 
+              : product.stock > 0 
+                ? 'bg-yellow-500/20 text-yellow-400'
+                : 'bg-red-500/20 text-red-400'
+          }`}>
+            {product.stock > 10 ? 'In Stock' : product.stock > 0 ? 'Low Stock' : 'Out'}
+          </span>
+          <div className="text-right">
+            {product.discountedPrice && product.discountedPrice < product.price ? (
+              <>
+                <span className="text-sm font-bold text-white">
+                  ₱{product.discountedPrice?.toLocaleString() || '0.00'}
+                </span>
+                <span className="text-xs text-gray-400 line-through block">
+                  ₱{product.price?.toLocaleString() || '0.00'}
+                </span>
+              </>
+            ) : (
+              <span className="text-sm font-bold text-white">
+                ₱{product.price ? Number(product.price).toLocaleString() : '0.00'}
+              </span>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
-// Main Category Card Component - ADDED NEW COMPONENT
+// Main Category Card Component
 const MainCategoryCard = ({ 
   category, 
   isActive,
@@ -179,7 +191,27 @@ const MainCategoryCard = ({
 }) => {
   const [imageError, setImageError] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const imageUrl = getImageUrl(category.image || category.imageUrl);
+  
+  // Get category image URL with fallback
+  const getCategoryImageUrl = () => {
+    const imagePath = category.image || category.imageUrl;
+    const url = getImageUrl(imagePath, "categories");
+    
+    if (!url) {
+      // Use Unsplash fallback based on category name
+      const catName = category.name?.toLowerCase() || "";
+      if (catName.includes("engine")) return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=250&fit=crop";
+      if (catName.includes("brake")) return "https://images.unsplash.com/photo-1558981806-ec527fa0b4c9?w=400&h=250&fit=crop";
+      if (catName.includes("tire") || catName.includes("wheel")) return "https://images.unsplash.com/photo-1603584173870-7f23fdae1b7a?w=400&h=250&fit=crop";
+      if (catName.includes("suspension")) return "https://images.unsplash.com/photo-1566473359723-7e3e4d6c8c1b?w=400&h=250&fit=crop";
+      if (catName.includes("electrical") || catName.includes("battery")) return "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=400&h=250&fit=crop";
+      return "https://images.unsplash.com/photo-1580261450035-4d4f04b7b4c5?w=400&h=250&fit=crop";
+    }
+    
+    return url;
+  };
+
+  const imageUrl = getCategoryImageUrl();
 
   return (
     <div 
@@ -188,78 +220,46 @@ const MainCategoryCard = ({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className={`relative overflow-hidden rounded-xl border transition-all duration-300 shadow-md group-hover:shadow-lg ${
+      <div className={`relative overflow-hidden rounded-xl border-2 transition-all duration-300 shadow-lg group-hover:shadow-xl ${
         isActive 
-          ? 'border-blue-500/50 bg-gradient-to-br from-blue-900/20 to-blue-800/10 group-hover:border-blue-500/70 group-hover:shadow-blue-500/10' 
-          : 'border-gray-700/50 bg-black group-hover:border-blue-500/30 group-hover:bg-gray-900/50'
+          ? 'border-red-500 bg-gradient-to-br from-red-900/10 to-black group-hover:border-red-400' 
+          : 'border-gray-800 bg-gradient-to-b from-gray-900 to-black group-hover:border-red-500/50 group-hover:bg-gray-900/50'
       }`}>
         {/* Image Container */}
-        <div className="aspect-square overflow-hidden bg-black">
-          {imageUrl && !imageError ? (
-            <img
-              src={imageUrl}
-              alt={category.name}
-              className={`w-full h-full object-cover transition-all duration-500 ${
-                isHovered ? 'scale-110 brightness-110' : 'scale-100 brightness-90'
-              }`}
-              onError={() => setImageError(true)}
-            />
-          ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-black">
-              <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-3 shadow-lg ${
-                isActive 
-                  ? 'bg-gradient-to-br from-blue-600 to-blue-500' 
-                  : 'bg-gradient-to-br from-gray-700 to-gray-800'
-              }`}>
-                <Crown className="w-8 h-8 text-white" />
-              </div>
-              <span className={`text-sm font-medium text-center px-2 ${
-                isActive ? 'text-blue-300' : 'text-gray-300'
-              }`}>
-                {category.name}
+        <div className="aspect-square overflow-hidden">
+          <img
+            src={imageError ? "https://images.unsplash.com/photo-1580261450035-4d4f04b7b4c5?w=400&h=250&fit=crop" : imageUrl}
+            alt={category.name}
+            className={`w-full h-full object-cover transition-all duration-500 ${
+              isHovered ? 'scale-110 brightness-110' : 'scale-100 brightness-90'
+            }`}
+            onError={() => setImageError(true)}
+            loading="lazy"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+          
+          {/* Category Name Overlay */}
+          <div className="absolute bottom-0 left-0 right-0 p-4">
+            <h4 className={`font-bold text-lg mb-1 line-clamp-1 ${
+              isActive ? 'text-white' : 'text-white'
+            }`}>
+              {category.name}
+            </h4>
+            <p className="text-sm text-gray-300">
+              {category.productCount || 0} products
+            </p>
+          </div>
+          
+          {/* Featured Badge */}
+          {category.featured && (
+            <div className="absolute top-3 right-3">
+              <span className="px-2 py-1 bg-gradient-to-r from-amber-500/30 to-amber-600/30 text-amber-300 text-xs font-semibold rounded-full backdrop-blur-sm">
+                <Award className="w-3 h-3 inline mr-1" />
+                Featured
               </span>
             </div>
           )}
         </div>
-
-        {/* Content */}
-        <div className="p-3">
-          <div className="flex items-start justify-between mb-1">
-            <h4 className={`font-semibold text-sm line-clamp-1 ${
-              isActive ? 'text-white' : 'text-gray-300'
-            }`}>
-              {category.name}
-            </h4>
-            {category.featured && (
-              <span className={`px-1.5 py-0.5 text-[10px] font-semibold rounded-full ${
-                isActive 
-                  ? 'bg-gradient-to-r from-amber-500/30 to-amber-600/30 text-amber-300' 
-                  : 'bg-gradient-to-r from-amber-500/20 to-amber-600/20 text-amber-400'
-              }`}>
-                <Award className="w-2.5 h-2.5 inline" />
-              </span>
-            )}
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <span className={`text-xs ${
-              isActive ? 'text-gray-300' : 'text-gray-400'
-            }`}>
-              {category.productCount || 0} products
-            </span>
-            <button className={`text-xs font-medium group flex items-center gap-0.5 ${
-              isActive ? 'text-blue-400 hover:text-blue-300' : 'text-gray-400 hover:text-gray-300'
-            }`}>
-              View
-              <ArrowRight className="w-2.5 h-2.5 group-hover:translate-x-0.5 transition-transform" />
-            </button>
-          </div>
-        </div>
-
-        {/* Active indicator */}
-        {isActive && (
-          <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-        )}
       </div>
     </div>
   );
@@ -268,77 +268,47 @@ const MainCategoryCard = ({
 // Sub-category Card Component
 const SubCategoryCard = ({ 
   subCategory, 
-  onViewProducts
+  onViewProducts 
 }) => {
   const [imageError, setImageError] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
-  const imageUrl = getImageUrl(subCategory.image || subCategory.imageUrl);
+  
+  // Get sub-category image URL
+  const getSubCategoryImageUrl = () => {
+    const imagePath = subCategory.image || subCategory.imageUrl;
+    const url = getImageUrl(imagePath, "categories");
+    
+    if (!url) {
+      return "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=400&h=250&fit=crop";
+    }
+    
+    return url;
+  };
+
+  const imageUrl = getSubCategoryImageUrl();
 
   return (
     <div 
       className="group cursor-pointer"
       onClick={() => onViewProducts(subCategory._id)}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="relative overflow-hidden rounded-xl border border-gray-700/50 group-hover:border-purple-500/50 transition-all duration-300 bg-black shadow-md group-hover:shadow-lg group-hover:shadow-purple-500/10">
+      <div className="relative overflow-hidden rounded-xl border border-gray-800 group-hover:border-red-500/50 transition-all duration-300 bg-gradient-to-b from-gray-900 to-black shadow-lg group-hover:shadow-xl group-hover:shadow-red-500/10">
         {/* Image Container */}
-        <div className="aspect-square overflow-hidden bg-black">
-          {imageUrl && !imageError ? (
-            <img
-              src={imageUrl}
-              alt={subCategory.name}
-              className={`w-full h-full object-cover transition-all duration-500 ${
-                isHovered ? 'scale-110 brightness-110' : 'scale-100 brightness-90'
-              }`}
-              onError={() => setImageError(true)}
-            />
-          ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-black">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center mb-2 shadow-lg">
-                <FolderOpen className="w-6 h-6 text-white" />
-              </div>
-              <span className="text-sm font-medium text-purple-300 text-center px-2">
-                {subCategory.name}
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Content */}
-        <div className="p-3">
-          <div className="flex items-start justify-between mb-1">
-            <h4 className="font-semibold text-white text-xs line-clamp-1">{subCategory.name}</h4>
-            {subCategory.featured && (
-              <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-gradient-to-r from-amber-500/20 to-amber-600/20 text-amber-300 rounded-full">
-                <Award className="w-2.5 h-2.5 inline" />
-              </span>
-            )}
-          </div>
+        <div className="aspect-square overflow-hidden">
+          <img
+            src={imageError ? "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=400&h=250&fit=crop" : imageUrl}
+            alt={subCategory.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            onError={() => setImageError(true)}
+            loading="lazy"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
           
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] text-gray-400">
+          {/* Sub-category Info */}
+          <div className="absolute bottom-0 left-0 right-0 p-3">
+            <h4 className="font-semibold text-white text-sm line-clamp-1">{subCategory.name}</h4>
+            <p className="text-xs text-gray-300 mt-1">
               {subCategory.productCount || 0} products
-            </span>
-            <button className="text-[10px] text-purple-400 hover:text-purple-300 font-medium group flex items-center gap-0.5">
-              View
-              <ArrowRight className="w-2.5 h-2.5 group-hover:translate-x-0.5 transition-transform" />
-            </button>
-          </div>
-        </div>
-
-        {/* Hover overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3 pointer-events-none">
-          <div className="text-white transform translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
-            <h4 className="font-bold text-xs mb-0.5">{subCategory.name}</h4>
-            <p className="text-[10px] text-gray-300 line-clamp-2 mb-1">
-              {subCategory.description || 'No description'}
             </p>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] bg-black/70 backdrop-blur-sm px-1.5 py-0.5 rounded-full">
-                {subCategory.productCount || 0} products
-              </span>
-            </div>
           </div>
         </div>
       </div>
@@ -356,12 +326,12 @@ const ProductsSection = ({
   if (loading) {
     return (
       <div className="mt-6 mb-8 relative">
-        <div className="relative bg-black rounded-2xl border border-gray-700/70 shadow-xl overflow-hidden p-8">
-          <div className="flex flex-col items-center justify-center h-64 bg-black">
+        <div className="relative bg-gradient-to-b from-gray-900 to-black rounded-2xl border border-gray-800 shadow-xl overflow-hidden p-8">
+          <div className="flex flex-col items-center justify-center h-64">
             <div className="relative">
-              <div className="w-16 h-16 rounded-full border-4 border-gray-700 border-t-blue-500 animate-spin mx-auto mb-4"></div>
+              <div className="w-16 h-16 rounded-full border-4 border-gray-700 border-t-red-500 animate-spin mx-auto mb-4"></div>
               <div className="absolute inset-0 flex items-center justify-center">
-                <Package className="w-8 h-8 text-blue-400 animate-pulse" />
+                <Package className="w-8 h-8 text-red-400 animate-pulse" />
               </div>
             </div>
             <p className="text-gray-400 mt-4">Loading products...</p>
@@ -374,15 +344,22 @@ const ProductsSection = ({
   if (!products || products.length === 0) {
     return (
       <div className="mt-6 mb-8 relative">
-        <div className="relative bg-black rounded-2xl border border-gray-700/70 shadow-xl overflow-hidden p-8">
-          <div className="flex flex-col items-center justify-center h-64 bg-black">
-            <div className="w-20 h-20 rounded-full bg-black flex items-center justify-center mb-4 shadow-lg">
+        <div className="relative bg-gradient-to-b from-gray-900 to-black rounded-2xl border border-gray-800 shadow-xl overflow-hidden p-8">
+          <div className="flex flex-col items-center justify-center h-64">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-gray-900 to-black flex items-center justify-center mb-4 shadow-lg">
               <Package className="w-10 h-10 text-gray-600" />
             </div>
             <h3 className="text-xl font-bold text-white mb-2">No products found</h3>
             <p className="text-gray-400 text-center max-w-md">
               There are no products available in this category at the moment.
             </p>
+            <button
+              onClick={onClose}
+              className="mt-4 px-4 py-2 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white rounded-lg transition-all duration-300 flex items-center gap-2"
+            >
+              <ChevronsUp className="w-4 h-4" />
+              Back to Categories
+            </button>
           </div>
         </div>
       </div>
@@ -391,27 +368,30 @@ const ProductsSection = ({
 
   return (
     <div className="mt-6 mb-8 relative">
-      {/* Main container */}
-      <div className="relative bg-black rounded-2xl border border-gray-700/70 shadow-xl overflow-hidden">
+      <div className="relative bg-gradient-to-b from-gray-900 to-black rounded-2xl border border-gray-800 shadow-xl overflow-hidden">
         {/* Header */}
-        <div className="relative p-6 border-b border-gray-700/50 bg-black">
+        <div className="relative p-6 border-b border-gray-800 bg-gradient-to-r from-gray-900 to-black">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="relative">
-                <div className="absolute inset-0 bg-green-500/20 rounded-full blur-xl"></div>
-                <div className="relative w-12 h-12 rounded-full bg-gradient-to-br from-green-600 to-green-500 flex items-center justify-center shadow-lg">
+                <div className="absolute inset-0 bg-red-500/20 rounded-full blur-xl"></div>
+                <div className="relative w-12 h-12 rounded-full bg-gradient-to-br from-red-600 to-red-500 flex items-center justify-center shadow-lg">
                   <ShoppingBag className="w-6 h-6 text-white" />
                 </div>
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-white">
-                  Products in <span className="text-green-400">{category?.name}</span>
+                  Products in <span className="text-red-400">{category?.name}</span>
                 </h2>
                 <div className="flex items-center gap-3 mt-1">
-                  <span className="text-sm text-gray-300 bg-black px-3 py-1 rounded-full border border-gray-700">
+                  <span className="text-sm text-gray-300 bg-black px-3 py-1 rounded-full border border-gray-800">
                     {products.length} products
                   </span>
-               
+                  {category?.productCount && (
+                    <span className="text-sm text-gray-400">
+                      Total in category: {category.productCount}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -419,7 +399,7 @@ const ProductsSection = ({
             <div className="flex items-center gap-3">
               <button
                 onClick={onClose}
-                className="px-4 py-2.5 bg-black hover:bg-gray-900 text-gray-300 rounded-lg border border-gray-700 transition-all duration-300 hover:border-gray-600 flex items-center gap-2"
+                className="px-4 py-2.5 bg-black hover:bg-gray-900 text-gray-300 rounded-lg border border-gray-800 transition-all duration-300 hover:border-gray-700 flex items-center gap-2"
               >
                 <ChevronsUp className="w-4 h-4" />
                 <span className="font-medium">Back to Categories</span>
@@ -429,29 +409,31 @@ const ProductsSection = ({
         </div>
         
         {/* Products Grid */}
-        <div className="p-6 bg-black">
+        <div className="p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {products.map((product) => (
-              <ProductCard key={product._id} product={product} />
+              <ProductCard key={product._id || product.id} product={product} />
             ))}
           </div>
         </div>
         
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-700/50 bg-black">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          
-            <div className="flex gap-3">
-              <button
-                onClick={onClose}
-                className="px-4 py-2 bg-black hover:bg-gray-900 text-gray-300 rounded-lg border border-gray-700 transition-all duration-300 hover:border-gray-600 flex items-center gap-2"
-              >
-                <ChevronsUp className="w-4 h-4" />
-                <span className="text-sm font-medium">Back to Categories</span>
-              </button>
-              
-          
-            </div>
+        <div className="px-6 py-4 border-t border-gray-800 bg-gradient-to-r from-gray-900 to-black">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-black hover:bg-gray-900 text-gray-300 rounded-lg border border-gray-800 transition-all duration-300 hover:border-gray-700 flex items-center gap-2"
+            >
+              <ChevronsUp className="w-4 h-4" />
+              <span className="text-sm font-medium">Back to Categories</span>
+            </button>
+            <Link
+              to={`/products?category=${category?.slug || category?._id}`}
+              className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white rounded-lg transition-all duration-300 flex items-center gap-2"
+            >
+              View All Products
+              <ArrowRight className="w-4 h-4" />
+            </Link>
           </div>
         </div>
       </div>
@@ -469,13 +451,12 @@ const Categories = () => {
   const [allCategories, setAllCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [viewMode, setViewMode] = useState("grid");
   const [activeMainCategory, setActiveMainCategory] = useState(null);
   const [viewingProducts, setViewingProducts] = useState(null);
   const [products, setProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState(false);
   
-  // Filters from URL
+  // Filters
   const [filters, setFilters] = useState({
     search: searchParams.get("search") || "",
     type: searchParams.get("type") || "main",
@@ -499,69 +480,150 @@ const Categories = () => {
   // Fetch categories on mount
   useEffect(() => {
     fetchCategories();
-  }, [filters.page]);
+  }, []);
 
-  // Set first main category as active when categories are loaded
+  // Set first main category as active
   useEffect(() => {
     if (mainCategories.length > 0 && !activeMainCategory) {
       setActiveMainCategory(mainCategories[0]?._id);
     }
   }, [mainCategories, activeMainCategory]);
 
+  // Fetch categories function
   const fetchCategories = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const response = await categoryAPI.getAllCategories();
-
+      console.log("📁 Fetching categories...");
+      
+      // Try direct API call first
+      const API_BASE_URL = import.meta.env.VITE_API_URL || "https://federalpartsphilippines-backend.onrender.com/api";
+      const baseUrl = API_BASE_URL.replace("/api", "");
+      
       let categoriesData = [];
-      if (response?.success && response.data) {
-        categoriesData = response.data;
-      } else if (Array.isArray(response)) {
-        categoriesData = response;
-      } else if (response?.data && Array.isArray(response.data)) {
-        categoriesData = response.data;
-      } else if (response?.categories && Array.isArray(response.categories)) {
-        categoriesData = response.categories;
-      } else if (Array.isArray(response)) {
-        categoriesData = response;
+      
+      try {
+        // Try direct fetch
+        const response = await fetch(`${baseUrl}/api/categories`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          mode: 'cors',
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log("✅ Direct API response:", data);
+          
+          if (data?.success && data.data) {
+            categoriesData = data.data;
+          } else if (data?.data && Array.isArray(data.data)) {
+            categoriesData = data.data;
+          } else if (data?.categories && Array.isArray(data.categories)) {
+            categoriesData = data.categories;
+          } else if (Array.isArray(data)) {
+            categoriesData = data;
+          }
+        } else {
+          console.warn("⚠️ Direct fetch failed, trying categoryAPI...");
+          throw new Error("Direct fetch failed");
+        }
+      } catch (directError) {
+        console.warn("Direct fetch error:", directError);
+        
+        // Fallback to categoryAPI
+        try {
+          const response = await categoryAPI.getAll();
+          console.log("📁 categoryAPI response:", response);
+          
+          if (response?.success && response.data) {
+            categoriesData = response.data;
+          } else if (response?.data && Array.isArray(response.data)) {
+            categoriesData = response.data;
+          } else if (response?.categories && Array.isArray(response.categories)) {
+            categoriesData = response.categories;
+          } else if (Array.isArray(response)) {
+            categoriesData = response;
+          }
+        } catch (apiError) {
+          console.error("❌ categoryAPI error:", apiError);
+          throw apiError;
+        }
       }
 
-      // Process categories and build hierarchy
-      const processedCategories = categoriesData.map((cat) => ({
-        ...cat,
-        image: cat.image || cat.imageUrl,
-        productCount: cat.productCount || 0,
-        description: cat.description || "",
-        featured: cat.featured || false,
-        isActive: cat.isActive !== false,
-        children: [],
-      }));
+      console.log("📊 Raw categories data:", categoriesData);
+
+      // Process categories
+      const processedCategories = categoriesData.map((cat, index) => {
+        // Ensure all required fields exist
+        const processedCat = {
+          ...cat,
+          _id: cat._id || cat.id || `cat-${index}`,
+          name: cat.name || "Unnamed Category",
+          description: cat.description || "",
+          image: cat.image || cat.imageUrl || "",
+          productCount: cat.productCountReal || cat.totalProductCount || cat.productCount || 0,
+          featured: cat.featured || false,
+          isActive: cat.isActive !== false,
+          slug: cat.slug || cat.name.toLowerCase().replace(/\s+/g, "-"),
+          children: [],
+          parentCategory: cat.parentCategory || cat.parent || null
+        };
+
+        console.log(`📋 Processed category ${processedCat.name}:`, {
+          image: processedCat.image,
+          productCount: processedCat.productCount
+        });
+
+        return processedCat;
+      });
 
       // Build category hierarchy
       const categoryMap = {};
       const rootCategories = [];
 
-      // First pass: create map and identify roots
+      // Create map
       processedCategories.forEach(category => {
         categoryMap[category._id] = { ...category, children: [] };
       });
 
-      // Second pass: build hierarchy
+      // Build hierarchy
       processedCategories.forEach(category => {
         const categoryNode = categoryMap[category._id];
         
-        if (category.parentCategory) {
-          if (categoryMap[category.parentCategory]) {
-            categoryMap[category.parentCategory].children.push(categoryNode);
-          }
+        if (category.parentCategory && categoryMap[category.parentCategory]) {
+          categoryMap[category.parentCategory].children.push(categoryNode);
         } else {
           rootCategories.push(categoryNode);
         }
       });
 
-      // Flatten all categories for search and filtering
+      // Sort children by name
+      Object.values(categoryMap).forEach(cat => {
+        if (cat.children && cat.children.length > 0) {
+          cat.children.sort((a, b) => a.name.localeCompare(b.name));
+        }
+      });
+
+      // Sort root categories by name
+      rootCategories.sort((a, b) => a.name.localeCompare(b.name));
+
+      console.log("🌳 Category hierarchy:", {
+        rootCount: rootCategories.length,
+        roots: rootCategories.map(c => ({
+          name: c.name,
+          productCount: c.productCount,
+          children: c.children.length
+        }))
+      });
+
+      setCategories(rootCategories);
+      setMainCategories(rootCategories);
+      
+      // Flatten all categories for search
       const flattenCategories = (catList) => {
         let flat = [];
         catList.forEach(cat => {
@@ -572,43 +634,98 @@ const Categories = () => {
         });
         return flat;
       };
-
-      setCategories(rootCategories);
+      
       setAllCategories(flattenCategories(rootCategories));
-      setMainCategories(rootCategories);
+      
+      toast.success(`Loaded ${rootCategories.length} main categories`);
       
     } catch (error) {
-      console.error("Error fetching categories:", error);
-      setError("Failed to load categories");
-      setCategories([]);
-      setAllCategories([]);
+      console.error("❌ Error fetching categories:", error);
+      setError("Failed to load categories. Please try again.");
+      toast.error("Failed to load categories");
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch products for a specific category
+  // Fetch products for a category
   const fetchCategoryProducts = async (categoryId) => {
     try {
       setProductsLoading(true);
       setProducts([]);
       
-      const response = await productAPI.getProductsByCategory(categoryId, {
-        limit: 50,
-        page: 1,
-        sort: 'name'
-      });
+      console.log(`📦 Fetching products for category: ${categoryId}`);
       
-      if (response.success && response.products) {
-        setProducts(response.products);
-        toast.success(`Loaded ${response.products.length} products`);
+      let productsData = [];
+      
+      try {
+        // Try direct API call
+        const API_BASE_URL = import.meta.env.VITE_API_URL || "https://federalpartsphilippines-backend.onrender.com/api";
+        const baseUrl = API_BASE_URL.replace("/api", "");
+        
+        const response = await fetch(`${baseUrl}/api/products?category=${categoryId}&limit=50`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          mode: 'cors',
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          
+          if (data?.success && data.products) {
+            productsData = data.products;
+          } else if (data?.data && Array.isArray(data.data)) {
+            productsData = data.data;
+          } else if (Array.isArray(data)) {
+            productsData = data;
+          }
+        } else {
+          throw new Error("Direct fetch failed");
+        }
+      } catch (directError) {
+        console.warn("Direct product fetch failed, using productAPI...");
+        
+        // Fallback to productAPI
+        const response = await productAPI.getProductsByCategory(categoryId, {
+          limit: 50,
+          page: 1,
+          sort: 'name'
+        });
+        
+        if (response?.success && response.products) {
+          productsData = response.products;
+        } else if (response?.data && Array.isArray(response.data)) {
+          productsData = response.data;
+        }
+      }
+      
+      // Process products
+      const processedProducts = productsData.map(product => ({
+        ...product,
+        _id: product._id || product.id,
+        images: product.images || [product.image || product.imageUrl].filter(Boolean),
+        image: product.image || product.images?.[0] || product.imageUrl,
+        price: product.price || product.basePrice || 0,
+        discountedPrice: product.discountedPrice || product.discountPrice || null,
+        rating: product.rating || product.averageRating || 4.0,
+        stock: product.stock || product.quantity || 0,
+        category: product.category || {}
+      }));
+      
+      console.log(`📦 Loaded ${processedProducts.length} products`);
+      setProducts(processedProducts);
+      
+      if (processedProducts.length === 0) {
+        toast.info("No products found in this category");
       } else {
-        toast.error(response.message || "Failed to load products");
-        setProducts([]);
+        toast.success(`Loaded ${processedProducts.length} products`);
       }
       
     } catch (error) {
-      console.error("Error fetching products:", error);
+      console.error("❌ Error fetching products:", error);
       toast.error("Failed to load products");
       setProducts([]);
     } finally {
@@ -616,50 +733,17 @@ const Categories = () => {
     }
   };
 
-  // Fetch products for main category (all products from all sub-categories)
-  const fetchMainCategoryProducts = async (categoryId) => {
-    try {
-      setProductsLoading(true);
-      setProducts([]);
-      
-      const category = allCategories.find(cat => cat._id === categoryId);
-      
-      if (category && category.children && category.children.length > 0) {
-        const allProducts = [];
-        
-        for (const subCategory of category.children) {
-          const response = await productAPI.getProductsByCategory(subCategory._id, {
-            limit: 100,
-            page: 1
-          });
-          
-          if (response.success && response.products) {
-            allProducts.push(...response.products);
-          }
-        }
-        
-        const uniqueProducts = Array.from(new Map(allProducts.map(product => [product._id, product])).values());
-        setProducts(uniqueProducts);
-        toast.success(`Loaded ${uniqueProducts.length} products from all sub-categories`);
-      } else {
-        const response = await productAPI.getProductsByCategory(categoryId, {
-          limit: 100,
-          page: 1
-        });
-        
-        if (response.success && response.products) {
-          setProducts(response.products);
-          toast.success(`Loaded ${response.products.length} products`);
-        }
-      }
-      
-    } catch (error) {
-      console.error("Error fetching main category products:", error);
-      toast.error("Failed to load products");
-      setProducts([]);
-    } finally {
-      setProductsLoading(false);
-    }
+  // Handle viewing products
+  const handleViewProducts = async (categoryId) => {
+    setViewingProducts(categoryId);
+    await fetchCategoryProducts(categoryId);
+  };
+
+  // Handle main category click
+  const handleMainCategoryClick = (categoryId) => {
+    setActiveMainCategory(categoryId);
+    setViewingProducts(null);
+    setProducts([]);
   };
 
   const handleFilterChange = (key, value) => {
@@ -668,23 +752,6 @@ const Categories = () => {
       [key]: value,
       page: 1,
     }));
-  };
-
-  const handleMainCategoryClick = (categoryId) => {
-    setActiveMainCategory(categoryId);
-    setViewingProducts(null);
-    setProducts([]);
-  };
-
-  const handleViewProducts = async (categoryId) => {
-    setViewingProducts(categoryId);
-    
-    const category = allCategories.find(cat => cat._id === categoryId);
-    if (category && !category.parentCategory) {
-      await fetchMainCategoryProducts(categoryId);
-    } else {
-      await fetchCategoryProducts(categoryId);
-    }
   };
 
   const clearFilters = () => {
@@ -696,7 +763,7 @@ const Categories = () => {
       page: 1,
       limit: 12,
     });
-    setActiveMainCategory(mainCategories[0]?._id || null);
+    setActiveMainCategory(mainCategories[0]?._id);
     setViewingProducts(null);
     setProducts([]);
   };
@@ -726,30 +793,22 @@ const Categories = () => {
     // Featured filter
     if (filters.featured === "featured") {
       filtered = filtered.filter(cat => cat.featured);
+    } else if (filters.featured === "active") {
+      filtered = filtered.filter(cat => cat.isActive);
     }
 
     // Sorting
     filtered.sort((a, b) => {
-      let aValue, bValue;
-
       switch (filters.sort) {
         case "name":
-          aValue = a.name?.toLowerCase() || "";
-          bValue = b.name?.toLowerCase() || "";
-          return aValue.localeCompare(bValue);
+          return a.name?.localeCompare(b.name);
         case "products":
-          aValue = a.productCount || 0;
-          bValue = b.productCount || 0;
-          return bValue - aValue;
+          return (b.productCount || 0) - (a.productCount || 0);
         case "featured":
-          aValue = a.featured ? 1 : 0;
-          bValue = b.featured ? 1 : 0;
-          return bValue - aValue;
+          return (b.featured ? 1 : 0) - (a.featured ? 1 : 0);
         case "popular":
         default:
-          aValue = a.productCount || 0;
-          bValue = b.productCount || 0;
-          return bValue - aValue;
+          return (b.productCount || 0) - (a.productCount || 0);
       }
     });
 
@@ -757,36 +816,30 @@ const Categories = () => {
   };
 
   const filteredCategories = getFilteredCategories();
-
-  // Find the active main category
   const activeCategory = activeMainCategory 
     ? allCategories.find(cat => cat._id === activeMainCategory)
     : mainCategories[0];
-
-  // Find the category currently showing products
   const currentCategoryWithProducts = viewingProducts 
     ? allCategories.find(cat => cat._id === viewingProducts)
     : null;
 
-  // Hero Banner
+  // Render Hero Banner
   const renderHeroBanner = () => (
     <div className="relative pt-20 pb-16 overflow-hidden bg-black">
-      {/* Banner Image */}
-      <div className="absolute inset-0 z-0">
-        <img
-          src="/newbanner/destktop website Federal (Category).png"
-          alt="Federal Parts - Categories"
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-black/50"></div>
-      </div>
+      {/* Background Gradient */}
+      <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900"></div>
+      
+      {/* Pattern Overlay */}
+      <div className="absolute inset-0 opacity-5" style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+      }}></div>
 
       {/* Content */}
       <div className="relative z-10 max-w-7xl mx-auto px-4">
         {/* Breadcrumb */}
         <nav className="flex items-center gap-2 text-sm mb-8">
           <Link to="/" className="text-gray-300 hover:text-white transition-colors flex items-center gap-1 group">
-            <Home className="w-4 h-4 group-hover:text-blue-400 transition-colors" />
+            <Home className="w-4 h-4 group-hover:text-red-400 transition-colors" />
             Home
           </Link>
           <ChevronRight className="w-4 h-4 text-gray-500" />
@@ -794,22 +847,28 @@ const Categories = () => {
           {viewingProducts && currentCategoryWithProducts && (
             <>
               <ChevronRight className="w-4 h-4 text-gray-500" />
-              <span className="text-blue-400 font-medium">Products</span>
+              <span className="text-red-400 font-medium">Products</span>
               <ChevronRight className="w-4 h-4 text-gray-500" />
-              <span className="text-green-400 font-medium">{currentCategoryWithProducts.name}</span>
+              <span className="text-red-300 font-medium">{currentCategoryWithProducts.name}</span>
             </>
           )}
         </nav>
 
-        <div className="text-center">
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-20 mt-20 text-white">
+        <div className="text-center mb-12">
+          <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 text-white">
             {viewingProducts 
               ? `Products in ${currentCategoryWithProducts?.name || 'Category'}`
-              : "Browse Our Categories"}
+              : "Browse Categories"}
           </h1>
           
+          <p className="text-xl text-gray-300 max-w-3xl mx-auto mb-8">
+            {viewingProducts 
+              ? "Discover our premium motorcycle parts and accessories"
+              : "Explore our comprehensive collection of motorcycle parts organized by category"}
+          </p>
+          
           {/* Search Bar */}
-          <div className="max-w-2xl mx-auto mb-10">
+          <div className="max-w-2xl mx-auto">
             <div className="relative">
               <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
                 <Search className="w-5 h-5 text-gray-400" />
@@ -823,8 +882,16 @@ const Categories = () => {
                     ? "Search products by name, description..."
                     : "Search categories by name, description..."
                 }
-                className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-black/70 backdrop-blur-sm border border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400 shadow-lg"
+                className="w-full pl-12 pr-4 py-4 rounded-xl bg-black/50 backdrop-blur-sm border border-gray-700 focus:ring-2 focus:ring-red-500 focus:border-transparent text-white placeholder-gray-400 shadow-xl"
               />
+              {filters.search && (
+                <button
+                  onClick={() => handleFilterChange("search", "")}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -832,47 +899,57 @@ const Categories = () => {
     </div>
   );
 
-  // Main Categories Navigation (Updated with images)
+  // Render Main Categories Navigation
   const renderMainCategoriesNav = () => {
     if (viewingProducts || loading) return null;
 
+    const mainCategoriesToShow = filteredCategories.filter(cat => !cat.parentCategory);
+
     return (
-      <div className="bg-black rounded-2xl border border-gray-700 p-6 mb-8 shadow-lg">
+      <div className="bg-gradient-to-b from-gray-900 to-black rounded-2xl border border-gray-800 p-6 mb-8 shadow-xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-3">
-           
+            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-red-500/20 to-red-600/20 flex items-center justify-center">
+              <Grid3x3 className="w-5 h-5 text-red-400" />
+            </div>
             <div>
               <h3 className="text-lg font-bold text-white">Main Categories</h3>
-              <p className="text-sm text-gray-400">Select a category to view its sub-categories and products</p>
+              <p className="text-sm text-gray-400">Select a category to view its sub-categories</p>
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
-            <span className="text-gray-400 text-sm">View:</span>
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => setViewMode("grid")}
-              className={`p-2 rounded-lg transition-all ${viewMode === "grid" 
-                ? "bg-blue-500/20 text-blue-400 border border-blue-500/30" 
+              onClick={() => handleFilterChange("type", "main")}
+              className={`px-4 py-2 rounded-lg transition-all ${filters.type === "main" 
+                ? "bg-red-500/20 text-red-400 border border-red-500/30" 
                 : "text-gray-400 hover:text-white hover:bg-black border border-gray-700"}`}
             >
-              <Grid className="w-4 h-4" />
+              Main
             </button>
             <button
-              onClick={() => setViewMode("list")}
-              className={`p-2 rounded-lg transition-all ${viewMode === "list" 
-                ? "bg-blue-500/20 text-blue-400 border border-blue-500/30" 
+              onClick={() => handleFilterChange("type", "sub")}
+              className={`px-4 py-2 rounded-lg transition-all ${filters.type === "sub" 
+                ? "bg-red-500/20 text-red-400 border border-red-500/30" 
                 : "text-gray-400 hover:text-white hover:bg-black border border-gray-700"}`}
             >
-              <List className="w-4 h-4" />
+              Sub
+            </button>
+            <button
+              onClick={() => handleFilterChange("type", "all")}
+              className={`px-4 py-2 rounded-lg transition-all ${filters.type === "all" 
+                ? "bg-red-500/20 text-red-400 border border-red-500/30" 
+                : "text-gray-400 hover:text-white hover:bg-black border border-gray-700"}`}
+            >
+              All
             </button>
           </div>
         </div>
 
-        {/* Main Categories Grid with Images */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {filteredCategories
-            .filter(cat => !cat.parentCategory)
-            .map((category) => (
+        {/* Main Categories Grid */}
+        {mainCategoriesToShow.length > 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            {mainCategoriesToShow.map((category) => (
               <MainCategoryCard
                 key={category._id}
                 category={category}
@@ -880,17 +957,35 @@ const Categories = () => {
                 onClick={handleMainCategoryClick}
               />
             ))}
-        </div>
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-gray-900 to-black flex items-center justify-center mx-auto mb-4">
+              <FolderTree className="w-10 h-10 text-gray-600" />
+            </div>
+            <p className="text-gray-400">No main categories found</p>
+            {filters.search && (
+              <button
+                onClick={() => handleFilterChange("search", "")}
+                className="mt-4 text-red-400 hover:text-red-300"
+              >
+                Clear search
+              </button>
+            )}
+          </div>
+        )}
       </div>
     );
   };
 
-  // Sub-categories Section
+  // Render Sub-categories Section
   const renderSubCategories = () => {
-    if (viewingProducts || !activeCategory || !activeCategory.children || activeCategory.children.length === 0) return null;
+    if (viewingProducts || !activeCategory || !activeCategory.children || activeCategory.children.length === 0) {
+      return null;
+    }
 
     return (
-      <div className="bg-black rounded-2xl border border-gray-700 p-6 mb-6 shadow-lg">
+      <div className="bg-gradient-to-b from-gray-900 to-black rounded-2xl border border-gray-800 p-6 mb-6 shadow-xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500/20 to-purple-600/20 flex items-center justify-center">
@@ -904,7 +999,7 @@ const Categories = () => {
           
           <button
             onClick={() => handleViewProducts(activeCategory._id)}
-            className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/25 flex items-center gap-2"
+            className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-red-500/25 flex items-center gap-2"
           >
             <ShoppingBag className="w-4 h-4" />
             <span className="font-medium">View All Products</span>
@@ -925,12 +1020,33 @@ const Categories = () => {
     );
   };
 
-  // Controls Section
+  // Render Controls
   const renderControls = () => (
-    <div className="bg-black rounded-2xl border border-gray-700 p-6 mb-8 shadow-lg">
+    <div className="bg-gradient-to-b from-gray-900 to-black rounded-2xl border border-gray-800 p-6 mb-8 shadow-xl">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          
+          <div className="hidden md:flex items-center gap-3">
+            <select
+              value={filters.sort}
+              onChange={(e) => handleFilterChange("sort", e.target.value)}
+              className="bg-black border border-gray-700 text-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent"
+            >
+              <option value="popular">Most Popular</option>
+              <option value="name">Name (A-Z)</option>
+              <option value="products">Most Products</option>
+              <option value="featured">Featured First</option>
+            </select>
+            
+            <select
+              value={filters.featured}
+              onChange={(e) => handleFilterChange("featured", e.target.value)}
+              className="bg-black border border-gray-700 text-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent"
+            >
+              <option value="all">All Status</option>
+              <option value="featured">Featured</option>
+              <option value="active">Active</option>
+            </select>
+          </div>
         </div>
         
         <div className="flex items-center gap-3">
@@ -944,7 +1060,7 @@ const Categories = () => {
           
           <button
             onClick={handleRefresh}
-            className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/25 flex items-center gap-2"
+            className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-red-500/25 flex items-center gap-2"
           >
             <RefreshCw className="w-4 h-4" />
             Refresh
@@ -954,16 +1070,16 @@ const Categories = () => {
     </div>
   );
 
-  // Render Categories
-  const renderCategories = () => {
+  // Render Categories or Products
+  const renderContent = () => {
     if (loading) {
       return (
         <div className="flex justify-center items-center h-96">
           <div className="text-center">
             <div className="relative">
-              <div className="w-20 h-20 rounded-full border-4 border-gray-700 border-t-blue-500 animate-spin mx-auto mb-4"></div>
+              <div className="w-20 h-20 rounded-full border-4 border-gray-700 border-t-red-500 animate-spin mx-auto mb-4"></div>
               <div className="absolute inset-0 flex items-center justify-center">
-                <FolderTree className="w-8 h-8 text-blue-400 animate-pulse" />
+                <FolderTree className="w-8 h-8 text-red-400 animate-pulse" />
               </div>
             </div>
             <p className="text-gray-400 mt-4">Loading categories...</p>
@@ -974,10 +1090,10 @@ const Categories = () => {
 
     if (error) {
       return (
-        <div className="bg-black p-8 rounded-2xl border border-red-800/50 shadow-lg">
+        <div className="bg-gradient-to-b from-gray-900 to-black p-8 rounded-2xl border border-red-800/50 shadow-lg">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-500/20 to-red-600/20 flex items-center justify-center">
-              <FolderTree className="w-6 h-6 text-red-400" />
+              <AlertCircle className="w-6 h-6 text-red-400" />
             </div>
             <div>
               <p className="text-red-300 font-medium text-lg">{error}</p>
@@ -994,29 +1110,23 @@ const Categories = () => {
       );
     }
 
-    if (filteredCategories.length === 0) {
+    if (filteredCategories.length === 0 && !viewingProducts) {
       return (
-        <div className="bg-black p-12 text-center border border-gray-700 rounded-2xl shadow-lg">
-          <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-black mb-6 shadow-lg">
-            {viewingProducts ? (
-              <ShoppingBag className="w-12 h-12 text-gray-600" />
-            ) : (
-              <FolderTree className="w-12 h-12 text-gray-600" />
-            )}
+        <div className="bg-gradient-to-b from-gray-900 to-black p-12 text-center border border-gray-700 rounded-2xl shadow-lg">
+          <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-gray-900 to-black mb-6 shadow-lg">
+            <FolderTree className="w-12 h-12 text-gray-600" />
           </div>
           <h3 className="text-2xl font-bold text-white mb-3">
-            {viewingProducts ? "No products found" : "No categories found"}
+            No categories found
           </h3>
           <p className="text-gray-400 mb-8 max-w-md mx-auto leading-relaxed">
             {filters.search
-              ? viewingProducts
-                ? "No products match your search. Try different keywords or clear the search."
-                : "No categories match your search. Try different keywords or clear the search."
-              : "Try adjusting your filters to find more results."}
+              ? "No categories match your search. Try different keywords or clear the search."
+              : "No categories available at the moment. Please check back later."}
           </p>
           <button
             onClick={clearFilters}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-lg transition-all duration-300 shadow-lg hover:shadow-blue-500/25"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white rounded-lg transition-all duration-300 shadow-lg hover:shadow-red-500/25"
           >
             Clear All Filters
           </button>
@@ -1040,112 +1150,52 @@ const Categories = () => {
 
     return (
       <div>
-        {/* Main Categories Navigation */}
         {renderMainCategoriesNav()}
-
-        {/* Sub-categories Grid */}
         {renderSubCategories()}
-      </div>
-    );
-  };
-
-  // Featured Categories Section
-  const renderFeaturedCategories = () => {
-    if (viewingProducts) return null;
-    
-    const featuredCategories = mainCategories.filter(cat => cat.featured).slice(0, 3);
-    
-    if (featuredCategories.length === 0) return null;
-
-    return (
-      <div className="mt-16 pt-12 border-t border-gray-800/50">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500/20 to-amber-600/20 flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-amber-400" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-white">Featured Categories</h2>
-              <p className="text-gray-400">Top categories curated for you</p>
-            </div>
-          </div>
-          <button
-            onClick={() => handleFilterChange("featured", "featured")}
-            className="text-blue-400 hover:text-blue-300 font-medium transition-colors flex items-center gap-1 group"
-          >
-            View All Featured
-            <ChevronRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-          </button>
-        </div>
       </div>
     );
   };
 
   return (
     <div className="min-h-screen bg-black">
-      {/* Hero Section with Picture Banner */}
+      {/* Hero Section */}
       {renderHeroBanner()}
-
-      {/* Filters Bar */}
-      <div className="sticky top-0 z-40 bg-black/95 backdrop-blur-xl border-b border-gray-800/50 shadow-xl">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500/20 to-blue-600/20 flex items-center justify-center">
-                {viewingProducts ? (
-                  <ShoppingBag className="w-4 h-4 text-blue-400" />
-                ) : (
-                  <Filter className="w-4 h-4 text-blue-400" />
-                )}
-              </div>
-              <span className="font-medium text-gray-300">
-                {viewingProducts ? "Filter & Sort Products" : "Filter & Sort Categories"}
-              </span>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Controls */}
         {renderControls()}
 
-        {/* Categories/Products */}
-        {renderCategories()}
+        {/* Content */}
+        {renderContent()}
 
-        {/* Featured Categories */}
-        {renderFeaturedCategories()}
-
-        {/* Stats Footer */}
-        {(filteredCategories.length > 0 || products.length > 0) && (
-          <div className="mt-16 pt-12 border-t border-gray-800/50">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-              <div className="flex-1">
-                <h3 className="text-xl font-bold text-white mb-3">Need Help?</h3>
-                <p className="text-gray-400 max-w-lg">
-                  {viewingProducts
-                    ? "Can't find what you're looking for? Contact our support team for personalized assistance."
-                    : "Explore our categories to find exactly what you need. Each category contains carefully curated products."}
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => navigate('/contact')}
-                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/25 flex items-center gap-2"
-                >
-                  <Users className="w-4 h-4" />
-                  Contact Support
-                </button>
-                
-              </div>
+        {/* Help Section */}
+        <div className="mt-16 pt-12 border-t border-gray-800/50">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex-1">
+              <h3 className="text-xl font-bold text-white mb-3">Need Help?</h3>
+              <p className="text-gray-400 max-w-lg">
+                Can't find what you're looking for? Our team is here to help you find the perfect motorcycle parts.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => navigate('/contact')}
+                className="px-6 py-3 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-red-500/25 flex items-center gap-2"
+              >
+                <Users className="w-4 h-4" />
+                Contact Support
+              </button>
+              <button
+                onClick={fetchCategories}
+                className="px-6 py-3 bg-black hover:bg-gray-900 text-gray-300 rounded-lg border border-gray-800 transition-all duration-300 hover:border-gray-700 flex items-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Refresh Data
+              </button>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

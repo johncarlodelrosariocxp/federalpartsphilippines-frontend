@@ -1,4 +1,4 @@
-// src/pages/admin/Products.js - COMPLETE FIXED VERSION WITH PROPER IMAGE LOADING
+// src/pages/admin/Products.js - COMPLETE WORKING VERSION WITH IMAGE FIXES
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { productAPI, categoryAPI, getImageUrl } from "../../services/api";
@@ -61,13 +61,11 @@ const AdminProducts = () => {
   const [viewMode, setViewMode] = useState("table");
   const [imageErrors, setImageErrors] = useState({});
 
-  // Generate fallback SVG image
+  // Simple fallback image
   const createFallbackImage = () => {
     return `data:image/svg+xml,${encodeURIComponent(`
       <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect width="200" height="200" fill="#F3F4F6"/>
-        <path d="M60 70L140 130M140 70L60 130M140 50L180 90M180 50L140 90" stroke="#D1D5DB" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M40 40H160V160H40V40Z" stroke="#D1D5DB" stroke-width="4"/>
         <text x="100" y="100" font-family="Arial" font-size="16" fill="#9CA3AF" text-anchor="middle" alignment-baseline="middle">No Image</text>
       </svg>
     `)}`;
@@ -94,44 +92,46 @@ const AdminProducts = () => {
     products,
   ]);
 
-  // Function to get full image URL with proper error handling
+  // SIMPLIFIED: Direct image URL construction
   const getProductImageUrl = (imagePath) => {
-    if (!imagePath || imagePath === "undefined" || imagePath === "null") {
+    // If no image path, return fallback
+    if (!imagePath || imagePath === "undefined" || imagePath === "null" || imagePath.trim() === "") {
       return fallbackImageUrl;
     }
 
-    // If it's already a full URL or data URL
+    // If it's already a full URL or data URL, return as-is
     if (
-      typeof imagePath === "string" &&
-      (imagePath.startsWith("http://") ||
-        imagePath.startsWith("https://") ||
-        imagePath.startsWith("blob:") ||
-        imagePath.startsWith("data:"))
+      imagePath.startsWith("http://") ||
+      imagePath.startsWith("https://") ||
+      imagePath.startsWith("blob:") ||
+      imagePath.startsWith("data:")
     ) {
       return imagePath;
     }
 
-    // Use the getImageUrl function from api.js
-    const fullUrl = getImageUrl(imagePath, "products");
-
-    // If getImageUrl returns empty string or the same path, use fallback
-    if (!fullUrl || fullUrl === imagePath) {
-      return fallbackImageUrl;
+    // If it's a relative path starting with /uploads
+    if (imagePath.startsWith("/uploads/")) {
+      const baseUrl = "https://federalpartsphilippines-backend.onrender.com";
+      return `${baseUrl}${imagePath}`;
     }
 
-    return fullUrl;
+    // If it's just a filename
+    const baseUrl = "https://federalpartsphilippines-backend.onrender.com";
+    return `${baseUrl}/uploads/products/${imagePath}`;
   };
 
-  // Get first product image with proper URL
+  // Get first product image
   const getFirstProductImage = (product) => {
     if (!product) return fallbackImageUrl;
 
-    // Handle different image data structures
     let images = [];
 
-    if (Array.isArray(product.images)) {
-      images = product.images;
-    } else if (product.image) {
+    if (Array.isArray(product.images) && product.images.length > 0) {
+      // Filter valid images
+      images = product.images.filter(img => 
+        img && img.trim() !== "" && img !== "undefined" && img !== "null"
+      );
+    } else if (product.image && product.image.trim() !== "") {
       images = [product.image];
     }
 
@@ -144,22 +144,25 @@ const AdminProducts = () => {
   };
 
   // Handle image loading errors
-  const handleImageError = (productId, imageIndex = 0) => {
-    setImageErrors((prev) => ({
-      ...prev,
-      [`${productId}_${imageIndex}`]: true,
-    }));
+  const handleImageError = (e, productId) => {
+    console.log(`Image failed to load for product ${productId}, using fallback`);
+    e.target.src = fallbackImageUrl;
+    e.target.onerror = null; // Prevent infinite loop
   };
 
+  // Fetch products with simple error handling
   const fetchProducts = async () => {
     try {
       setLoading(true);
       setError("");
 
-      const response = await productAPI.getAllProductsForAdmin({
+      // Use getAllProducts
+      const response = await productAPI.getAllProducts({
         page: 1,
         limit: 100,
       });
+
+      console.log("API Response:", response);
 
       let productsData = [];
 
@@ -176,8 +179,31 @@ const AdminProducts = () => {
         }
 
         if (Array.isArray(productsData)) {
-          setProducts(productsData);
-          setFilteredProducts(productsData);
+          // Process images for each product
+          const processedProducts = productsData.map(product => {
+            // Ensure images array exists and filter invalid paths
+            if (!Array.isArray(product.images)) {
+              product.images = [];
+            }
+            
+            // Filter out invalid image paths
+            product.images = product.images.filter(img => 
+              img && img.trim() !== "" && img !== "undefined" && img !== "null"
+            );
+            
+            // Log image info for debugging
+            console.log(`Product ${product.name}:`, {
+              hasImages: product.images.length > 0,
+              imagePaths: product.images,
+              firstImageUrl: product.images.length > 0 ? getProductImageUrl(product.images[0]) : 'No images'
+            });
+            
+            return product;
+          });
+          
+          setProducts(processedProducts);
+          setFilteredProducts(processedProducts);
+          console.log(`Loaded ${processedProducts.length} products`);
         } else {
           console.error("API response is not an array:", response);
           setError("Failed to load products. Invalid response format.");
@@ -610,24 +636,55 @@ const AdminProducts = () => {
   const handleExportProducts = async () => {
     try {
       setError("");
-      const response = await productAPI.exportProducts();
+      setSuccess("");
 
-      if (response) {
-        const blob = new Blob([response.data], { type: "text/csv" });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "products_export.csv";
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+      // Create CSV data
+      const headers = [
+        "ID",
+        "Name",
+        "SKU",
+        "Category",
+        "Price",
+        "Discounted Price",
+        "Stock",
+        "Brand",
+        "Status",
+        "Featured",
+        "Created At"
+      ];
 
-        setSuccess("Products exported successfully!");
-        setTimeout(() => setSuccess(""), 3000);
-      } else {
-        setError("Failed to export products");
-      }
+      const csvData = filteredProducts.map(product => [
+        product._id,
+        `"${product.name || ''}"`,
+        product.sku || '',
+        product.category?.name || '',
+        product.price || 0,
+        product.discountedPrice || '',
+        product.stock || 0,
+        product.brand || '',
+        product.isActive ? 'Active' : 'Inactive',
+        product.featured ? 'Yes' : 'No',
+        product.createdAt || ''
+      ]);
+
+      const csvContent = [
+        headers.join(','),
+        ...csvData.map(row => row.join(','))
+      ].join('\n');
+
+      // Create and download CSV file
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `products_export_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      setSuccess("Products exported successfully!");
+      setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
       console.error("Error exporting products:", err);
       setError(`Export failed: ${err.message}`);
@@ -905,7 +962,22 @@ const AdminProducts = () => {
               </select>
             </div>
 
-            
+            {/* Stock Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-800 mb-2">
+                Stock Status
+              </label>
+              <select
+                value={stockFilter}
+                onChange={(e) => setStockFilter(e.target.value)}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">All Stock</option>
+                <option value="in_stock">In Stock (&gt;10)</option>
+                <option value="low_stock">Low Stock (1-10)</option>
+                <option value="out_of_stock">Out of Stock</option>
+              </select>
+            </div>
 
             {/* Sort By */}
             <div>
@@ -1152,11 +1224,7 @@ const AdminProducts = () => {
                               src={getFirstProductImage(product)}
                               alt={product.name}
                               className="w-14 h-14 object-cover"
-                              onError={(e) => {
-                                handleImageError(product._id, 0);
-                                e.target.onerror = null;
-                                e.target.src = fallbackImageUrl;
-                              }}
+                              onError={(e) => handleImageError(e, product._id)}
                             />
                           </div>
                           <div className="min-w-0">
@@ -1338,11 +1406,7 @@ const AdminProducts = () => {
                         src={getFirstProductImage(product)}
                         alt={product.name}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        onError={(e) => {
-                          handleImageError(product._id, 0);
-                          e.target.onerror = null;
-                          e.target.src = fallbackImageUrl;
-                        }}
+                        onError={(e) => handleImageError(e, product._id)}
                       />
                       {/* Badges */}
                       <div className="absolute top-3 left-3 flex flex-col gap-2">

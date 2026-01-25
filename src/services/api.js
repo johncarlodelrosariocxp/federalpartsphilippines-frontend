@@ -1,4 +1,4 @@
-// src/services/api.js - COMPLETE FIXED VERSION WITH CATEGORY UPDATE
+// src/services/api.js - COMPLETE FIXED VERSION WITH ALL FUNCTIONS
 import axios from "axios";
 import authService from "./auth.js";
 
@@ -11,7 +11,9 @@ const isBrowser = typeof window !== "undefined";
 
 // ========== URL VALIDATION ==========
 const validateAndFixUrl = (url) => {
-  if (!url) return "https://federalpartsphilippines-backend.onrender.com/api";
+  if (!url || url.trim() === "") {
+    return "https://federalpartsphilippines-backend.onrender.com/api";
+  }
   
   if (url.includes('/api/api')) {
     url = url.replace('/api/api', '/api');
@@ -57,6 +59,7 @@ API.interceptors.request.use(
         config.headers["Expires"] = "0";
       }
 
+      // Don't set Content-Type for FormData - let browser set it with boundary
       if (config.data instanceof FormData) {
         delete config.headers["Content-Type"];
       }
@@ -68,7 +71,7 @@ API.interceptors.request.use(
       }
     }
     
-    console.log(`➡️ ${config.method?.toUpperCase()} ${config.url}`, config.params || "");
+    console.log(`➡️ ${config.method?.toUpperCase()} ${config.url}`, config.data instanceof FormData ? "[FormData]" : config.params || "");
     
     return config;
   },
@@ -84,6 +87,7 @@ API.interceptors.response.use(
     console.log(`✅ ${response.status} ${response.config.url}`);
     
     if (response && response.data) {
+      // If response already has the success/data structure, return it as-is
       if (
         response.data.success !== undefined ||
         response.data.data ||
@@ -91,6 +95,7 @@ API.interceptors.response.use(
       ) {
         return response.data;
       }
+      // Wrap raw data in standard response format
       return {
         success: true,
         data: response.data,
@@ -105,7 +110,8 @@ API.interceptors.response.use(
       code: error.code,
       status: error.response?.status,
       url: error.config?.url,
-      method: error.config?.method
+      method: error.config?.method,
+      data: error.response?.data
     });
 
     if (error.code === "ECONNABORTED") {
@@ -171,6 +177,28 @@ API.interceptors.response.use(
         });
       }
 
+      if (status === 400) {
+        // Enhanced 400 error handling
+        let errorMessage = data?.message || "Bad request";
+        if (data?.errors) {
+          // Handle validation errors
+          if (Array.isArray(data.errors)) {
+            errorMessage = data.errors.map(err => err.msg || err.message).join(", ");
+          } else if (typeof data.errors === 'object') {
+            errorMessage = Object.values(data.errors).map(err => err.message || err).join(", ");
+          }
+        } else if (data?.error) {
+          errorMessage = data.error;
+        }
+        
+        return Promise.reject({
+          success: false,
+          message: errorMessage,
+          data: data,
+          status: 400,
+        });
+      }
+
       if (status === 429) {
         return Promise.reject({
           success: false,
@@ -203,171 +231,425 @@ API.interceptors.response.use(
   }
 );
 
-// ========== CONNECTION TESTING UTILITY ==========
-export const testApiConnection = async () => {
-  console.log("🔍 Testing API connection...");
-  
-  const endpointsToTest = [
-    validatedApiUrl.replace('/api', ''),
-    validatedApiUrl,
-    `${validatedApiUrl.replace('/api', '')}/health`,
-    "https://federalpartsphilippines-backend.onrender.com",
-    "https://federalpartsphilippines-backend.onrender.com/api",
-  ];
-
-  const results = [];
-
-  for (const endpoint of endpointsToTest) {
-    try {
-      console.log(`🔄 Testing: ${endpoint}`);
-      const response = await axios.get(endpoint, {
-        timeout: 10000,
-        headers: {
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache'
-        }
-      });
-      
-      console.log(`✅ Connected to: ${endpoint}`);
-      results.push({
-        endpoint,
-        success: true,
-        status: response.status,
-        data: response.data
-      });
-      
-      return {
-        success: true,
-        connected: true,
-        message: `Connected to ${endpoint}`,
-        endpoint,
-        data: response.data,
-        allResults: results
-      };
-    } catch (error) {
-      console.log(`❌ Failed: ${endpoint} - ${error.message}`);
-      results.push({
-        endpoint,
-        success: false,
-        error: error.message
-      });
-    }
-  }
-
-  return {
-    success: false,
-    connected: false,
-    message: "Cannot connect to any API endpoint",
-    allResults: results,
-    suggestions: [
-      "1. Check if backend server is running on Render",
-      "2. Verify CORS is configured on backend",
-      "3. Check network connectivity",
-      `4. Backend URL should be: https://federalpartsphilippines-backend.onrender.com`
-    ]
-  };
-};
-
-// ========== IMAGE URL HELPER ==========
+// ========== FIXED IMAGE URL HELPER - COMPREHENSIVE FIX ==========
 export const getImageUrl = (imagePath, type = "products") => {
-  if (!imagePath || imagePath === "undefined" || imagePath === "null") {
-    return "";
+  // Return null instead of empty string when no image path is provided
+  if (!imagePath || 
+      imagePath === "undefined" || 
+      imagePath === "null" || 
+      imagePath === "" || 
+      imagePath === " " || 
+      imagePath.trim() === "") {
+    return null;
   }
 
+  // Handle full URLs - return as-is
   if (
     typeof imagePath === "string" &&
-    (imagePath.startsWith("http://") || imagePath.startsWith("https://"))
-  ) {
-    return imagePath;
-  }
-
-  if (
-    typeof imagePath === "string" &&
-    (imagePath.startsWith("blob:") || imagePath.startsWith("data:"))
+    (imagePath.startsWith("http://") || imagePath.startsWith("https://") ||
+     imagePath.startsWith("blob:") || imagePath.startsWith("data:"))
   ) {
     return imagePath;
   }
 
   const baseUrl = IMAGE_BASE_URL || "https://federalpartsphilippines-backend.onrender.com";
-
-  if (typeof imagePath === "string" && imagePath.startsWith("/")) {
-    return `${baseUrl}${imagePath}`;
+  
+  // FIX: Ensure baseUrl doesn't have trailing /api for image URLs
+  const cleanBaseUrl = baseUrl.replace(/\/api$/, '');
+  
+  // Handle absolute paths starting with /uploads
+  if (typeof imagePath === "string" && imagePath.startsWith("/uploads/")) {
+    return `${cleanBaseUrl}${imagePath}`;
   }
-
+  
+  // Handle relative paths that already include uploads
+  if (typeof imagePath === "string" && imagePath.includes("uploads/")) {
+    const path = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
+    return `${cleanBaseUrl}${path}`;
+  }
+  
+  // Handle filename only - construct proper path
   if (typeof imagePath === "string") {
     const cleanFilename = imagePath.replace(/^.*[\\/]/, '');
     
-    if (imagePath.includes('uploads/')) {
-      const path = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
-      return `${baseUrl}${path}`;
+    if (!cleanFilename || cleanFilename.trim() === "") {
+      return null;
     }
     
-    return `${baseUrl}/uploads/${type}/${cleanFilename}`;
+    // Check if it's a placeholder image
+    if (cleanFilename.includes('placeholder')) {
+      return null; // Let component handle placeholder with fallback
+    }
+    
+    return `${cleanBaseUrl}/uploads/${type}/${cleanFilename}`;
   }
 
-  return "";
+  return null;
 };
 
-export const getFullImageUrl = getImageUrl;
-
-// ========== PRICE FORMATTING ==========
-export const formatPrice = (price, currency = "PHP") => {
+// ========== SAFE IMAGE URL HELPER FOR REACT COMPONENTS ==========
+export const getSafeImageUrl = (imagePath, type = "products", fallback = null) => {
+  const url = getImageUrl(imagePath, type);
+  
+  // If no URL, return fallback (could be a placeholder image)
+  if (!url) {
+    return fallback;
+  }
+  
+  // Validate the URL format
   try {
-    if (price === null || price === undefined) {
-      return `₱0.00`;
+    // Basic URL validation
+    if (url.startsWith('http://') || url.startsWith('https://') || 
+        url.startsWith('blob:') || url.startsWith('data:')) {
+      return url;
     }
     
-    const priceNum = Number(price);
-    
-    if (isNaN(priceNum)) {
-      return `₱0.00`;
+    // If we have a relative URL, prepend base URL
+    if (url.startsWith('/')) {
+      const baseUrl = IMAGE_BASE_URL || "https://federalpartsphilippines-backend.onrender.com";
+      const cleanBaseUrl = baseUrl.replace(/\/api$/, '');
+      return `${cleanBaseUrl}${url}`;
     }
     
-    if (currency === "PHP") {
-      return `₱${priceNum.toLocaleString("en-US", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })}`;
-    }
-    
-    try {
-      return new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: currency,
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(priceNum);
-    } catch (intlError) {
-      return `${currency} ${priceNum.toFixed(2)}`;
-    }
+    return url;
   } catch (error) {
-    console.error("Error formatting price:", error);
-    return `₱0.00`;
+    console.warn("Invalid image URL:", imagePath, error);
+    return fallback;
   }
 };
 
-export const calculateDiscountPercentage = (price, discountedPrice) => {
-  if (!price || !discountedPrice || discountedPrice >= price) return 0;
-  return Math.round(((price - discountedPrice) / price) * 100);
+// ========== ENHANCED PRODUCT PROCESSING ==========
+const processProductImages = (product) => {
+  if (!product) return product;
+  
+  const productObj = { ...product };
+  
+  // Ensure images is an array
+  if (!Array.isArray(productObj.images)) {
+    productObj.images = [];
+  }
+  
+  // Process each image URL
+  productObj.images = productObj.images
+    .filter(img => img && img.trim() !== "")
+    .map(img => {
+      // If image is already a full URL, return as-is
+      if (img.startsWith('http://') || img.startsWith('https://') || 
+          img.startsWith('blob:') || img.startsWith('data:')) {
+        return img;
+      }
+      
+      // If image starts with /uploads, it's already a server path
+      if (img.startsWith('/uploads/')) {
+        const baseUrl = IMAGE_BASE_URL || "https://federalpartsphilippines-backend.onrender.com";
+        const cleanBaseUrl = baseUrl.replace(/\/api$/, '');
+        return `${cleanBaseUrl}${img}`;
+      }
+      
+      // If it's just a filename, construct full URL
+      const baseUrl = IMAGE_BASE_URL || "https://federalpartsphilippines-backend.onrender.com";
+      const cleanBaseUrl = baseUrl.replace(/\/api$/, '');
+      return `${cleanBaseUrl}/uploads/products/${img}`;
+    })
+    .filter(img => img !== null && img !== undefined);
+  
+  // If no images after processing, set to empty array (not null)
+  if (productObj.images.length === 0) {
+    productObj.images = [];
+  }
+  
+  return productObj;
 };
 
-export const getFinalPrice = (price, discountedPrice) => {
-  if (!price) return 0;
-  return discountedPrice && discountedPrice < price ? discountedPrice : price;
+const processCategoryImage = (category) => {
+  if (!category) return category;
+  
+  const categoryObj = { ...category };
+  
+  if (categoryObj.image && categoryObj.image.trim() !== "") {
+    const img = categoryObj.image;
+    
+    // If image is already a full URL, return as-is
+    if (img.startsWith('http://') || img.startsWith('https://') || 
+        img.startsWith('blob:') || img.startsWith('data:')) {
+      return categoryObj;
+    }
+    
+    // If image starts with /uploads, it's already a server path
+    if (img.startsWith('/uploads/')) {
+      const baseUrl = IMAGE_BASE_URL || "https://federalpartsphilippines-backend.onrender.com";
+      const cleanBaseUrl = baseUrl.replace(/\/api$/, '');
+      categoryObj.image = `${cleanBaseUrl}${img}`;
+    } else {
+      // If it's just a filename, construct full URL
+      const baseUrl = IMAGE_BASE_URL || "https://federalpartsphilippines-backend.onrender.com";
+      const cleanBaseUrl = baseUrl.replace(/\/api$/, '');
+      categoryObj.image = `${cleanBaseUrl}/uploads/categories/${img}`;
+    }
+  }
+  
+  return categoryObj;
 };
 
-// ========== PRODUCT API ==========
+// ========== UPLOAD UTILITIES ==========
+export const uploadImage = async (file, type = "category") => {
+  try {
+    console.log(`📤 Uploading ${type} image:`, file.name);
+    
+    if (!file) {
+      return {
+        success: false,
+        message: "No file provided"
+      };
+    }
+
+    // Create FormData
+    const formData = new FormData();
+    formData.append("image", file);
+    formData.append("type", type);
+
+    // Use the correct endpoint for uploads
+    const response = await API.post("/upload", formData, {
+      headers: {
+        // Don't set Content-Type - let browser set it with boundary
+      }
+    });
+
+    console.log("📤 Upload response:", response);
+    
+    return response;
+  } catch (error) {
+    console.error("❌ Error uploading image:", error);
+    return {
+      success: false,
+      message: error.message || "Failed to upload image",
+      error: error
+    };
+  }
+};
+
+// ========== CATEGORY API - WITH FIXED IMAGE UPLOAD ==========
+export const categoryAPI = {
+  // Main category fetching method
+  getAllCategories: async (params = {}) => {
+    try {
+      console.log("📁 Fetching categories with params:", params);
+      const response = await API.get("/categories", { params });
+      
+      if (response.success && response.categories) {
+        const processedCategories = response.categories.map(category => 
+          processCategoryImage(category)
+        );
+        
+        return {
+          ...response,
+          categories: processedCategories
+        };
+      }
+      
+      return response;
+    } catch (error) {
+      console.error("❌ Error fetching categories:", error);
+      return {
+        success: false,
+        message: error.message || "Failed to fetch categories",
+        categories: []
+      };
+    }
+  },
+
+  // Alias for getAllCategories (for backward compatibility)
+  getAll: async (params = {}) => {
+    return categoryAPI.getAllCategories(params);
+  },
+
+  getCategoryById: async (id) => {
+    try {
+      console.log(`📁 Fetching category ${id}`);
+      const response = await API.get(`/categories/${id}`);
+      
+      if (response.success && response.category) {
+        response.category = processCategoryImage(response.category);
+      }
+      
+      return response;
+    } catch (error) {
+      console.error(`❌ Error fetching category ${id}:`, error);
+      return {
+        success: false,
+        message: error.message || "Failed to fetch category",
+        category: null
+      };
+    }
+  },
+
+  // FIXED: createCategory with proper FormData handling
+  createCategory: async (categoryData) => {
+    try {
+      console.log("➕ Creating category:", categoryData);
+      
+      // Prepare form data
+      const formData = new FormData();
+      
+      // Add all text fields
+      formData.append('name', categoryData.name || '');
+      formData.append('description', categoryData.description || '');
+      formData.append('seoTitle', categoryData.seoTitle || '');
+      formData.append('seoDescription', categoryData.seoDescription || '');
+      formData.append('seoKeywords', categoryData.seoKeywords || '');
+      formData.append('order', categoryData.order?.toString() || '0');
+      formData.append('isActive', categoryData.isActive?.toString() || 'true');
+      
+      if (categoryData.parentCategory) {
+        formData.append('parentCategory', categoryData.parentCategory);
+      }
+      
+      // Add image file if provided
+      if (categoryData.image instanceof File) {
+        formData.append('image', categoryData.image);
+      } else if (typeof categoryData.image === 'string' && categoryData.image.trim() !== '') {
+        // If image is a string URL, we need to handle it differently
+        // For now, we'll just send it as a string
+        formData.append('imageUrl', categoryData.image);
+      }
+      
+      // Log FormData contents for debugging
+      console.log("📤 FormData contents:");
+      for (let [key, value] of formData.entries()) {
+        console.log(`${key}:`, value instanceof File ? `${value.name} (File)` : value);
+      }
+      
+      const response = await API.post("/categories", formData, {
+        // Don't set Content-Type header - let browser set it
+      });
+      
+      console.log("✅ Create category response:", response);
+      
+      if (response.success && response.category) {
+        response.category = processCategoryImage(response.category);
+      }
+      
+      return response;
+    } catch (error) {
+      console.error("❌ Error creating category:", error);
+      return {
+        success: false,
+        message: error.message || "Failed to create category",
+        category: null,
+        error: error
+      };
+    }
+  },
+
+  // FIXED: updateCategory with proper FormData handling
+  updateCategory: async (id, categoryData) => {
+    try {
+      console.log(`✏️ Updating category ${id}:`, categoryData);
+      
+      // Prepare form data
+      const formData = new FormData();
+      
+      // Add all text fields
+      formData.append('name', categoryData.name || '');
+      formData.append('description', categoryData.description || '');
+      formData.append('seoTitle', categoryData.seoTitle || '');
+      formData.append('seoDescription', categoryData.seoDescription || '');
+      formData.append('seoKeywords', categoryData.seoKeywords || '');
+      formData.append('order', categoryData.order?.toString() || '0');
+      formData.append('isActive', categoryData.isActive?.toString() || 'true');
+      
+      if (categoryData.parentCategory) {
+        formData.append('parentCategory', categoryData.parentCategory);
+      } else {
+        formData.append('parentCategory', ''); // Send empty to clear parent
+      }
+      
+      // Handle image
+      if (categoryData.image instanceof File) {
+        // New image file
+        formData.append('image', categoryData.image);
+      } else if (categoryData.image === '' || categoryData.image === null) {
+        // Empty string means remove image
+        formData.append('image', '');
+      } else if (typeof categoryData.image === 'string' && categoryData.image.trim() !== '') {
+        // Existing image URL, we might not need to send it
+        // But let's send it as imageUrl for reference
+        formData.append('imageUrl', categoryData.image);
+      }
+      
+      // Log FormData contents for debugging
+      console.log("📤 FormData contents for update:");
+      for (let [key, value] of formData.entries()) {
+        console.log(`${key}:`, value instanceof File ? `${value.name} (File)` : value);
+      }
+      
+      const response = await API.put(`/categories/${id}`, formData, {
+        // Don't set Content-Type header - let browser set it
+      });
+      
+      console.log("✅ Update category response:", response);
+      
+      if (response.success && response.category) {
+        response.category = processCategoryImage(response.category);
+      }
+      
+      return response;
+    } catch (error) {
+      console.error(`❌ Error updating category ${id}:`, error);
+      console.error("Error details:", error.response?.data);
+      return {
+        success: false,
+        message: error.message || "Failed to update category",
+        category: null,
+        error: error
+      };
+    }
+  },
+
+  deleteCategory: async (id) => {
+    try {
+      console.log(`🗑️ Deleting category ${id}`);
+      const response = await API.delete(`/categories/${id}`);
+      return response;
+    } catch (error) {
+      console.error(`❌ Error deleting category ${id}:`, error);
+      return {
+        success: false,
+        message: error.message || "Failed to delete category"
+      };
+    }
+  },
+
+  updateCategoryProductCounts: async () => {
+    try {
+      console.log("🔄 Updating category product counts...");
+      const response = await API.post("/admin/categories/update-counts");
+      return response;
+    } catch (error) {
+      console.error("❌ Error updating category product counts:", error);
+      return {
+        success: false,
+        message: error.message || "Failed to update category product counts"
+      };
+    }
+  },
+
+  // Utility function to get image URL
+  getImageUrl: getImageUrl,
+};
+
+// ========== PRODUCT API - WITH IMAGE FIXES ==========
 export const productAPI = {
+  // Main product fetching methods
   getAllProducts: async (params = {}) => {
     try {
       console.log("📦 Fetching products with params:", params);
       const response = await API.get("/products", { params });
       
       if (response.success && response.products) {
-        const processedProducts = response.products.map(product => ({
-          ...product,
-          images: product.images?.map(img => getImageUrl(img, "products")) || []
-        }));
+        const processedProducts = response.products.map(product => 
+          processProductImages(product)
+        );
         
         return {
           ...response,
@@ -388,16 +670,18 @@ export const productAPI = {
     }
   },
 
+  // Alias for getAllProducts (for backward compatibility)
+  getAll: async (params = {}) => {
+    return productAPI.getAllProducts(params);
+  },
+
   getProductById: async (id) => {
     try {
       console.log(`📦 Fetching product ${id}`);
       const response = await API.get(`/products/${id}`);
       
       if (response.success && response.product) {
-        response.product = {
-          ...response.product,
-          images: response.product.images?.map(img => getImageUrl(img, "products")) || []
-        };
+        response.product = processProductImages(response.product);
       }
       
       return response;
@@ -411,6 +695,123 @@ export const productAPI = {
     }
   },
 
+  // FIXED: createProduct with proper FormData handling
+  createProduct: async (productData) => {
+    try {
+      console.log("➕ Creating product:", productData);
+      
+      const formData = new FormData();
+      
+      // Add all text fields
+      Object.keys(productData).forEach(key => {
+        if (productData[key] !== null && productData[key] !== undefined) {
+          if (key === 'images' && Array.isArray(productData.images)) {
+            // Handle images array
+            productData.images.forEach((image, index) => {
+              if (image instanceof File) {
+                formData.append('images', image);
+              }
+            });
+          } else if (key === 'specifications' && typeof productData[key] === 'object') {
+            formData.append(key, JSON.stringify(productData[key]));
+          } else if (typeof productData[key] === 'string' && productData[key].trim() !== '') {
+            formData.append(key, productData[key]);
+          } else if (typeof productData[key] === 'number') {
+            formData.append(key, productData[key].toString());
+          } else if (typeof productData[key] === 'boolean') {
+            formData.append(key, productData[key].toString());
+          }
+        }
+      });
+      
+      const response = await API.post("/admin/products", formData, {
+        // Don't set Content-Type header - let browser set it
+      });
+      
+      if (response.success && response.product) {
+        response.product = processProductImages(response.product);
+      }
+      
+      return response;
+    } catch (error) {
+      console.error("❌ Error creating product:", error);
+      return {
+        success: false,
+        message: error.message || "Failed to create product",
+        product: null,
+        error: error
+      };
+    }
+  },
+
+  // FIXED: updateProduct with proper FormData handling
+  updateProduct: async (id, productData) => {
+    try {
+      console.log(`✏️ Updating product ${id}:`, productData);
+      
+      const formData = new FormData();
+      
+      // Add all fields
+      Object.keys(productData).forEach(key => {
+        if (productData[key] !== null && productData[key] !== undefined) {
+          if (key === 'newImages' && Array.isArray(productData[key])) {
+            // Add new image files
+            productData[key].forEach((image, index) => {
+              if (image instanceof File) {
+                formData.append('images', image);
+              }
+            });
+          } else if (key === 'images' && Array.isArray(productData[key])) {
+            // Handle existing images as JSON
+            formData.append('images', JSON.stringify(productData[key]));
+          } else if (key === 'removeImages' && Array.isArray(productData[key])) {
+            formData.append('removeImages', JSON.stringify(productData[key]));
+          } else if (key === 'specifications' && typeof productData[key] === 'object') {
+            formData.append(key, JSON.stringify(productData[key]));
+          } else if (typeof productData[key] === 'string' && productData[key].trim() !== '') {
+            formData.append(key, productData[key]);
+          } else if (typeof productData[key] === 'number') {
+            formData.append(key, productData[key].toString());
+          } else if (typeof productData[key] === 'boolean') {
+            formData.append(key, productData[key].toString());
+          }
+        }
+      });
+      
+      const response = await API.put(`/admin/products/${id}`, formData, {
+        // Don't set Content-Type header - let browser set it
+      });
+      
+      if (response.success && response.product) {
+        response.product = processProductImages(response.product);
+      }
+      
+      return response;
+    } catch (error) {
+      console.error(`❌ Error updating product ${id}:`, error);
+      return {
+        success: false,
+        message: error.message || "Failed to update product",
+        product: null,
+        error: error
+      };
+    }
+  },
+
+  deleteProduct: async (id) => {
+    try {
+      console.log(`🗑️ Deleting product ${id}`);
+      const response = await API.delete(`/admin/products/${id}`);
+      return response;
+    } catch (error) {
+      console.error(`❌ Error deleting product ${id}:`, error);
+      return {
+        success: false,
+        message: error.message || "Failed to delete product"
+      };
+    }
+  },
+
   searchProducts: async (query, params = {}) => {
     try {
       const response = await API.get("/products", {
@@ -418,10 +819,9 @@ export const productAPI = {
       });
       
       if (response.success && response.products) {
-        response.products = response.products.map(product => ({
-          ...product,
-          images: product.images?.map(img => getImageUrl(img, "products")) || []
-        }));
+        response.products = response.products.map(product => 
+          processProductImages(product)
+        );
       }
       
       return response;
@@ -443,10 +843,9 @@ export const productAPI = {
       });
       
       if (response.success && response.products) {
-        response.products = response.products.map(product => ({
-          ...product,
-          images: product.images?.map(img => getImageUrl(img, "products")) || []
-        }));
+        response.products = response.products.map(product => 
+          processProductImages(product)
+        );
       }
       
       return response;
@@ -461,285 +860,16 @@ export const productAPI = {
     }
   },
 
-  getFeaturedProducts: async (params = {}) => {
-    try {
-      const response = await API.get("/products", {
-        params: { featured: true, ...params }
-      });
-      
-      if (response.success && response.products) {
-        response.products = response.products.map(product => ({
-          ...product,
-          images: product.images?.map(img => getImageUrl(img, "products")) || []
-        }));
-      }
-      
-      return response;
-    } catch (error) {
-      console.error("❌ Error fetching featured products:", error);
-      return {
-        success: false,
-        message: error.message || "Failed to fetch featured products",
-        products: []
-      };
-    }
-  },
-
-  getProductsInStock: async (params = {}) => {
-    try {
-      const response = await API.get("/products", {
-        params: { inStock: true, ...params }
-      });
-      
-      if (response.success && response.products) {
-        response.products = response.products.map(product => ({
-          ...product,
-          images: product.images?.map(img => getImageUrl(img, "products")) || []
-        }));
-      }
-      
-      return response;
-    } catch (error) {
-      console.error("❌ Error fetching products in stock:", error);
-      return {
-        success: false,
-        message: error.message || "Failed to fetch products in stock",
-        products: []
-      };
-    }
-  },
-
-  getProductsByPriceRange: async (minPrice, maxPrice, params = {}) => {
-    try {
-      const response = await API.get("/products", {
-        params: { minPrice, maxPrice, ...params }
-      });
-      
-      if (response.success && response.products) {
-        response.products = response.products.map(product => ({
-          ...product,
-          images: product.images?.map(img => getImageUrl(img, "products")) || []
-        }));
-      }
-      
-      return response;
-    } catch (error) {
-      console.error("❌ Error fetching products by price range:", error);
-      return {
-        success: false,
-        message: error.message || "Failed to fetch products by price range",
-        products: []
-      };
-    }
-  },
-
-  getAllProductsForAdmin: async (params = {}) => {
-    try {
-      console.log("👑 Fetching admin products with params:", params);
-      const response = await API.get("/admin/products", { params });
-      
-      if (response.success && response.products) {
-        const processedProducts = response.products.map(product => ({
-          ...product,
-          images: product.images?.map(img => getImageUrl(img, "products")) || []
-        }));
-        
-        return {
-          ...response,
-          products: processedProducts
-        };
-      }
-      
-      return response;
-    } catch (error) {
-      console.error("❌ Error fetching admin products:", error);
-      return {
-        success: false,
-        message: error.message || "Failed to fetch admin products",
-        products: [],
-        total: 0,
-        totalPages: 0
-      };
-    }
-  },
-
-  createProduct: async (productData) => {
-    try {
-      console.log("➕ Creating product:", productData);
-      
-      const formData = new FormData();
-      
-      Object.keys(productData).forEach(key => {
-        if (productData[key] !== null && productData[key] !== undefined) {
-          if (key === 'images' && Array.isArray(productData.images)) {
-            productData.images.forEach((image, index) => {
-              if (image instanceof File) {
-                formData.append('images', image);
-              } else if (typeof image === 'string') {
-                formData.append('images', image);
-              }
-            });
-          } else if (key === 'specifications' && typeof productData[key] === 'object') {
-            formData.append(key, JSON.stringify(productData[key]));
-          } else if (key === 'category' && productData[key] === '') {
-            formData.append(key, '');
-          } else {
-            formData.append(key, productData[key]);
-          }
-        }
-      });
-      
-      const response = await API.post("/admin/products", formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-      
-      if (response.success && response.product) {
-        response.product = {
-          ...response.product,
-          images: response.product.images?.map(img => getImageUrl(img, "products")) || []
-        };
-      }
-      
-      return response;
-    } catch (error) {
-      console.error("❌ Error creating product:", error);
-      return {
-        success: false,
-        message: error.message || "Failed to create product",
-        product: null
-      };
-    }
-  },
-
-  updateProduct: async (id, productData) => {
-    try {
-      console.log(`✏️ Updating product ${id}:`, productData);
-      
-      const formData = new FormData();
-      
-      Object.keys(productData).forEach(key => {
-        if (productData[key] !== null && productData[key] !== undefined) {
-          if (key === 'images' && Array.isArray(productData.images)) {
-            const imagesJSON = JSON.stringify(productData.images);
-            formData.append('images', imagesJSON);
-          } else if (key === 'removeImages' && Array.isArray(productData[key])) {
-            formData.append('removeImages', JSON.stringify(productData[key]));
-          } else if (key === 'specifications' && typeof productData[key] === 'object') {
-            formData.append(key, JSON.stringify(productData[key]));
-          } else if (key === 'category' && productData[key] === '') {
-            formData.append(key, '');
-          } else {
-            formData.append(key, productData[key]);
-          }
-        }
-      });
-      
-      if (productData.newImages && Array.isArray(productData.newImages)) {
-        productData.newImages.forEach(image => {
-          if (image instanceof File) {
-            formData.append('imageFiles', image);
-          }
-        });
-      }
-      
-      const response = await API.put(`/admin/products/${id}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-      
-      if (response.success && response.product) {
-        response.product = {
-          ...response.product,
-          images: response.product.images?.map(img => getImageUrl(img, "products")) || []
-        };
-      }
-      
-      return response;
-    } catch (error) {
-      console.error(`❌ Error updating product ${id}:`, error);
-      return {
-        success: false,
-        message: error.message || "Failed to update product",
-        product: null
-      };
-    }
-  },
-
-  deleteProduct: async (id) => {
-    try {
-      console.log(`🗑️ Deleting product ${id}`);
-      const response = await API.delete(`/admin/products/${id}`);
-      return response;
-    } catch (error) {
-      console.error(`❌ Error deleting product ${id}:`, error);
-      return {
-        success: false,
-        message: error.message || "Failed to delete product"
-      };
-    }
-  },
-
-  hardDeleteProduct: async (id) => {
-    try {
-      console.log(`💀 Hard deleting product ${id}`);
-      const response = await API.delete(`/admin/products/${id}/hard`);
-      return response;
-    } catch (error) {
-      console.error(`❌ Error hard deleting product ${id}:`, error);
-      return {
-        success: false,
-        message: error.message || "Failed to hard delete product"
-      };
-    }
-  },
-
-  toggleProductStatus: async (id) => {
-    try {
-      console.log(`🔄 Toggling status for product ${id}`);
-      const productResponse = await API.get(`/admin/products/${id}`);
-      
-      if (productResponse.success && productResponse.product) {
-        const newStatus = !productResponse.product.isActive;
-        
-        const updateResponse = await API.put(`/admin/products/${id}`, {
-          isActive: newStatus
-        });
-        
-        return updateResponse;
-      }
-      
-      return productResponse;
-    } catch (error) {
-      console.error(`❌ Error toggling product status ${id}:`, error);
-      return {
-        success: false,
-        message: error.message || "Failed to toggle product status"
-      };
-    }
-  },
-
-  updateProductStock: async (id, stock) => {
-    try {
-      console.log(`📊 Updating stock for product ${id} to ${stock}`);
-      const response = await API.put(`/admin/products/${id}`, {
-        stock: parseInt(stock)
-      });
-      return response;
-    } catch (error) {
-      console.error(`❌ Error updating stock for product ${id}:`, error);
-      return {
-        success: false,
-        message: error.message || "Failed to update product stock"
-      };
-    }
-  },
-
   uploadProductImage: async (imageFile, productId = null) => {
     try {
       console.log(`📸 Uploading product image${productId ? ` for product ${productId}` : ''}`);
+      
+      if (!imageFile) {
+        return {
+          success: false,
+          message: "No image file provided"
+        };
+      }
       
       const formData = new FormData();
       formData.append('image', imageFile);
@@ -747,11 +877,7 @@ export const productAPI = {
         formData.append('productId', productId);
       }
       
-      const response = await API.post("/upload", formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
+      const response = await API.post("/upload", formData);
       
       return response;
     } catch (error) {
@@ -763,242 +889,6 @@ export const productAPI = {
       };
     }
   },
-
-  uploadBase64Image: async (base64Data, type = "product") => {
-    try {
-      console.log(`📸 Uploading base64 ${type} image`);
-      
-      const response = await API.post("/upload/base64", {
-        image: base64Data,
-        type: type
-      });
-      
-      return response;
-    } catch (error) {
-      console.error(`❌ Error uploading base64 ${type} image:`, error);
-      return {
-        success: false,
-        message: error.message || "Failed to upload base64 image",
-        image: null
-      };
-    }
-  },
-
-  deleteProductImage: async (productId, imageUrlOrIndex) => {
-    try {
-      console.log(`🗑️ Deleting image from product ${productId}:`, imageUrlOrIndex);
-      
-      const productResponse = await API.get(`/admin/products/${productId}`);
-      
-      if (!productResponse.success) {
-        return productResponse;
-      }
-      
-      const product = productResponse.product;
-      let updatedImages = [...(product.images || [])];
-      
-      if (typeof imageUrlOrIndex === 'number') {
-        if (imageUrlOrIndex >= 0 && imageUrlOrIndex < updatedImages.length) {
-          const removedImage = updatedImages[imageUrlOrIndex];
-          updatedImages.splice(imageUrlOrIndex, 1);
-          
-          const filename = removedImage.split('/').pop();
-          
-          const updateResponse = await API.put(`/admin/products/${productId}`, {
-            images: updatedImages,
-            removeImages: [filename]
-          });
-          
-          return updateResponse;
-        } else {
-          return {
-            success: false,
-            message: "Invalid image index"
-          };
-        }
-      } else {
-        const filename = imageUrlOrIndex.split('/').pop();
-        updatedImages = updatedImages.filter(img => {
-          const imgFilename = img.split('/').pop();
-          return imgFilename !== filename;
-        });
-        
-        const updateResponse = await API.put(`/admin/products/${productId}`, {
-          images: updatedImages,
-          removeImages: [filename]
-        });
-        
-        return updateResponse;
-      }
-    } catch (error) {
-      console.error(`❌ Error deleting product image ${productId}:`, error);
-      return {
-        success: false,
-        message: error.message || "Failed to delete product image"
-      };
-    }
-  }
-};
-
-// ========== CATEGORY API ==========
-export const categoryAPI = {
-  getAllCategories: async (params = {}) => {
-    try {
-      console.log("📁 Fetching categories with params:", params);
-      const response = await API.get("/categories", { params });
-      
-      if (response.success && response.categories) {
-        const processedCategories = response.categories.map(category => ({
-          ...category,
-          image: getImageUrl(category.image, "categories")
-        }));
-        
-        return {
-          ...response,
-          categories: processedCategories
-        };
-      }
-      
-      return response;
-    } catch (error) {
-      console.error("❌ Error fetching categories:", error);
-      return {
-        success: false,
-        message: error.message || "Failed to fetch categories",
-        categories: []
-      };
-    }
-  },
-
-  getCategoryById: async (id) => {
-    try {
-      console.log(`📁 Fetching category ${id}`);
-      const response = await API.get(`/categories/${id}`);
-      
-      if (response.success && response.category) {
-        response.category = {
-          ...response.category,
-          image: getImageUrl(response.category.image, "categories")
-        };
-      }
-      
-      return response;
-    } catch (error) {
-      console.error(`❌ Error fetching category ${id}:`, error);
-      return {
-        success: false,
-        message: error.message || "Failed to fetch category",
-        category: null
-      };
-    }
-  },
-
-  createCategory: async (categoryData) => {
-    try {
-      console.log("➕ Creating category:", categoryData);
-      
-      const formData = new FormData();
-      Object.keys(categoryData).forEach(key => {
-        if (categoryData[key] !== null && categoryData[key] !== undefined) {
-          if (key === 'image' && categoryData[key] instanceof File) {
-            formData.append('image', categoryData[key]);
-          } else {
-            formData.append(key, categoryData[key]);
-          }
-        }
-      });
-      
-      const response = await API.post("/categories", formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-      
-      if (response.success && response.category) {
-        response.category = {
-          ...response.category,
-          image: getImageUrl(response.category.image, "categories")
-        };
-      }
-      
-      return response;
-    } catch (error) {
-      console.error("❌ Error creating category:", error);
-      return {
-        success: false,
-        message: error.message || "Failed to create category",
-        category: null
-      };
-    }
-  },
-
-  updateCategory: async (id, categoryData) => {
-    try {
-      console.log(`✏️ Updating category ${id}:`, categoryData);
-      
-      const formData = new FormData();
-      Object.keys(categoryData).forEach(key => {
-        if (categoryData[key] !== null && categoryData[key] !== undefined) {
-          if (key === 'image' && categoryData[key] instanceof File) {
-            formData.append('image', categoryData[key]);
-          } else {
-            formData.append(key, categoryData[key]);
-          }
-        }
-      });
-      
-      const response = await API.put(`/categories/${id}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-      
-      if (response.success && response.category) {
-        response.category = {
-          ...response.category,
-          image: getImageUrl(response.category.image, "categories")
-        };
-      }
-      
-      return response;
-    } catch (error) {
-      console.error(`❌ Error updating category ${id}:`, error);
-      return {
-        success: false,
-        message: error.message || "Failed to update category",
-        category: null
-      };
-    }
-  },
-
-  deleteCategory: async (id) => {
-    try {
-      console.log(`🗑️ Deleting category ${id}`);
-      const response = await API.delete(`/categories/${id}`);
-      return response;
-    } catch (error) {
-      console.error(`❌ Error deleting category ${id}:`, error);
-      return {
-        success: false,
-        message: error.message || "Failed to delete category"
-      };
-    }
-  },
-
-  // ADDED THIS FUNCTION: Update category product counts
-  updateCategoryProductCounts: async () => {
-    try {
-      console.log("🔄 Updating category product counts...");
-      const response = await API.post("/admin/categories/update-counts");
-      return response;
-    } catch (error) {
-      console.error("❌ Error updating category product counts:", error);
-      return {
-        success: false,
-        message: error.message || "Failed to update category product counts"
-      };
-    }
-  }
 };
 
 // ========== AUTH API ==========
@@ -1154,30 +1044,58 @@ export const cartAPI = {
 export const dashboardAPI = {
   getOverviewStats: async () => {
     try {
-      const productStats = await productAPI.getProductStats();
+      // Get product stats
+      const productsResponse = await productAPI.getAllProducts({ limit: 1 });
+      const totalProducts = productsResponse.total || 0;
       
-      const orderStats = {
-        totalOrders: 0,
-        pendingOrders: 0,
-        completedOrders: 0,
-        cancelledOrders: 0,
-        totalRevenue: 0
-      };
+      // Get low stock products
+      const lowStockResponse = await productAPI.getAllProducts({ 
+        inStock: true,
+        maxStock: 10 // Assuming low stock is less than 10
+      });
+      const lowStockProducts = lowStockResponse.products?.length || 0;
       
+      // Get featured products
+      const featuredResponse = await productAPI.getFeaturedProducts({ limit: 1 });
+      const featuredProducts = featuredResponse.products?.length || 0;
+      
+      // Get category stats
       const categoryResponse = await categoryAPI.getAllCategories();
-      const categoryStats = {
-        totalCategories: categoryResponse.categories?.length || 0,
-        activeCategories: categoryResponse.categories?.filter(c => c.isActive).length || 0
-      };
+      const totalCategories = categoryResponse.categories?.length || 0;
+      
+      // Calculate total value (simplified - would need actual price * stock)
+      const allProducts = await productAPI.getAllProducts({ limit: 1000 });
+      let totalValue = 0;
+      if (allProducts.products) {
+        totalValue = allProducts.products.reduce((sum, product) => {
+          const price = product.discountedPrice || product.price || 0;
+          const stock = product.stock || 0;
+          return sum + (price * stock);
+        }, 0);
+      }
       
       return {
         success: true,
         stats: {
-          products: productStats.stats || {},
-          orders: orderStats,
-          categories: categoryStats,
-          totalValue: productStats.stats?.totalValue || 0,
-          lowStockAlerts: productStats.stats?.lowStockProducts || 0
+          products: {
+            total: totalProducts,
+            inStock: totalProducts - (lowStockProducts || 0),
+            lowStock: lowStockProducts,
+            featured: featuredProducts
+          },
+          orders: {
+            totalOrders: 0,
+            pendingOrders: 0,
+            completedOrders: 0,
+            cancelledOrders: 0,
+            totalRevenue: 0
+          },
+          categories: {
+            total: totalCategories,
+            active: categoryResponse.categories?.filter(c => c.isActive).length || 0
+          },
+          totalValue: totalValue,
+          lowStockAlerts: lowStockProducts
         }
       };
     } catch (error) {
@@ -1191,6 +1109,117 @@ export const dashboardAPI = {
   }
 };
 
+// ========== PRICE FORMATTING ==========
+export const formatPrice = (price, currency = "PHP") => {
+  try {
+    if (price === null || price === undefined) {
+      return `₱0.00`;
+    }
+    
+    const priceNum = Number(price);
+    
+    if (isNaN(priceNum)) {
+      return `₱0.00`;
+    }
+    
+    if (currency === "PHP") {
+      return `₱${priceNum.toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`;
+    }
+    
+    try {
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: currency,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(priceNum);
+    } catch (intlError) {
+      return `${currency} ${priceNum.toFixed(2)}`;
+    }
+  } catch (error) {
+    console.error("Error formatting price:", error);
+    return `₱0.00`;
+  }
+};
+
+export const calculateDiscountPercentage = (price, discountedPrice) => {
+  if (!price || !discountedPrice || discountedPrice >= price) return 0;
+  return Math.round(((price - discountedPrice) / price) * 100);
+};
+
+export const getFinalPrice = (price, discountedPrice) => {
+  if (!price) return 0;
+  return discountedPrice && discountedPrice < price ? discountedPrice : price;
+};
+
+// ========== CONNECTION TESTING UTILITY ==========
+export const testApiConnection = async () => {
+  console.log("🔍 Testing API connection...");
+  
+  const endpointsToTest = [
+    validatedApiUrl.replace('/api', ''),
+    validatedApiUrl,
+    `${validatedApiUrl.replace('/api', '')}/health`,
+    "https://federalpartsphilippines-backend.onrender.com",
+    "https://federalpartsphilippines-backend.onrender.com/api",
+  ];
+
+  const results = [];
+
+  for (const endpoint of endpointsToTest) {
+    try {
+      console.log(`🔄 Testing: ${endpoint}`);
+      const response = await axios.get(endpoint, {
+        timeout: 10000,
+        headers: {
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      console.log(`✅ Connected to: ${endpoint}`);
+      results.push({
+        endpoint,
+        success: true,
+        status: response.status,
+        data: response.data
+      });
+      
+      return {
+        success: true,
+        connected: true,
+        message: `Connected to ${endpoint}`,
+        endpoint,
+        data: response.data,
+        allResults: results
+      };
+    } catch (error) {
+      console.log(`❌ Failed: ${endpoint} - ${error.message}`);
+      results.push({
+        endpoint,
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
+  return {
+    success: false,
+    connected: false,
+    message: "Cannot connect to any API endpoint",
+    allResults: results,
+    suggestions: [
+      "1. Check if backend server is running on Render",
+      "2. Verify CORS is configured on backend",
+      "3. Check network connectivity",
+      `4. Backend URL should be: https://federalpartsphilippines-backend.onrender.com`
+    ]
+  };
+};
+
 // ========== MAIN API SERVICE OBJECT ==========
 const apiService = {
   API,
@@ -1202,28 +1231,49 @@ const apiService = {
   dashboardAPI,
   
   getImageUrl,
-  getFullImageUrl,
+  getSafeImageUrl,
+  getFullImageUrl: getImageUrl,
   formatPrice,
   calculateDiscountPercentage,
   getFinalPrice,
+  uploadImage,
   
   testApiConnection,
   
   API_BASE_URL: validatedApiUrl,
   IMAGE_BASE_URL: IMAGE_BASE_URL || "https://federalpartsphilippines-backend.onrender.com",
   
+  // Product API aliases
   getProducts: productAPI.getAllProducts,
   getProduct: productAPI.getProductById,
   createProduct: productAPI.createProduct,
   updateProduct: productAPI.updateProduct,
   deleteProduct: productAPI.deleteProduct,
   
+  // Category API aliases
   getCategories: categoryAPI.getAllCategories,
   getCategory: categoryAPI.getCategoryById,
   createCategory: categoryAPI.createCategory,
   updateCategory: categoryAPI.updateCategory,
   deleteCategory: categoryAPI.deleteCategory,
-  updateCategoryProductCounts: categoryAPI.updateCategoryProductCounts, // ADDED THIS
+  updateCategoryProductCounts: categoryAPI.updateCategoryProductCounts,
+  
+  // Auth API aliases
+  login: authAPI.login,
+  register: authAPI.register,
+  logout: authAPI.logout,
+  getCurrentUser: authAPI.getCurrentUser,
+  
+  // Cart API aliases
+  getCart: cartAPI.getCart,
+  addToCart: cartAPI.addToCart,
+  updateCartItem: cartAPI.updateCartItem,
+  removeFromCart: cartAPI.removeFromCart,
+  clearCart: cartAPI.clearCart,
+  getCartCount: cartAPI.getCartCount,
+  
+  // Dashboard API aliases
+  getDashboardStats: dashboardAPI.getOverviewStats,
   
   checkConnection: async () => {
     try {
@@ -1260,21 +1310,25 @@ const apiService = {
   
   uploadFile: async (file, endpoint = "/upload", fieldName = "image") => {
     try {
+      if (!file) {
+        return {
+          success: false,
+          message: "No file provided"
+        };
+      }
+      
       const formData = new FormData();
       formData.append(fieldName, file);
       
-      const response = await API.post(endpoint, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
+      const response = await API.post(endpoint, formData);
       
       return response;
     } catch (error) {
       console.error("❌ Error uploading file:", error);
       return {
         success: false,
-        message: error.message || "Failed to upload file"
+        message: error.message || "Failed to upload file",
+        error: error
       };
     }
   },
