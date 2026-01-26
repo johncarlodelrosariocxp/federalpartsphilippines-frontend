@@ -78,9 +78,9 @@ const About = () => {
           <div className="order-2 lg:order-1">
             <div className="relative">
               <img
-                src="https://images.unsplash.com/photo-1580281657523-ef004bc5fd7e?w=800&h=600&fit=crop"
-                alt="Indonesia-Philippines business partnership"
-                className="rounded-2xl shadow-2xl border border-gray-800"
+                src="/newbanner/Gemini_Generated_Image_66pbb466pbb466pb.png"
+                alt="Indonesia-Philippines business partnership showcasing motorcycle parts collaboration"
+                className="rounded-2xl shadow-2xl border border-gray-800 w-full h-auto object-cover"
               />
               <div className="absolute inset-0 rounded-2xl bg-gradient-to-t from-black/40 to-transparent" />
               {/* Flags Badge - Cleaner design */}
@@ -157,7 +157,6 @@ const About = () => {
                 className="bg-gray-900 rounded-xl p-6 hover:shadow-2xl transition-all duration-300 border border-gray-800 hover:border-green-500/30"
               >
                 <div className="flex items-center gap-4 mb-4">
-                  
                   <h3 className="font-bold text-lg text-white">
                     {benefit.title}
                   </h3>
@@ -180,7 +179,6 @@ const About = () => {
                 className="bg-gray-900 rounded-xl p-6 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 border border-gray-800 hover:border-blue-500/30"
               >
                 <div className="flex items-center gap-4 mb-4">
-                  
                   <h3 className="font-bold text-lg text-white">
                     {value.title}
                   </h3>
@@ -215,7 +213,6 @@ const About = () => {
             {/* Location Details */}
             <div className="bg-gray-900 rounded-2xl p-8 border border-gray-800">
               <div className="flex items-center gap-3 mb-6">
-               
                 <div>
                   <h3 className="font-bebas text-2xl text-white">
                     Bulacan Warehouse

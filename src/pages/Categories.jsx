@@ -929,7 +929,7 @@ const Categories = () => {
             </div>
             <div>
               <h3 className="text-lg font-bold text-white">Motorcycles of {activeCategory.name}</h3>
-              <p className="text-sm text-gray-400">Click any sub-category to view products</p>
+              <p className="text-sm text-gray-400">Click any motorcycle to view products</p>
             </div>
           </div>
           

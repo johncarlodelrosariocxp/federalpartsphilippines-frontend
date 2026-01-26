@@ -1,7 +1,7 @@
-// src/pages/admin/Products.js - COMPLETE WORKING VERSION WITH IMAGE FIXES
+// src/pages/admin/Products.js - COMPLETE FIXED VERSION
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { productAPI, categoryAPI, getImageUrl } from "../../services/api";
+import { productAPI, categoryAPI } from "../../services/api";
 import {
   Search,
   Plus,
@@ -59,7 +59,6 @@ const AdminProducts = () => {
   const [sortOrder, setSortOrder] = useState("desc");
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState("table");
-  const [imageErrors, setImageErrors] = useState({});
 
   // Simple fallback image
   const createFallbackImage = () => {
@@ -92,10 +91,13 @@ const AdminProducts = () => {
     products,
   ]);
 
-  // SIMPLIFIED: Direct image URL construction
+  // Get image URL - SIMPLIFIED
   const getProductImageUrl = (imagePath) => {
     // If no image path, return fallback
-    if (!imagePath || imagePath === "undefined" || imagePath === "null" || imagePath.trim() === "") {
+    if (!imagePath || 
+        imagePath === "undefined" || 
+        imagePath === "null" || 
+        imagePath.trim() === "") {
       return fallbackImageUrl;
     }
 
@@ -109,13 +111,7 @@ const AdminProducts = () => {
       return imagePath;
     }
 
-    // If it's a relative path starting with /uploads
-    if (imagePath.startsWith("/uploads/")) {
-      const baseUrl = "https://federalpartsphilippines-backend.onrender.com";
-      return `${baseUrl}${imagePath}`;
-    }
-
-    // If it's just a filename
+    // If it's a filename, construct URL
     const baseUrl = "https://federalpartsphilippines-backend.onrender.com";
     return `${baseUrl}/uploads/products/${imagePath}`;
   };
@@ -144,82 +140,57 @@ const AdminProducts = () => {
   };
 
   // Handle image loading errors
-  const handleImageError = (e, productId) => {
-    console.log(`Image failed to load for product ${productId}, using fallback`);
+  const handleImageError = (e) => {
     e.target.src = fallbackImageUrl;
-    e.target.onerror = null; // Prevent infinite loop
+    e.target.onerror = null;
   };
 
-  // Fetch products with simple error handling
+  // Fetch products
   const fetchProducts = async () => {
     try {
       setLoading(true);
       setError("");
 
-      // Use getAllProducts
       const response = await productAPI.getAllProducts({
         page: 1,
         limit: 100,
       });
 
-      console.log("API Response:", response);
+      console.log("Products API Response:", response);
 
       let productsData = [];
 
-      if (response) {
-        // Handle different response structures
-        if (Array.isArray(response)) {
-          productsData = response;
-        } else if (response.success && Array.isArray(response.data)) {
-          productsData = response.data;
-        } else if (Array.isArray(response.data)) {
-          productsData = response.data;
-        } else if (Array.isArray(response.products)) {
-          productsData = response.products;
-        }
+      if (response?.success && response.products) {
+        productsData = response.products;
+      } else if (Array.isArray(response)) {
+        productsData = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        productsData = response.data;
+      }
 
-        if (Array.isArray(productsData)) {
-          // Process images for each product
-          const processedProducts = productsData.map(product => {
-            // Ensure images array exists and filter invalid paths
-            if (!Array.isArray(product.images)) {
-              product.images = [];
-            }
-            
-            // Filter out invalid image paths
-            product.images = product.images.filter(img => 
-              img && img.trim() !== "" && img !== "undefined" && img !== "null"
-            );
-            
-            // Log image info for debugging
-            console.log(`Product ${product.name}:`, {
-              hasImages: product.images.length > 0,
-              imagePaths: product.images,
-              firstImageUrl: product.images.length > 0 ? getProductImageUrl(product.images[0]) : 'No images'
-            });
-            
-            return product;
-          });
-          
-          setProducts(processedProducts);
-          setFilteredProducts(processedProducts);
-          console.log(`Loaded ${processedProducts.length} products`);
-        } else {
-          console.error("API response is not an array:", response);
-          setError("Failed to load products. Invalid response format.");
-          setProducts([]);
-          setFilteredProducts([]);
-        }
+      if (Array.isArray(productsData)) {
+        // Process products to ensure images are properly formatted
+        const processedProducts = productsData.map(product => ({
+          ...product,
+          images: Array.isArray(product.images) 
+            ? product.images.filter(img => img && img.trim() !== "")
+            : [],
+          stock: product.stock || 0,
+          price: product.price || 0,
+          isActive: product.isActive !== undefined ? product.isActive : true,
+          featured: product.featured || false
+        }));
+
+        setProducts(processedProducts);
+        console.log(`Loaded ${processedProducts.length} products`);
       } else {
-        setError("Failed to load products. No response from server.");
+        setError("Failed to load products. Invalid response format.");
         setProducts([]);
-        setFilteredProducts([]);
       }
     } catch (err) {
       console.error("Error fetching products:", err);
       setError(`Error loading products: ${err.message}`);
       setProducts([]);
-      setFilteredProducts([]);
     } finally {
       setLoading(false);
     }
@@ -230,27 +201,18 @@ const AdminProducts = () => {
       const response = await categoryAPI.getAll();
       let categoriesData = [];
 
-      if (response) {
-        if (Array.isArray(response)) {
-          categoriesData = response;
-        } else if (response.success && Array.isArray(response.data)) {
-          categoriesData = response.data;
-        } else if (Array.isArray(response.data)) {
-          categoriesData = response.data;
-        } else if (Array.isArray(response.categories)) {
-          categoriesData = response.categories;
-        }
+      if (response?.success && response.categories) {
+        categoriesData = response.categories;
+      } else if (Array.isArray(response)) {
+        categoriesData = response;
+      }
 
-        if (Array.isArray(categoriesData)) {
-          const activeCategories = categoriesData.filter((cat) => cat.isActive);
-          setCategories([
-            { _id: "all", name: "All Categories" },
-            ...activeCategories,
-          ]);
-        } else {
-          console.warn("Categories data is not an array");
-          setCategories([{ _id: "all", name: "All Categories" }]);
-        }
+      if (Array.isArray(categoriesData)) {
+        const activeCategories = categoriesData.filter((cat) => cat.isActive);
+        setCategories([
+          { _id: "all", name: "All Categories" },
+          ...activeCategories,
+        ]);
       }
     } catch (err) {
       console.error("Error fetching categories:", err);
@@ -309,8 +271,7 @@ const AdminProducts = () => {
           (product.name && product.name.toLowerCase().includes(term)) ||
           (product.description &&
             product.description.toLowerCase().includes(term)) ||
-          (product.sku && product.sku.toLowerCase().includes(term)) ||
-          (product.brand && product.brand.toLowerCase().includes(term))
+          (product.sku && product.sku.toLowerCase().includes(term))
       );
     }
 
@@ -412,7 +373,7 @@ const AdminProducts = () => {
 
       const response = await productAPI.deleteProduct(id);
 
-      if (response?.success || response?.deleted) {
+      if (response?.success) {
         setProducts(products.filter((product) => product._id !== id));
         setSuccess("Product deleted successfully!");
         setTimeout(() => setSuccess(""), 3000);
@@ -572,7 +533,7 @@ const AdminProducts = () => {
         featured: !product.featured,
       });
 
-      if (response?.success || response?.updated) {
+      if (response?.success) {
         setProducts(
           products.map((product) =>
             product._id === id
@@ -610,7 +571,7 @@ const AdminProducts = () => {
         isActive: !product.isActive,
       });
 
-      if (response?.success || response?.updated) {
+      if (response?.success) {
         setProducts(
           products.map((product) =>
             product._id === id
@@ -645,9 +606,7 @@ const AdminProducts = () => {
         "SKU",
         "Category",
         "Price",
-        "Discounted Price",
         "Stock",
-        "Brand",
         "Status",
         "Featured",
         "Created At"
@@ -659,9 +618,7 @@ const AdminProducts = () => {
         product.sku || '',
         product.category?.name || '',
         product.price || 0,
-        product.discountedPrice || '',
         product.stock || 0,
-        product.brand || '',
         product.isActive ? 'Active' : 'Inactive',
         product.featured ? 'Yes' : 'No',
         product.createdAt || ''
@@ -693,7 +650,6 @@ const AdminProducts = () => {
 
   const handleRefresh = () => {
     fetchProducts();
-    setImageErrors({});
   };
 
   const handleSort = (field) => {
@@ -713,7 +669,7 @@ const AdminProducts = () => {
   const formatPrice = (price) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "USD",
+      currency: "PHP",
       minimumFractionDigits: 2,
     }).format(price || 0);
   };
@@ -906,7 +862,7 @@ const AdminProducts = () => {
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search by name, SKU, brand, or description..."
+                  placeholder="Search by name, SKU, or description..."
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
@@ -1224,7 +1180,7 @@ const AdminProducts = () => {
                               src={getFirstProductImage(product)}
                               alt={product.name}
                               className="w-14 h-14 object-cover"
-                              onError={(e) => handleImageError(e, product._id)}
+                              onError={handleImageError}
                             />
                           </div>
                           <div className="min-w-0">
@@ -1241,12 +1197,6 @@ const AdminProducts = () => {
                             </div>
                             <div className="flex items-center gap-3 mt-1 text-sm text-gray-500">
                               <span>SKU: {product.sku || "N/A"}</span>
-                              {product.brand && (
-                                <>
-                                  <span className="text-gray-300">•</span>
-                                  <span>{product.brand}</span>
-                                </>
-                              )}
                             </div>
                             <div className="text-xs text-gray-400 mt-1">
                               Created: {formatDate(product.createdAt)}
@@ -1264,17 +1214,6 @@ const AdminProducts = () => {
                           <span className="font-bold text-gray-900 text-lg">
                             {formatPrice(product.price)}
                           </span>
-                          {product.discountedPrice &&
-                            product.discountedPrice < product.price && (
-                              <>
-                                <span className="text-sm text-green-600 font-bold">
-                                  {formatPrice(product.discountedPrice)}
-                                </span>
-                                <span className="text-xs text-red-600 line-through">
-                                  {formatPrice(product.price)}
-                                </span>
-                              </>
-                            )}
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -1406,7 +1345,7 @@ const AdminProducts = () => {
                         src={getFirstProductImage(product)}
                         alt={product.name}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        onError={(e) => handleImageError(e, product._id)}
+                        onError={handleImageError}
                       />
                       {/* Badges */}
                       <div className="absolute top-3 left-3 flex flex-col gap-2">
@@ -1479,19 +1418,8 @@ const AdminProducts = () => {
                       <div className="mt-4">
                         <div className="flex items-center gap-2">
                           <span className="text-2xl font-bold text-gray-900">
-                            {formatPrice(
-                              product.discountedPrice &&
-                                product.discountedPrice < product.price
-                                ? product.discountedPrice
-                                : product.price
-                            )}
+                            {formatPrice(product.price)}
                           </span>
-                          {product.discountedPrice &&
-                            product.discountedPrice < product.price && (
-                              <span className="text-sm text-red-600 line-through">
-                                {formatPrice(product.price)}
-                              </span>
-                            )}
                         </div>
                       </div>
 

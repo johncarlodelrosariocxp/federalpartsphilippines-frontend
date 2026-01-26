@@ -41,26 +41,9 @@ const Home = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
-  // Get API base URL - FIXED VERSION
+  // Get API base URL
   const getApiBaseUrl = () => {
-    let baseUrl = import.meta.env.VITE_API_URL || "https://federalpartsphilippines-backend.onrender.com";
-    
-    // Clean the URL
-    baseUrl = baseUrl.trim();
-    baseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash
-    
-    // If URL already ends with /api, remove it (we'll add it back later)
-    if (baseUrl.endsWith('/api')) {
-      baseUrl = baseUrl.slice(0, -4); // Remove '/api'
-    }
-    
-    return baseUrl;
-  };
-
-  // Get API endpoint for categories
-  const getCategoriesEndpoint = () => {
-    const baseUrl = getApiBaseUrl();
-    return `${baseUrl}/api/categories`;
+    return "https://federalpartsphilippines-backend.onrender.com";
   };
 
   // Fetch categories on component mount
@@ -88,82 +71,79 @@ const Home = () => {
     try {
       setCategoriesLoading(true);
       setApiStatus("pending");
-      console.log("Fetching categories...");
+      console.log("🔄 Fetching categories...");
 
       let categoriesData = [];
-      const categoriesEndpoint = getCategoriesEndpoint();
       
-      console.log("Fetching from:", categoriesEndpoint);
-
       try {
-        // Try direct fetch first
-        const response = await fetch(categoriesEndpoint, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-          mode: 'cors',
-        });
-
-        console.log("Response status:", response.status);
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("Response error:", errorText);
-          throw new Error(`HTTP ${response.status}: ${errorText}`);
-        }
-
-        const data = await response.json();
-        console.log("API Response data:", data);
-
-        // Parse different response formats
-        if (data?.success && data.data) {
-          categoriesData = data.data;
-        } else if (data?.data && Array.isArray(data.data)) {
-          categoriesData = data.data;
-        } else if (data?.categories && Array.isArray(data.categories)) {
-          categoriesData = data.categories;
-        } else if (Array.isArray(data)) {
-          categoriesData = data;
-        } else if (data?.success === false) {
-          throw new Error(data.message || "API returned error");
+        // Use the categoryAPI service
+        console.log("📡 Using categoryAPI service...");
+        const response = await categoryAPI.getAll();
+        console.log("📥 categoryAPI response:", response);
+        
+        // Handle different response formats
+        if (response?.success && response.data) {
+          categoriesData = response.data;
+        } else if (response?.success && response.categories) {
+          categoriesData = response.categories;
+        } else if (response?.data && Array.isArray(response.data)) {
+          categoriesData = response.data;
+        } else if (response?.categories && Array.isArray(response.categories)) {
+          categoriesData = response.categories;
+        } else if (Array.isArray(response)) {
+          categoriesData = response;
         } else {
-          console.warn("Unexpected response format:", data);
-          categoriesData = [];
+          console.warn("Unexpected response format:", response);
+          // Try direct fetch as fallback
+          throw new Error("Invalid response from categoryAPI");
         }
-
+        
         setApiStatus("success");
         setUsingFallback(false);
         
-      } catch (fetchError) {
-        console.error("Direct fetch failed:", fetchError);
+      } catch (apiError) {
+        console.error("❌ categoryAPI failed:", apiError);
         
-        // Try using categoryAPI service as fallback
+        // Try direct fetch as fallback
         try {
-          console.log("Trying categoryAPI service...");
-          const response = await categoryAPI.getAll();
-          console.log("categoryAPI response:", response);
-          
-          if (response?.success && response.data) {
-            categoriesData = response.data;
-          } else if (response?.data && Array.isArray(response.data)) {
-            categoriesData = response.data;
-          } else if (Array.isArray(response)) {
-            categoriesData = response;
-          } else {
-            throw new Error("Invalid response from categoryAPI");
+          console.log("🔄 Trying direct fetch as fallback...");
+          const API_BASE_URL = getApiBaseUrl();
+          const response = await fetch(`${API_BASE_URL}/api/categories`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            mode: 'cors',
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          const data = await response.json();
+          console.log("📥 Direct fetch response:", data);
+
+          if (data?.success && data.data) {
+            categoriesData = data.data;
+          } else if (data?.data && Array.isArray(data.data)) {
+            categoriesData = data.data;
+          } else if (data?.categories && Array.isArray(data.categories)) {
+            categoriesData = data.categories;
+          } else if (Array.isArray(data)) {
+            categoriesData = data;
           }
           
           setApiStatus("success");
-          setUsingFallback(false);
-        } catch (apiError) {
-          console.error("categoryAPI also failed:", apiError);
+          setUsingFallback(true);
+          
+        } catch (fetchError) {
+          console.error("❌ Direct fetch also failed:", fetchError);
           throw new Error("All API methods failed");
         }
       }
 
-      console.log("Processed categories data:", categoriesData);
+      console.log("✅ Processed categories data:", categoriesData);
 
       // Process categories
       const processedCategories = categoriesData
@@ -205,21 +185,21 @@ const Home = () => {
           };
         });
 
-      console.log("Final processed categories:", processedCategories);
+      console.log("✅ Final processed categories:", processedCategories);
       setCategories(processedCategories);
       
       if (processedCategories.length > 0) {
-        toast.success(`Loaded ${processedCategories.length} categories`);
+        toast.success(`✅ Loaded ${processedCategories.length} categories`);
       } else {
-        toast.info("No categories found");
+        toast.info("ℹ️ No categories found");
       }
     } catch (error) {
-      console.error("Error in fetchCategories:", error);
+      console.error("❌ Error in fetchCategories:", error);
       
       // Show error and let user retry
       setApiStatus("error");
       setUsingFallback(false);
-      toast.error(`Failed to load categories: ${error.message}`);
+      toast.error(`❌ Failed to load categories: ${error.message}`);
     } finally {
       setCategoriesLoading(false);
     }
@@ -240,106 +220,174 @@ const Home = () => {
     // Fetch products for each category
     for (const category of categories) {
       try {
-        console.log(`Fetching products for category: ${category.name}`);
+        console.log(`🔄 Fetching products for category: ${category.name} (ID: ${category._id})`);
         
         let products = [];
         
-        // Try to fetch products from API
+        // Try multiple methods to fetch products
         try {
+          // Method 1: Use productAPI with category ID
+          console.log(`📡 Method 1: Using productAPI.getProductsByCategory with ID: ${category._id}`);
           const response = await productAPI.getProductsByCategory(category._id);
-          console.log(`Products response for ${category.name}:`, response);
+          console.log(`📥 Products response for ${category.name}:`, response);
           
           // Parse different response formats
           if (response?.success && response.products) {
             products = response.products;
+          } else if (response?.success && response.data) {
+            products = response.data;
           } else if (response?.data && Array.isArray(response.data)) {
             products = response.data;
           } else if (Array.isArray(response)) {
             products = response;
-          } else if (response?.success && response.data?.products) {
-            products = response.data.products;
-          } else {
-            console.warn(`No products found for category ${category.name}`);
-            products = [];
+          } else if (response?.products) {
+            products = response.products;
           }
-        } catch (error) {
-          console.error(`API error for category ${category.name}:`, error);
-          products = [];
+          
+          console.log(`✅ Method 1 found ${products.length} products for ${category.name}`);
+          
+          // If no products found with ID, try with slug
+          if (products.length === 0 && category.slug) {
+            console.log(`📡 Method 1a: Trying with slug: ${category.slug}`);
+            try {
+              const slugResponse = await productAPI.getProductsByCategory(category.slug);
+              if (slugResponse?.success && slugResponse.products) {
+                products = slugResponse.products;
+                console.log(`✅ Method 1a found ${products.length} products using slug`);
+              }
+            } catch (slugError) {
+              console.log(`❌ Method 1a failed:`, slugError);
+            }
+          }
+        } catch (apiError) {
+          console.error(`❌ API error for category ${category.name}:`, apiError);
+          
+          // Method 2: Try direct fetch with multiple endpoints
+          try {
+            const API_BASE_URL = getApiBaseUrl();
+            console.log(`📡 Method 2: Trying direct fetch for ${category.name}`);
+            
+            // Try different endpoint formats
+            const endpoints = [
+              `${API_BASE_URL}/api/products?category=${category._id}`,
+              `${API_BASE_URL}/api/products?categoryId=${category._id}`,
+              `${API_BASE_URL}/api/products?category=${category.slug}`,
+              `${API_BASE_URL}/api/categories/${category._id}/products`,
+              `${API_BASE_URL}/api/categories/${category.slug}/products`
+            ];
+            
+            for (const endpoint of endpoints) {
+              try {
+                console.log(`🔄 Trying endpoint: ${endpoint}`);
+                const response = await fetch(endpoint, {
+                  method: 'GET',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                  },
+                  mode: 'cors',
+                });
+                
+                if (response.ok) {
+                  const data = await response.json();
+                  console.log(`📥 Direct fetch response from ${endpoint}:`, data);
+                  
+                  if (data?.products) {
+                    products = data.products;
+                    console.log(`✅ Found ${products.length} products from ${endpoint}`);
+                    break;
+                  } else if (data?.data) {
+                    products = data.data;
+                    console.log(`✅ Found ${products.length} products from ${endpoint}`);
+                    break;
+                  } else if (Array.isArray(data)) {
+                    products = data;
+                    console.log(`✅ Found ${products.length} products from ${endpoint}`);
+                    break;
+                  }
+                }
+              } catch (endpointError) {
+                console.log(`❌ Endpoint ${endpoint} failed:`, endpointError.message);
+                continue;
+              }
+            }
+          } catch (directError) {
+            console.error(`❌ Direct fetch also failed:`, directError);
+          }
         }
 
-        // Process products - DYNAMIC: Only process if products exist
+        // Process products
         const processedProducts = products.map(product => {
-          // Get the main image - handle multiple formats
+          // Get the main image
           let mainImage = "";
           
           if (product.images && Array.isArray(product.images) && product.images.length > 0) {
-            // If images array exists and has items
             mainImage = product.images[0];
           } else if (product.image) {
-            // If single image field exists
             mainImage = product.image;
           } else if (product.imageUrl) {
-            // If imageUrl field exists
             mainImage = product.imageUrl;
           } else if (product.thumbnail) {
-            // If thumbnail field exists
             mainImage = product.thumbnail;
           }
           
-          // Convert relative path to absolute URL if needed
+          // Convert to absolute URL if needed
           let finalImageUrl = mainImage;
           if (mainImage && !mainImage.startsWith("http") && !mainImage.startsWith("data:")) {
-            if (mainImage.startsWith("/")) {
-              const API_BASE_URL = getApiBaseUrl();
-              // Remove any double slashes
-              const cleanPath = mainImage.replace(/^\/+/, '');
-              finalImageUrl = `${API_BASE_URL}/${cleanPath}`;
+            const API_BASE_URL = getApiBaseUrl();
+            if (mainImage.startsWith("/uploads/")) {
+              finalImageUrl = `${API_BASE_URL}${mainImage}`;
+            } else if (mainImage.startsWith("/")) {
+              finalImageUrl = `${API_BASE_URL}${mainImage}`;
             } else {
-              const API_BASE_URL = getApiBaseUrl();
               finalImageUrl = `${API_BASE_URL}/uploads/products/${mainImage}`;
             }
           }
           
-          // Fallback if no image
+          // Fallback image
           if (!finalImageUrl || finalImageUrl.trim() === '') {
             finalImageUrl = "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop";
           }
           
+          // Ensure product has required fields
           return {
-            ...product,
+            _id: product._id || product.id || `prod-${Math.random().toString(36).substr(2, 9)}`,
+            name: product.name || "Unnamed Product",
+            description: product.description || "No description available",
             price: product.price || 0,
             discountedPrice: product.discountedPrice || product.discountPrice || null,
             rating: product.rating || product.averageRating || 4.0,
             reviewCount: product.reviewCount || product.reviews || 0,
             stock: product.stock || product.quantity || Math.floor(Math.random() * 50) + 1,
-            images: [finalImageUrl], // Always ensure images array has at least one valid URL
-            image: finalImageUrl, // Also set single image field
-            category: product.category || { name: category.name }
+            images: [finalImageUrl],
+            image: finalImageUrl,
+            category: product.category || { name: category.name, _id: category._id }
           };
         });
 
-        // DYNAMIC: Only set products if API returns them
+        // Store products
         if (processedProducts.length > 0) {
           newCategoryProducts[category._id] = processedProducts;
-          console.log(`Loaded ${processedProducts.length} real products for ${category.name}`);
+          console.log(`✅ Loaded ${processedProducts.length} products for ${category.name}`);
         } else {
-          newCategoryProducts[category._id] = []; // Empty array if no products
-          console.log(`No real products found for ${category.name}`);
+          newCategoryProducts[category._id] = [];
+          console.log(`⚠️ No products found for ${category.name}`);
         }
         
         newLoadingProducts[category._id] = false;
         
       } catch (error) {
-        console.error(`Error processing category ${category.name}:`, error);
-        // DYNAMIC: Don't create mock products, just set empty array
+        console.error(`❌ Error processing category ${category.name}:`, error);
         newCategoryProducts[category._id] = [];
         newLoadingProducts[category._id] = false;
       }
     }
 
-    // Update state once
+    // Update state
     setCategoryProducts(newCategoryProducts);
     setLoadingProducts(newLoadingProducts);
+    
+    console.log("✅ Updated categoryProducts:", newCategoryProducts);
   };
 
   // Helper function to get appropriate icon based on category name
@@ -357,26 +405,24 @@ const Home = () => {
     return FolderTree;
   };
 
-  // Helper function to get appropriate image based on category - FIXED VERSION
+  // Helper function to get appropriate image based on category
   const getCategoryImage = (category) => {
-    // If category has image property and it's a valid string
+    // If category has image property
     if (category?.image && typeof category.image === 'string' && category.image.trim() !== '') {
-      // Check if it's already a full URL
+      // If it's already a full URL
       if (category.image.startsWith("http")) {
         return category.image;
       }
       
-      // If it's a relative path that starts with /
-      if (category.image.startsWith("/")) {
-        const API_BASE_URL = getApiBaseUrl();
-        // Remove any double slashes
-        const cleanPath = category.image.replace(/^\/+/, '');
-        return `${API_BASE_URL}/${cleanPath}`;
-      }
-      
-      // If it's just a filename, construct the full URL
+      // If it's a relative path
       const API_BASE_URL = getApiBaseUrl();
-      return `${API_BASE_URL}/uploads/categories/${category.image}`;
+      if (category.image.startsWith("/uploads/")) {
+        return `${API_BASE_URL}${category.image}`;
+      } else if (category.image.startsWith("/")) {
+        return `${API_BASE_URL}${category.image}`;
+      } else {
+        return `${API_BASE_URL}/uploads/categories/${category.image}`;
+      }
     }
 
     // If category has imageUrl property
@@ -386,9 +432,7 @@ const Home = () => {
       }
       
       const API_BASE_URL = getApiBaseUrl();
-      // Remove any double slashes
-      const cleanPath = category.imageUrl.replace(/^\/+/, '');
-      return `${API_BASE_URL}/${cleanPath}`;
+      return `${API_BASE_URL}${category.imageUrl.startsWith("/") ? "" : "/"}${category.imageUrl}`;
     }
 
     // Fallback to Unsplash image based on category name
@@ -401,7 +445,6 @@ const Home = () => {
     if (name.includes("accessory") || name.includes("tool")) return "https://images.unsplash.com/photo-1580261450035-4d4f04b7b4c5?w=400&h=250&fit=crop";
     if (name.includes("exhaust")) return "https://images.unsplash.com/photo-1558981806-ec527fa0b4c9?w=400&h=250&fit=crop";
 
-    // Default motorcycle parts image
     return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=250&fit=crop";
   };
 
@@ -444,6 +487,137 @@ const Home = () => {
     if (sectionRefs.current[0]) {
       sectionRefs.current[0].scrollIntoView({ behavior: 'smooth' });
     }
+    
+    // If products for this category haven't been loaded yet, load them now
+    if (!categoryProducts[category._id]) {
+      fetchProductsForCategory(category);
+    }
+  };
+
+  // Fetch products for a specific category on demand
+  const fetchProductsForCategory = async (category) => {
+    if (!category) return;
+    
+    try {
+      console.log(`🔄 Fetching products for clicked category: ${category.name}`);
+      
+      // Set loading state
+      setLoadingProducts(prev => ({
+        ...prev,
+        [category._id]: true
+      }));
+      
+      let products = [];
+      
+      // Try multiple methods to fetch products
+      try {
+        // Method 1: Use productAPI
+        const response = await productAPI.getProductsByCategory(category._id);
+        
+        if (response?.success && response.products) {
+          products = response.products;
+        } else if (response?.success && response.data) {
+          products = response.data;
+        } else if (response?.data && Array.isArray(response.data)) {
+          products = response.data;
+        } else if (Array.isArray(response)) {
+          products = response;
+        }
+      } catch (apiError) {
+        console.error(`❌ API error:`, apiError);
+        
+        // Method 2: Try direct fetch
+        try {
+          const API_BASE_URL = getApiBaseUrl();
+          const response = await fetch(
+            `${API_BASE_URL}/api/products?category=${category._id}`,
+            {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+              },
+              mode: 'cors',
+            }
+          );
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data?.products) {
+              products = data.products;
+            } else if (data?.data) {
+              products = data.data;
+            }
+          }
+        } catch (fetchError) {
+          console.error(`❌ Direct fetch error:`, fetchError);
+        }
+      }
+
+      // Process products
+      const processedProducts = products.map(product => {
+        // Get the main image
+        let mainImage = "";
+        
+        if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+          mainImage = product.images[0];
+        } else if (product.image) {
+          mainImage = product.image;
+        } else if (product.imageUrl) {
+          mainImage = product.imageUrl;
+        }
+        
+        // Convert to absolute URL if needed
+        let finalImageUrl = mainImage;
+        if (mainImage && !mainImage.startsWith("http") && !mainImage.startsWith("data:")) {
+          const API_BASE_URL = getApiBaseUrl();
+          if (mainImage.startsWith("/uploads/")) {
+            finalImageUrl = `${API_BASE_URL}${mainImage}`;
+          } else if (mainImage.startsWith("/")) {
+            finalImageUrl = `${API_BASE_URL}${mainImage}`;
+          } else {
+            finalImageUrl = `${API_BASE_URL}/uploads/products/${mainImage}`;
+          }
+        }
+        
+        // Fallback image
+        if (!finalImageUrl || finalImageUrl.trim() === '') {
+          finalImageUrl = "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop";
+        }
+        
+        return {
+          _id: product._id || product.id || `prod-${Math.random().toString(36).substr(2, 9)}`,
+          name: product.name || "Unnamed Product",
+          description: product.description || "No description available",
+          price: product.price || 0,
+          discountedPrice: product.discountedPrice || product.discountPrice || null,
+          rating: product.rating || product.averageRating || 4.0,
+          reviewCount: product.reviewCount || product.reviews || 0,
+          stock: product.stock || product.quantity || Math.floor(Math.random() * 50) + 1,
+          images: [finalImageUrl],
+          image: finalImageUrl,
+          category: product.category || { name: category.name, _id: category._id }
+        };
+      });
+
+      // Update category products
+      setCategoryProducts(prev => ({
+        ...prev,
+        [category._id]: processedProducts
+      }));
+      
+      console.log(`✅ Loaded ${processedProducts.length} products for ${category.name}`);
+      
+    } catch (error) {
+      console.error(`❌ Error fetching products for ${category.name}:`, error);
+      toast.error(`Failed to load products for ${category.name}`);
+    } finally {
+      // Clear loading state
+      setLoadingProducts(prev => ({
+        ...prev,
+        [category._id]: false
+      }));
+    }
   };
 
   // Clear selected category
@@ -455,7 +629,6 @@ const Home = () => {
   const getProductsForSelectedCategory = () => {
     if (!selectedCategory) return [];
     
-    // Check if we have cached products for this category
     if (categoryProducts[selectedCategory._id]) {
       return categoryProducts[selectedCategory._id];
     }
@@ -484,7 +657,7 @@ const Home = () => {
     }
   };
 
-  // Product Card Component - ONLY RENDERS IF PRODUCT EXISTS
+  // Product Card Component
   const ProductCard = ({ product }) => {
     const [isWishlisted, setIsWishlisted] = useState(false);
     const [imageError, setImageError] = useState(false);
@@ -497,13 +670,12 @@ const Home = () => {
       ? Math.round(((product.price - product.discountedPrice) / product.price) * 100)
       : 0;
     
-    // Get product image with proper URL handling - FIXED VERSION
+    // Get product image
     const getProductImage = () => {
       if (imageError) {
         return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop";
       }
       
-      // Check multiple image sources
       const mainImage = product.images?.[0] || product.image || product.imageUrl || product.thumbnail;
       
       if (!mainImage) {
@@ -516,16 +688,14 @@ const Home = () => {
       }
       
       // If it's a relative path
-      if (mainImage.startsWith("/")) {
-        const API_BASE_URL = getApiBaseUrl();
-        // Remove any double slashes
-        const cleanPath = mainImage.replace(/^\/+/, '');
-        return `${API_BASE_URL}/${cleanPath}`;
-      }
-      
-      // If it's just a filename
       const API_BASE_URL = getApiBaseUrl();
-      return `${API_BASE_URL}/uploads/products/${mainImage}`;
+      if (mainImage.startsWith("/uploads/")) {
+        return `${API_BASE_URL}${mainImage}`;
+      } else if (mainImage.startsWith("/")) {
+        return `${API_BASE_URL}${mainImage}`;
+      } else {
+        return `${API_BASE_URL}/uploads/products/${mainImage}`;
+      }
     };
 
     const handleImageError = () => {
@@ -658,7 +828,7 @@ const Home = () => {
     );
   };
 
-  // List View Product Card Component - ONLY RENDERS IF PRODUCT EXISTS
+  // List View Product Card Component
   const ListProductCard = ({ product }) => {
     const [isWishlisted, setIsWishlisted] = useState(false);
     const [imageError, setImageError] = useState(false);
@@ -671,35 +841,30 @@ const Home = () => {
       ? Math.round(((product.price - product.discountedPrice) / product.price) * 100)
       : 0;
     
-    // Get product image with proper URL handling - FIXED VERSION
+    // Get product image
     const getProductImage = () => {
       if (imageError) {
         return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop";
       }
       
-      // Check multiple image sources
       const mainImage = product.images?.[0] || product.image || product.imageUrl || product.thumbnail;
       
       if (!mainImage) {
         return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop";
       }
       
-      // If it's already a full URL or data URL
       if (mainImage.startsWith("http") || mainImage.startsWith("data:")) {
         return mainImage;
       }
       
-      // If it's a relative path
-      if (mainImage.startsWith("/")) {
-        const API_BASE_URL = getApiBaseUrl();
-        // Remove any double slashes
-        const cleanPath = mainImage.replace(/^\/+/, '');
-        return `${API_BASE_URL}/${cleanPath}`;
-      }
-      
-      // If it's just a filename
       const API_BASE_URL = getApiBaseUrl();
-      return `${API_BASE_URL}/uploads/products/${mainImage}`;
+      if (mainImage.startsWith("/uploads/")) {
+        return `${API_BASE_URL}${mainImage}`;
+      } else if (mainImage.startsWith("/")) {
+        return `${API_BASE_URL}${mainImage}`;
+      } else {
+        return `${API_BASE_URL}/uploads/products/${mainImage}`;
+      }
     };
 
     const handleImageError = () => {
@@ -852,7 +1017,7 @@ const Home = () => {
     </svg>
   );
 
-  // New Compact Category Card Component - FIXED WITH CLICK HANDLER
+  // Compact Category Card Component
   const CategoryCard = ({ category, index }) => {
     const [imgError, setImgError] = useState(false);
 
@@ -860,10 +1025,9 @@ const Home = () => {
       setImgError(true);
     };
 
-    // Get final image URL - FIXED VERSION
+    // Get final image URL
     const getFinalImageUrl = () => {
       if (imgError) {
-        // Use fallback image based on category name
         const name = (category.title || "").toLowerCase();
         if (name.includes("engine")) return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=250&fit=crop";
         if (name.includes("brake")) return "https://images.unsplash.com/photo-1558981806-ec527fa0b4c9?w=400&h=250&fit=crop";
@@ -873,27 +1037,21 @@ const Home = () => {
         return "https://images.unsplash.com/photo-1580261450035-4d4f04b7b4c5?w=400&h=250&fit=crop";
       }
       
-      // Use the image from category data
       if (category.image && category.image.trim() !== '') {
-        // If it's already a full URL, return it
         if (category.image.startsWith("http")) {
           return category.image;
         }
         
-        // If it's a relative path
-        if (category.image.startsWith("/")) {
-          const API_BASE_URL = getApiBaseUrl();
-          // Remove any double slashes
-          const cleanPath = category.image.replace(/^\/+/, '');
-          return `${API_BASE_URL}/${cleanPath}`;
-        }
-        
-        // If it's just a filename
         const API_BASE_URL = getApiBaseUrl();
-        return `${API_BASE_URL}/uploads/categories/${category.image}`;
+        if (category.image.startsWith("/uploads/")) {
+          return `${API_BASE_URL}${category.image}`;
+        } else if (category.image.startsWith("/")) {
+          return `${API_BASE_URL}${category.image}`;
+        } else {
+          return `${API_BASE_URL}/uploads/categories/${category.image}`;
+        }
       }
       
-      // Fallback to category-based image
       const name = (category.title || "").toLowerCase();
       if (name.includes("engine")) return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=250&fit=crop";
       if (name.includes("brake")) return "https://images.unsplash.com/photo-1558981806-ec527fa0b4c9?w=400&h=250&fit=crop";
@@ -912,7 +1070,7 @@ const Home = () => {
           onClick={() => handleCategoryClick(category)}
           className="w-full bg-gradient-to-b from-gray-900 to-gray-950 rounded-xl overflow-hidden shadow-lg border border-gray-800 hover:border-red-500 transition-all duration-300 hover:shadow-xl group cursor-pointer h-64 flex flex-col"
         >
-          {/* Simple Image Container - Takes most of the space */}
+          {/* Simple Image Container */}
           <div className="relative h-48 overflow-hidden flex-1">
             <img
               src={getFinalImageUrl()}
@@ -922,7 +1080,7 @@ const Home = () => {
               onError={handleImageError}
             />
             
-            {/* Category Name Overlay - Small at bottom */}
+            {/* Category Name Overlay */}
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent p-3">
               <div className="text-center">
                 <h3 className="text-sm font-semibold text-white truncate">
@@ -935,7 +1093,7 @@ const Home = () => {
             </div>
           </div>
           
-          {/* Simple bottom bar with just the name */}
+          {/* Simple bottom bar */}
           <div className="bg-gray-900 px-3 py-2 flex items-center justify-center border-t border-gray-800">
             <span className="text-xs text-gray-300 truncate">
               {category.title}
@@ -944,11 +1102,6 @@ const Home = () => {
         </button>
       </div>
     );
-  };
-
-  // Get the correct API endpoint for troubleshooting display
-  const getApiEndpoint = () => {
-    return getCategoriesEndpoint();
   };
 
   return (
@@ -1132,7 +1285,7 @@ const Home = () => {
                   )}
                 </div>
 
-                {/* Products Grid/List - DYNAMIC: Only shows if products exist */}
+                {/* Products Grid/List */}
                 {loadingProducts[selectedCategory._id] ? (
                   <div className="text-center py-12">
                     <Loader className="w-8 h-8 animate-spin text-red-500 mx-auto mb-4" />
@@ -1141,19 +1294,19 @@ const Home = () => {
                 ) : getProductsForSelectedCategory().length > 0 ? (
                   categoryView === "grid" ? (
                     <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                      {getProductsForSelectedCategory().map((product) => (
-                        <ProductCard key={product._id || product.id} product={product} />
+                      {getProductsForSelectedCategory().map((product, index) => (
+                        <ProductCard key={product._id || product.id || `product-${index}`} product={product} />
                       ))}
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {getProductsForSelectedCategory().map((product) => (
-                        <ListProductCard key={product._id || product.id} product={product} />
+                      {getProductsForSelectedCategory().map((product, index) => (
+                        <ListProductCard key={product._id || product.id || `product-${index}`} product={product} />
                       ))}
                     </div>
                   )
                 ) : (
-                  /* Empty State for Products - Only shows when NO products exist */
+                  /* Empty State for Products */
                   <div className="text-center py-12">
                     <FolderTree className="w-16 h-16 text-gray-600 mx-auto mb-4" />
                     <h4 className="text-xl font-bold text-white mb-2">No Products Found</h4>
@@ -1164,7 +1317,7 @@ const Home = () => {
                     <div className="flex gap-3 justify-center">
                       <button
                         onClick={() => {
-                          fetchCategoryProducts();
+                          fetchProductsForCategory(selectedCategory);
                           toast.success("Refreshing products...");
                         }}
                         className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center gap-2"
@@ -1182,7 +1335,7 @@ const Home = () => {
                   </div>
                 )}
 
-                {/* Product Count Display - Only shows if products exist */}
+                {/* Product Count Display */}
                 {!loadingProducts[selectedCategory._id] && getProductsForSelectedCategory().length > 0 && (
                   <div className="mt-6 text-center">
                     <p className="text-gray-400 text-sm">
@@ -1191,11 +1344,11 @@ const Home = () => {
                   </div>
                 )}
 
-                {/* View All Button - Only shows if products exist */}
+                {/* View All Button */}
                 {!loadingProducts[selectedCategory._id] && getProductsForSelectedCategory().length > 0 && (
                   <div className="text-center mt-12">
                     <Link
-                      to={`/products?category=${selectedCategory.slug}`}
+                      to={`/products?category=${selectedCategory.slug || selectedCategory._id}`}
                       className="inline-flex items-center gap-3 bg-gradient-to-r from-gray-900 to-black hover:from-gray-800 hover:to-gray-900 text-white px-8 py-4 rounded-xl font-semibold transition-all duration-300 hover:scale-105 border border-gray-800 hover:border-red-500/30 shadow-lg"
                     >
                       <span>View All {selectedCategory.title} Products ({getProductsForSelectedCategory().length})</span>
@@ -1205,7 +1358,7 @@ const Home = () => {
                 )}
               </div>
             ) : (
-              /* Categories Grid View - UPDATED FOR JUST PICTURES */
+              /* Categories Grid View */
               <div>
                 {/* Categories Grid - 8 items visible */}
                 {categoriesLoading ? (
@@ -1231,7 +1384,6 @@ const Home = () => {
                     <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                       <button
                         onClick={() => {
-                          // Reset retry count and retry
                           setRetryCount(0);
                           fetchCategories();
                         }}
@@ -1243,10 +1395,9 @@ const Home = () => {
                       
                       <button
                         onClick={() => {
-                          // Test the endpoint directly
-                          const endpoint = getApiEndpoint();
-                          window.open(endpoint, '_blank');
-                          toast.info(`Opening endpoint in new tab: ${endpoint}`);
+                          const backendUrl = getApiBaseUrl();
+                          window.open(`${backendUrl}/api/categories`, '_blank');
+                          toast.info(`Opening categories endpoint in new tab`);
                         }}
                         className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-all hover:scale-105"
                       >
@@ -1257,21 +1408,14 @@ const Home = () => {
                     <div className="mt-8 p-4 bg-gray-900/50 rounded-lg max-w-lg mx-auto">
                       <h4 className="text-white font-semibold mb-2">Troubleshooting Tips:</h4>
                       <ul className="text-sm text-gray-400 space-y-1">
-                        <li>• Ensure your backend server is running</li>
-                        <li>• Check the API endpoint: <code className="bg-gray-800 px-2 py-1 rounded">{getApiEndpoint()}</code></li>
+                        <li>• Ensure your backend server is running on Render</li>
+                        <li>• Check the API endpoint: <code className="bg-gray-800 px-2 py-1 rounded">https://federalpartsphilippines-backend.onrender.com/api/categories</code></li>
                         <li>• Verify CORS is enabled on the backend</li>
                         <li>• Check browser console for detailed error messages</li>
-                        <li>• Make sure your backend has the /api/categories endpoint</li>
                       </ul>
                       <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded">
                         <p className="text-yellow-500 text-sm">
-                          <strong>Environment Variable:</strong> {import.meta.env.VITE_API_URL || "Not set"}
-                        </p>
-                        <p className="text-yellow-500 text-sm mt-1">
-                          <strong>Calculated Base URL:</strong> {getApiBaseUrl()}
-                        </p>
-                        <p className="text-yellow-500 text-sm mt-1">
-                          <strong>Full Endpoint:</strong> {getApiEndpoint()}
+                          <strong>Backend URL:</strong> {getApiBaseUrl()}
                         </p>
                       </div>
                     </div>

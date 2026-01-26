@@ -285,7 +285,7 @@ const Shop = () => {
 
         <div className="text-center px-2">
           <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-8 md:mb-10 lg:mb-12 mt-4 md:mt-8 bg-gradient-to-r from-white via-blue-100 to-blue-300 bg-clip-text text-transparent">
-            Shop Premium Products
+            Premium Products
           </h1>
           
           {/* Search Bar */}

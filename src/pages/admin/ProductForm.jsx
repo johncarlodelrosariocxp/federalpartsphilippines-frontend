@@ -1,7 +1,7 @@
-// src/pages/admin/ProductForm.jsx - COMPLETE FIXED VERSION WITH IMAGE UPLOAD
+// src/pages/admin/ProductForm.jsx - COMPLETE FIXED VERSION
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { productAPI, categoryAPI } from "../../services/api";
+import { productAPI, categoryAPI, uploadImage } from "../../services/api";
 import {
   Save,
   Upload,
@@ -34,7 +34,7 @@ const ProductForm = () => {
   const [success, setSuccess] = useState("");
   const [formErrors, setFormErrors] = useState({});
   const [imageUploading, setImageUploading] = useState(false);
-  const [imageErrors, setImageErrors] = useState({});
+  const [newImages, setNewImages] = useState([]);
 
   const [product, setProduct] = useState({
     name: "",
@@ -78,29 +78,11 @@ const ProductForm = () => {
   const fetchCategories = async () => {
     try {
       const response = await categoryAPI.getAllCategories({ active: true });
-
-      let categoriesData = [];
-
-      if (response) {
-        if (Array.isArray(response)) {
-          categoriesData = response;
-        } else if (response.success && Array.isArray(response.data)) {
-          categoriesData = response.data;
-        } else if (Array.isArray(response.data)) {
-          categoriesData = response.data;
-        } else if (Array.isArray(response.categories)) {
-          categoriesData = response.categories;
-        }
-
-        if (Array.isArray(categoriesData)) {
-          const activeCategories = categoriesData.filter((cat) =>
-            cat.isActive !== undefined ? cat.isActive : true
-          );
-          setCategories(activeCategories);
-        } else {
-          console.warn("Unexpected categories data format:", response);
-          setCategories([]);
-        }
+      
+      if (response?.success && response.categories) {
+        setCategories(response.categories);
+      } else if (Array.isArray(response)) {
+        setCategories(response);
       }
     } catch (err) {
       console.error("Error fetching categories:", err);
@@ -116,37 +98,15 @@ const ProductForm = () => {
       const response = await productAPI.getProductById(id);
       console.log("Product API Response:", response);
 
-      let productData = {};
-
-      if (response) {
-        if (response.success && response.data) {
-          productData = response.data;
-        } else if (response._id) {
-          productData = response;
-        } else if (response.product) {
-          productData = response.product;
-        } else if (response.data) {
-          productData = response.data;
-        }
-
-        console.log("Product Data:", productData);
-
+      if (response?.success && response.product) {
+        const productData = response.product;
+        
+        // Parse specifications
         const specs = productData.specifications || {};
-        const specArray = Object.keys(specs).map((key) => ({
+        const specArray = Object.entries(specs).map(([key, value]) => ({
           key,
-          value: specs[key],
+          value: String(value)
         }));
-
-        let categoryId = "";
-        if (productData.category) {
-          if (typeof productData.category === "string") {
-            categoryId = productData.category;
-          } else if (productData.category._id) {
-            categoryId = productData.category._id;
-          } else if (productData.category.id) {
-            categoryId = productData.category.id;
-          }
-        }
 
         // Handle images - ensure they're properly formatted
         let productImages = [];
@@ -154,20 +114,18 @@ const ProductForm = () => {
           productImages = productData.images.map((img) => {
             if (typeof img === "string") {
               return img;
-            } else if (img && typeof img === "object") {
-              return img.url || img.path || img.filename || img;
+            } else if (img?.url) {
+              return img.url;
             }
-            return img;
-          }).filter(img => img);
-        } else if (productData.image) {
-          productImages = [productData.image];
+            return String(img);
+          }).filter(img => img && img !== "null" && img !== "undefined");
         }
 
         setProduct({
           name: productData.name || "",
           description: productData.description || "",
-          price: productData.price?.toString() || "",
-          category: categoryId,
+          price: productData.price?.toString() || "0",
+          category: productData.category?._id || productData.category || "",
           images: productImages,
           stock: productData.stock || 0,
           sku: productData.sku || "",
@@ -175,13 +133,12 @@ const ProductForm = () => {
           dimensions: productData.dimensions || "",
           specifications: productData.specifications || {},
           featured: productData.featured || false,
-          isActive:
-            productData.isActive !== undefined ? productData.isActive : true,
+          isActive: productData.isActive !== undefined ? productData.isActive : true,
         });
 
         setSpecifications(specArray);
       } else {
-        throw new Error("No response received from server");
+        setError("Failed to load product: Invalid response");
       }
     } catch (err) {
       console.error("Error fetching product:", err);
@@ -233,9 +190,7 @@ const ProductForm = () => {
         [name]: name === "stock" ? 0 : "",
       });
     } else {
-      const parsedValue = name.includes("price")
-        ? parseFloat(value)
-        : parseInt(value, 10);
+      const parsedValue = parseFloat(value);
       setProduct({
         ...product,
         [name]: isNaN(parsedValue) ? "" : parsedValue,
@@ -312,45 +267,30 @@ const ProductForm = () => {
     try {
       setImageUploading(true);
 
-      // Create local URLs for preview immediately
+      // Create local URLs for preview
       const newImagePreviews = validFiles.map((file) => {
         const localUrl = URL.createObjectURL(file);
         return {
-          url: localUrl,
-          isLocal: true,
-          file: file,
+          file,
+          preview: localUrl,
           name: file.name,
-          isNew: true,
-          base64: null,
+          size: file.size,
         };
       });
 
-      // Convert files to base64 for storage
-      const imagesWithBase64 = await Promise.all(
-        newImagePreviews.map(async (img) => {
-          try {
-            const base64 = await convertFileToBase64(img.file);
-            return {
-              ...img,
-              base64: base64,
-            };
-          } catch (err) {
-            console.error("Error converting file to base64:", err);
-            return img;
-          }
-        })
-      );
+      // Add to new images array (will be uploaded when form is submitted)
+      setNewImages([...newImages, ...newImagePreviews]);
 
-      // Add previews to state
+      // Add previews to product images for display
       setProduct((prev) => ({
         ...prev,
-        images: [...prev.images, ...imagesWithBase64],
+        images: [...prev.images, ...newImagePreviews.map(img => img.preview)],
       }));
 
       setSuccess(
         `Added ${validFiles.length} image${
           validFiles.length > 1 ? "s" : ""
-        } for preview`
+        } for preview. Images will be uploaded when you save.`
       );
 
       setTimeout(() => {
@@ -365,105 +305,68 @@ const ProductForm = () => {
     }
   };
 
-  // Helper function to convert file to base64
-  const convertFileToBase64 = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = (error) => reject(error);
-    });
-  };
-
   const removeImage = (index) => {
-    const image = product.images[index];
-
-    // Clean up blob URL if it's a local image
-    if (
-      image &&
-      typeof image === "object" &&
-      image.isLocal &&
-      image.url &&
-      image.url.startsWith("blob:")
-    ) {
-      URL.revokeObjectURL(image.url);
+    const imageToRemove = product.images[index];
+    
+    // Check if it's a local preview image
+    if (imageToRemove.startsWith('blob:')) {
+      URL.revokeObjectURL(imageToRemove);
+      
+      // Remove from newImages array if it exists there
+      const newImgIndex = newImages.findIndex(img => img.preview === imageToRemove);
+      if (newImgIndex !== -1) {
+        const updatedNewImages = [...newImages];
+        updatedNewImages.splice(newImgIndex, 1);
+        setNewImages(updatedNewImages);
+      }
     }
-
-    // Remove from local state
-    const newImages = [...product.images];
-    newImages.splice(index, 1);
+    
+    // Remove from product images
+    const newImagesArray = [...product.images];
+    newImagesArray.splice(index, 1);
     setProduct({
       ...product,
-      images: newImages,
+      images: newImagesArray,
     });
   };
 
   const reorderImages = (fromIndex, toIndex) => {
-    const newImages = [...product.images];
-    const [removed] = newImages.splice(fromIndex, 1);
-    newImages.splice(toIndex, 0, removed);
+    const newImagesArray = [...product.images];
+    const [removed] = newImagesArray.splice(fromIndex, 1);
+    newImagesArray.splice(toIndex, 0, removed);
     setProduct({
       ...product,
-      images: newImages,
+      images: newImagesArray,
     });
   };
 
-  // Get image display URL
-  const getImageDisplayUrl = (image) => {
-    if (!image) {
-      return fallbackImage;
-    }
+  // Upload all new images and get their URLs
+  const uploadNewImages = async () => {
+    if (newImages.length === 0) return [];
 
-    // Case 1: It's already a valid URL or data URL
-    if (typeof image === "string") {
-      if (
-        image.startsWith("http://") ||
-        image.startsWith("https://") ||
-        image.startsWith("blob:") ||
-        image.startsWith("data:")
-      ) {
-        return image;
-      }
-
-      // For filenames or paths, use the productAPI's image handling
-      return image;
-    }
-
-    // Case 2: It's an object (local image during upload)
-    if (image && typeof image === "object") {
-      if (image.url) {
-        return image.url;
-      }
-      if (image.base64) {
-        return image.base64;
-      }
-      if (image.filename) {
-        return image.filename;
-      }
-      if (image.path) {
-        return image.path;
+    const uploadedImageUrls = [];
+    
+    for (const img of newImages) {
+      try {
+        console.log("Uploading image:", img.name);
+        const uploadResponse = await uploadImage(img.file, "product");
+        
+        if (uploadResponse.success && uploadResponse.image) {
+          // The backend returns the image path/URL
+          const imageUrl = uploadResponse.image.url || uploadResponse.image.path || uploadResponse.image;
+          uploadedImageUrls.push(imageUrl);
+          console.log("Image uploaded successfully:", imageUrl);
+        } else {
+          console.error("Failed to upload image:", uploadResponse.message);
+          throw new Error(`Failed to upload ${img.name}: ${uploadResponse.message}`);
+        }
+      } catch (err) {
+        console.error("Error uploading image:", err);
+        throw new Error(`Failed to upload ${img.name}: ${err.message}`);
       }
     }
-
-    return fallbackImage;
-  };
-
-  const isLocalImage = (image) => {
-    if (!image) return false;
-
-    if (typeof image === "string") {
-      return image.startsWith("blob:") || image.startsWith("data:");
-    }
-
-    if (image && typeof image === "object") {
-      return (
-        image.isLocal === true ||
-        (image.url && image.url.startsWith("blob:")) ||
-        (image.url && image.url.startsWith("data:"))
-      );
-    }
-
-    return false;
+    
+    return uploadedImageUrls;
   };
 
   const handleSubmit = async (e) => {
@@ -488,26 +391,18 @@ const ProductForm = () => {
         }
       });
 
-      // Prepare images - separate local and existing images
-      const localImages = [];
-      const existingImages = [];
+      // Upload new images if any
+      let uploadedImageUrls = [];
+      if (newImages.length > 0) {
+        setSuccess("Uploading images...");
+        uploadedImageUrls = await uploadNewImages();
+      }
 
-      product.images.forEach((img) => {
-        if (isLocalImage(img)) {
-          // This is a new image (either blob URL or base64)
-          if (typeof img === "object" && img.base64) {
-            localImages.push(img.base64);
-          } else if (typeof img === "string" && img.startsWith("data:")) {
-            localImages.push(img);
-          } else if (typeof img === "object" && img.url && img.url.startsWith("blob:")) {
-            // If it's a blob URL but no base64, we need to convert it
-            console.warn("Image has blob URL but no base64 data:", img);
-          }
-        } else {
-          // This is an existing image (filename or URL)
-          existingImages.push(img);
-        }
-      });
+      // Combine existing images (filter out blob URLs) with newly uploaded images
+      const existingImages = product.images.filter(img => 
+        !img.startsWith('blob:') && !img.startsWith('data:')
+      );
+      const allImages = [...existingImages, ...uploadedImageUrls];
 
       // Prepare product data
       const productData = {
@@ -520,6 +415,7 @@ const ProductForm = () => {
         dimensions: product.dimensions.trim() || undefined,
         featured: product.featured,
         isActive: product.isActive,
+        images: allImages,
       };
 
       // Only include category if it's selected
@@ -530,16 +426,6 @@ const ProductForm = () => {
       // Only include specifications if there are any
       if (Object.keys(specs).length > 0) {
         productData.specifications = specs;
-      }
-
-      // Handle images differently for create vs update
-      if (isEditMode) {
-        // For update: combine existing images with new base64 images
-        const allImages = [...existingImages, ...localImages];
-        productData.images = allImages;
-      } else {
-        // For create: only send new images
-        productData.images = localImages;
       }
 
       console.log("Submitting product data:", productData);
@@ -559,6 +445,9 @@ const ProductForm = () => {
             ? "Product updated successfully!"
             : "Product created successfully!"
         );
+
+        // Clear new images array
+        setNewImages([]);
 
         // Navigate after successful save
         setTimeout(() => {
@@ -644,21 +533,16 @@ const ProductForm = () => {
           {/* Images Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-6">
             {product.images.map((img, index) => {
-              const imageUrl = getImageDisplayUrl(img);
-              const isLocal = isLocalImage(img);
-
+              const isLocal = img.startsWith('blob:') || img.startsWith('data:');
+              
               return (
                 <div key={index} className="relative group">
                   <div className="aspect-square w-full overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
                     <img
-                      src={imageUrl}
+                      src={img}
                       alt={`Product ${index + 1}`}
                       className="h-full w-full object-cover"
                       onError={(e) => {
-                        setImageErrors((prev) => ({
-                          ...prev,
-                          [index]: true,
-                        }));
                         e.target.onerror = null;
                         e.target.src = fallbackImage;
                       }}
@@ -701,13 +585,6 @@ const ProductForm = () => {
                       </span>
                     </div>
                   )}
-                  {imageErrors[index] && (
-                    <div className="absolute top-2 right-2">
-                      <span className="px-2 py-1 text-xs bg-red-500 text-white rounded-full">
-                        Error
-                      </span>
-                    </div>
-                  )}
                 </div>
               );
             })}
@@ -743,8 +620,7 @@ const ProductForm = () => {
               • The first image will be used as the main product image
             </p>
             <p>
-              • New images (marked with green "New" badge) will be converted to
-              base64 format and saved with the product
+              • New images (marked with green "New" badge) will be uploaded when you save
             </p>
           </div>
         </div>
