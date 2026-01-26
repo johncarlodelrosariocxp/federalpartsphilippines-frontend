@@ -1,9 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Heart, Star, StarHalf, Eye, Percent } from "lucide-react";
+import { Heart, Star, StarHalf, Eye } from "lucide-react";
 import {
-  formatPrice,
-  calculateDiscountPercentage,
   getImageUrl,
 } from "../services/api";
 
@@ -88,8 +86,6 @@ const ProductCard = ({
     _id,
     name,
     description,
-    price,
-    discountedPrice,
     images,
     category,
     brand,
@@ -99,14 +95,6 @@ const ProductCard = ({
     isFeatured,
     isNew,
   } = product;
-
-  const finalPrice =
-    discountedPrice && discountedPrice < price ? discountedPrice : price;
-  const discountPercentage = calculateDiscountPercentage(
-    price,
-    discountedPrice
-  );
-  const hasDiscount = discountPercentage > 0;
 
   const getRatingStars = (rating) => {
     if (!rating) return null;
@@ -180,11 +168,6 @@ const ProductCard = ({
 
             {/* Badges */}
             <div className="absolute top-2 left-2 flex flex-col gap-1">
-              {hasDiscount && (
-                <span className="px-2 py-1 text-xs font-medium bg-red-600 text-white rounded">
-                  -{discountPercentage}%
-                </span>
-              )}
               {isNew && (
                 <span className="px-2 py-1 text-xs font-medium bg-blue-600 text-white rounded">
                   NEW
@@ -208,17 +191,6 @@ const ProductCard = ({
             </h3>
 
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-lg text-white">
-                  {formatPrice(finalPrice)}
-                </span>
-                {hasDiscount && (
-                  <span className="text-sm text-gray-400 line-through">
-                    {formatPrice(price)}
-                  </span>
-                )}
-              </div>
-
               {showRating && rating && (
                 <div className="flex items-center gap-1">
                   {getRatingStars(rating)}
@@ -304,17 +276,6 @@ const ProductCard = ({
                 {description}
               </p>
             )}
-
-            {/* Price */}
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-xl font-bold text-white">
-                    {formatPrice(finalPrice)}
-                  </span>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </CardWrapper>
@@ -354,18 +315,6 @@ const ProductCard = ({
                     <h3 className="text-lg font-semibold text-white mb-2 hover:text-white transition-colors">
                       {name}
                     </h3>
-                  </div>
-
-                  {/* Price */}
-                  <div className="text-right">
-                    <div className="text-xl font-bold text-white">
-                      {formatPrice(finalPrice)}
-                    </div>
-                    {hasDiscount && (
-                      <div className="text-sm text-gray-400 line-through">
-                        {formatPrice(price)}
-                      </div>
-                    )}
                   </div>
                 </div>
 

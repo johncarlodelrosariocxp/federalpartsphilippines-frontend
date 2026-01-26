@@ -1,56 +1,34 @@
 import React from "react";
-import {
-  Shield,
-  Truck,
-  Zap,
-  Users,
-  Award,
-  Globe,
-  ArrowRight,
-  MapPin,
-  Phone,
-  Mail,
-  Clock,
-  Handshake,
-  Building,
-  Target,
-} from "lucide-react";
 import { Link } from "react-router-dom";
 
 const About = () => {
   const values = [
     {
-      icon: Shield,
       title: "Quality Assurance",
       description:
         "Every part undergoes rigorous testing to ensure OEM-level quality and reliability standards.",
     },
     {
-      icon: Handshake,
       title: "Partnership",
       description:
         "Strong collaboration between Indonesia and Philippines for seamless supply chain.",
     },
     {
-      icon: Building,
       title: "Local Presence",
       description:
         "Established warehouse in Bulacan serving the entire Philippine market.",
     },
     {
-      icon: Truck,
       title: "Local Delivery",
       description:
         "Fast delivery across Luzon, Visayas, and Mindanao with strategic logistics partners.",
     },
     {
-      icon: Target,
       title: "Market Focus",
       description:
         "Specialized in serving Philippine motorcycle enthusiasts and repair shops.",
     },
     {
-      icon: Globe,
       title: "Global Quality, Local Service",
       description:
         "Indonesian quality standards combined with Filipino customer service excellence.",
@@ -82,7 +60,6 @@ const About = () => {
 
   return (
     <div className="min-h-screen bg-black text-gray-100">
-      {/* Added padding top here */}
       <div className="container-custom py-8 pt-30 md:pt-40">
         {/* Hero Section */}
         <div className="text-center mb-16">
@@ -157,14 +134,12 @@ const About = () => {
                 className="inline-flex items-center gap-2 text-blue-400 font-semibold hover:text-blue-300 transition-colors duration-300"
               >
                 Contact Our Team
-                <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
                 to="/products"
                 className="inline-flex items-center gap-2 text-green-400 font-semibold hover:text-green-300 transition-colors duration-300"
               >
                 View Product Catalog
-                <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
           </div>
@@ -182,9 +157,7 @@ const About = () => {
                 className="bg-gray-900 rounded-xl p-6 hover:shadow-2xl transition-all duration-300 border border-gray-800 hover:border-green-500/30"
               >
                 <div className="flex items-center gap-4 mb-4">
-                  <div className="bg-green-600 p-3 rounded-lg">
-                    <Handshake className="w-6 h-6 text-white" />
-                  </div>
+                  
                   <h3 className="font-bold text-lg text-white">
                     {benefit.title}
                   </h3>
@@ -207,9 +180,7 @@ const About = () => {
                 className="bg-gray-900 rounded-xl p-6 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 border border-gray-800 hover:border-blue-500/30"
               >
                 <div className="flex items-center gap-4 mb-4">
-                  <div className="bg-blue-600 p-3 rounded-lg">
-                    <value.icon className="w-6 h-6 text-white" />
-                  </div>
+                  
                   <h3 className="font-bold text-lg text-white">
                     {value.title}
                   </h3>
@@ -229,13 +200,13 @@ const About = () => {
             {/* Map */}
             <div className="rounded-2xl overflow-hidden shadow-xl h-[400px] border border-gray-800">
               <iframe
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3859.334668704279!2d120.936162!3d14.764444!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397ad7c0871c3fd%3A0x4c1eceb2a4b8f8b8!2sFochun%20Warehouse%2C%20Balagtas%2C%20Bulacan!5e0!3m2!1sen!2sph!4v1647923456789!5m2!1sen!2sph"
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d19260.087238775097!2d120.89765307142295!3d14.845976261821923!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397ad34da483773%3A0x73ba0e225287a3eb!2sFochun%20Industrial%20Compound%20-%20Pulong%20Gubat!5e0!3m2!1sen!2sph!4v1769390207077!5m2!1sen!2sph"
                 width="100%"
                 height="100%"
                 style={{ border: 0 }}
                 allowFullScreen=""
                 loading="lazy"
-                title="Fochun Warehouse Location - Bulacan, Philippines"
+                title="Fochun Industrial Compound - Pulong Gubat, Balagtas, Bulacan"
                 referrerPolicy="no-referrer-when-downgrade"
                 className="grayscale-50 contrast-125"
               ></iframe>
@@ -244,9 +215,7 @@ const About = () => {
             {/* Location Details */}
             <div className="bg-gray-900 rounded-2xl p-8 border border-gray-800">
               <div className="flex items-center gap-3 mb-6">
-                <div className="bg-green-600 p-3 rounded-lg">
-                  <Building className="w-6 h-6 text-white" />
-                </div>
+               
                 <div>
                   <h3 className="font-bebas text-2xl text-white">
                     Bulacan Warehouse
@@ -259,17 +228,15 @@ const About = () => {
 
               <div className="space-y-6">
                 <div className="flex items-start gap-4">
-                  <MapPin className="w-5 h-5 text-green-400 mt-1 flex-shrink-0" />
                   <div>
                     <p className="font-semibold mb-1 text-white">Address</p>
                     <p className="text-gray-300">
-                      Fochun Warehouse, Balagtas, Bulacan, Philippines 3000
+                      Fochun Industrial Compound - Pulong Gubat, Balagtas, Bulacan, Philippines
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-4">
-                  <Phone className="w-5 h-5 text-green-400 mt-1 flex-shrink-0" />
                   <div>
                     <p className="font-semibold mb-1 text-white">
                       Philippine Contact
@@ -282,7 +249,6 @@ const About = () => {
                 </div>
 
                 <div className="flex items-start gap-4">
-                  <Mail className="w-5 h-5 text-green-400 mt-1 flex-shrink-0" />
                   <div>
                     <p className="font-semibold mb-1 text-white">Email</p>
                     <p className="text-gray-300">ph.office@federalparts.com</p>
@@ -293,7 +259,6 @@ const About = () => {
                 </div>
 
                 <div className="flex items-start gap-4">
-                  <Clock className="w-5 h-5 text-green-400 mt-1 flex-shrink-0" />
                   <div>
                     <p className="font-semibold mb-1 text-white">
                       Business Hours
@@ -320,7 +285,6 @@ const About = () => {
                 className="inline-flex items-center gap-2 mt-6 text-green-400 font-semibold hover:text-green-300 transition-colors duration-300"
               >
                 Schedule a Visit or Meeting
-                <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
           </div>
@@ -343,7 +307,6 @@ const About = () => {
               className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-lg transition-colors duration-300 text-lg inline-flex items-center justify-center gap-2"
             >
               View Products
-              <ArrowRight className="w-5 h-5" />
             </Link>
             <Link
               to="/contact"

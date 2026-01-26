@@ -20,6 +20,8 @@ import {
   Grid,
   List,
   Loader,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { categoryAPI, productAPI, getImageUrl, formatPrice } from "../services/api";
 import { toast } from "react-hot-toast";
@@ -35,6 +37,9 @@ const Home = () => {
   const [loadingProducts, setLoadingProducts] = useState({});
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [categoryView, setCategoryView] = useState("grid");
+  const [visibleCategories, setVisibleCategories] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
 
   // Get API base URL - FIXED VERSION
   const getApiBaseUrl = () => {
@@ -62,6 +67,15 @@ const Home = () => {
   useEffect(() => {
     fetchCategories();
   }, []);
+
+  // Update visible categories when categories or page changes
+  useEffect(() => {
+    if (categories.length > 0) {
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      setVisibleCategories(categories.slice(startIndex, endIndex));
+    }
+  }, [categories, currentPage]);
 
   // Fetch products for each category when categories change
   useEffect(() => {
@@ -293,7 +307,7 @@ const Home = () => {
     return FolderTree;
   };
 
-  // Helper function to get appropriate image based on category
+  // Helper function to get appropriate image based on category - FIXED VERSION
   const getCategoryImage = (category) => {
     // If category has image property and it's a valid string
     if (category?.image && typeof category.image === 'string' && category.image.trim() !== '') {
@@ -305,7 +319,9 @@ const Home = () => {
       // If it's a relative path that starts with /
       if (category.image.startsWith("/")) {
         const API_BASE_URL = getApiBaseUrl();
-        return `${API_BASE_URL}${category.image}`;
+        // Remove any double slashes
+        const cleanPath = category.image.replace(/^\/+/, '');
+        return `${API_BASE_URL}/${cleanPath}`;
       }
       
       // If it's just a filename, construct the full URL
@@ -320,7 +336,9 @@ const Home = () => {
       }
       
       const API_BASE_URL = getApiBaseUrl();
-      return `${API_BASE_URL}${category.imageUrl}`;
+      // Remove any double slashes
+      const cleanPath = category.imageUrl.replace(/^\/+/, '');
+      return `${API_BASE_URL}/${cleanPath}`;
     }
 
     // Fallback to Unsplash image based on category name
@@ -372,6 +390,10 @@ const Home = () => {
   // Handle category click
   const handleCategoryClick = (category) => {
     setSelectedCategory(category);
+    // Scroll to top of category section
+    if (sectionRefs.current[0]) {
+      sectionRefs.current[0].scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   // Clear selected category
@@ -391,6 +413,27 @@ const Home = () => {
     return [];
   };
 
+  // Pagination handlers
+  const totalPages = Math.ceil(categories.length / itemsPerPage);
+  
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+  
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+  
+  const goToPage = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
   // Product Card Component
   const ProductCard = ({ product }) => {
     const [isWishlisted, setIsWishlisted] = useState(false);
@@ -404,8 +447,35 @@ const Home = () => {
       ? Math.round(((product.price - product.discountedPrice) / product.price) * 100)
       : 0;
     
-    const mainImage = product.images?.[0] || 
-      "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop";
+    // Get product image with proper URL handling
+    const getProductImage = () => {
+      if (imageError) {
+        return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop";
+      }
+      
+      const mainImage = product.images?.[0] || product.image;
+      
+      if (!mainImage) {
+        return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop";
+      }
+      
+      // If it's already a full URL
+      if (mainImage.startsWith("http")) {
+        return mainImage;
+      }
+      
+      // If it's a relative path
+      if (mainImage.startsWith("/")) {
+        const API_BASE_URL = getApiBaseUrl();
+        // Remove any double slashes
+        const cleanPath = mainImage.replace(/^\/+/, '');
+        return `${API_BASE_URL}/${cleanPath}`;
+      }
+      
+      // If it's just a filename
+      const API_BASE_URL = getApiBaseUrl();
+      return `${API_BASE_URL}/uploads/products/${mainImage}`;
+    };
 
     const handleImageError = () => {
       setImageError(true);
@@ -435,17 +505,18 @@ const Home = () => {
 
     return (
       <Link
-        to={`/product/${product._id}`}
+        to={`/product/${product._id || product.id}`}
         className="block group h-full"
       >
         <div className="bg-gradient-to-b from-gray-900 to-gray-950 rounded-xl overflow-hidden border border-gray-800 hover:border-red-500 transition-all duration-300 hover:shadow-2xl h-full flex flex-col">
           {/* Product Image Container */}
           <div className="relative h-48 overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900">
             <img
-              src={imageError ? "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop" : mainImage}
+              src={getProductImage()}
               alt={product.name}
               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
               onError={handleImageError}
+              loading="lazy"
             />
             
             {/* Discount Badge */}
@@ -549,8 +620,35 @@ const Home = () => {
       ? Math.round(((product.price - product.discountedPrice) / product.price) * 100)
       : 0;
     
-    const mainImage = product.images?.[0] || 
-      "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=300&fit=crop";
+    // Get product image with proper URL handling
+    const getProductImage = () => {
+      if (imageError) {
+        return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop";
+      }
+      
+      const mainImage = product.images?.[0] || product.image;
+      
+      if (!mainImage) {
+        return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop";
+      }
+      
+      // If it's already a full URL
+      if (mainImage.startsWith("http")) {
+        return mainImage;
+      }
+      
+      // If it's a relative path
+      if (mainImage.startsWith("/")) {
+        const API_BASE_URL = getApiBaseUrl();
+        // Remove any double slashes
+        const cleanPath = mainImage.replace(/^\/+/, '');
+        return `${API_BASE_URL}/${cleanPath}`;
+      }
+      
+      // If it's just a filename
+      const API_BASE_URL = getApiBaseUrl();
+      return `${API_BASE_URL}/uploads/products/${mainImage}`;
+    };
 
     const handleImageError = () => {
       setImageError(true);
@@ -573,7 +671,7 @@ const Home = () => {
 
     return (
       <Link
-        to={`/product/${product._id}`}
+        to={`/product/${product._id || product.id}`}
         className="block group"
       >
         <div className="bg-gradient-to-b from-gray-900 to-gray-950 rounded-xl overflow-hidden border border-gray-800 hover:border-red-500 transition-all duration-300 hover:shadow-xl">
@@ -582,10 +680,11 @@ const Home = () => {
             <div className="md:w-1/4 relative">
               <div className="relative h-48 md:h-full overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900">
                 <img
-                  src={imageError ? "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop" : mainImage}
+                  src={getProductImage()}
                   alt={product.name}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   onError={handleImageError}
+                  loading="lazy"
                 />
                 
                 {/* Discount Badge */}
@@ -701,16 +800,15 @@ const Home = () => {
     </svg>
   );
 
-  // Category Card Component
+  // New Compact Category Card Component - FIXED WITH CLICK HANDLER
   const CategoryCard = ({ category, index }) => {
     const [imgError, setImgError] = useState(false);
-    const IconComponent = category.icon || FolderTree;
 
     const handleImageError = () => {
       setImgError(true);
     };
 
-    // Get final image URL
+    // Get final image URL - FIXED VERSION
     const getFinalImageUrl = () => {
       if (imgError) {
         // Use fallback image based on category name
@@ -722,7 +820,35 @@ const Home = () => {
         if (name.includes("electrical") || name.includes("battery") || name.includes("light")) return "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=400&h=250&fit=crop";
         return "https://images.unsplash.com/photo-1580261450035-4d4f04b7b4c5?w=400&h=250&fit=crop";
       }
-      return category.image;
+      
+      // Use the image from category data
+      if (category.image && category.image.trim() !== '') {
+        // If it's already a full URL, return it
+        if (category.image.startsWith("http")) {
+          return category.image;
+        }
+        
+        // If it's a relative path
+        if (category.image.startsWith("/")) {
+          const API_BASE_URL = getApiBaseUrl();
+          // Remove any double slashes
+          const cleanPath = category.image.replace(/^\/+/, '');
+          return `${API_BASE_URL}/${cleanPath}`;
+        }
+        
+        // If it's just a filename
+        const API_BASE_URL = getApiBaseUrl();
+        return `${API_BASE_URL}/uploads/categories/${category.image}`;
+      }
+      
+      // Fallback to category-based image
+      const name = (category.title || "").toLowerCase();
+      if (name.includes("engine")) return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=250&fit=crop";
+      if (name.includes("brake")) return "https://images.unsplash.com/photo-1558981806-ec527fa0b4c9?w=400&h=250&fit=crop";
+      if (name.includes("tire") || name.includes("wheel")) return "https://images.unsplash.com/photo-1603584173870-7f23fdae1b7a?w=400&h=250&fit=crop";
+      if (name.includes("suspension")) return "https://images.unsplash.com/photo-1566473359723-7e3e4d6c8c1b?w=400&h=250&fit=crop";
+      if (name.includes("electrical") || name.includes("battery") || name.includes("light")) return "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=400&h=250&fit=crop";
+      return "https://images.unsplash.com/photo-1580261450035-4d4f04b7b4c5?w=400&h=250&fit=crop";
     };
 
     return (
@@ -732,10 +858,10 @@ const Home = () => {
       >
         <button
           onClick={() => handleCategoryClick(category)}
-          className="w-full bg-gradient-to-b from-gray-900 to-gray-950 rounded-xl overflow-hidden shadow-lg border border-gray-800 hover:border-red-500 transition-all duration-300 hover:shadow-xl group cursor-pointer"
+          className="w-full bg-gradient-to-b from-gray-900 to-gray-950 rounded-xl overflow-hidden shadow-lg border border-gray-800 hover:border-red-500 transition-all duration-300 hover:shadow-xl group cursor-pointer h-64 flex flex-col"
         >
-          {/* Simple Image Container */}
-          <div className="relative h-48 overflow-hidden">
+          {/* Simple Image Container - Takes most of the space */}
+          <div className="relative h-48 overflow-hidden flex-1">
             <img
               src={getFinalImageUrl()}
               alt={category.title}
@@ -744,33 +870,24 @@ const Home = () => {
               onError={handleImageError}
             />
             
-            {/* Category Count Badge */}
-            <div className="absolute top-3 right-3 bg-black/70 backdrop-blur-sm px-3 py-1.5 rounded-full">
-              <span className="text-xs font-medium text-white">
-                {category.count || "0 items"}
-              </span>
-            </div>
-            
-            {/* Category Name - Centered */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center p-4">
-                <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-red-400 transition-colors">
+            {/* Category Name Overlay - Small at bottom */}
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent p-3">
+              <div className="text-center">
+                <h3 className="text-sm font-semibold text-white truncate">
                   {category.title}
                 </h3>
-                <p className="text-gray-200 text-sm max-w-xs mx-auto line-clamp-2">
-                  {category.description}
+                <p className="text-xs text-gray-300 mt-0.5">
+                  {category.count || "0 items"}
                 </p>
               </div>
             </div>
-            
-            {/* Subcategories Indicator */}
-            {category.subcategories && category.subcategories.length > 0 && (
-              <div className="absolute bottom-3 left-3 bg-black/50 backdrop-blur-sm px-3 py-1.5 rounded-full">
-                <span className="text-xs text-gray-300">
-                  {category.subcategories.length} subcategories
-                </span>
-              </div>
-            )}
+          </div>
+          
+          {/* Simple bottom bar with just the name */}
+          <div className="bg-gray-900 px-3 py-2 flex items-center justify-center border-t border-gray-800">
+            <span className="text-xs text-gray-300 truncate">
+              {category.title}
+            </span>
           </div>
         </button>
       </div>
@@ -950,13 +1067,13 @@ const Home = () => {
                       </h4>
                       <div className="flex flex-wrap gap-2">
                         {selectedCategory.subcategories.map((sub, idx) => (
-                          <Link
+                          <button
                             key={sub._id || idx}
-                            to={`/products?category=${selectedCategory.slug}&subcategory=${sub.slug}`}
+                            onClick={() => toast.success(`Filtering by ${sub.name}`)}
                             className="px-3 py-1.5 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800 text-gray-300 hover:text-white text-sm rounded-lg border border-gray-700 hover:border-red-500 transition-all"
                           >
                             {sub.name} ({sub.count || 0})
-                          </Link>
+                          </button>
                         ))}
                       </div>
                     </div>
@@ -972,13 +1089,13 @@ const Home = () => {
                 ) : categoryView === "grid" ? (
                   <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {getProductsForSelectedCategory().map((product) => (
-                      <ProductCard key={product._id} product={product} />
+                      <ProductCard key={product._id || product.id} product={product} />
                     ))}
                   </div>
                 ) : (
                   <div className="space-y-4">
                     {getProductsForSelectedCategory().map((product) => (
-                      <ListProductCard key={product._id} product={product} />
+                      <ListProductCard key={product._id || product.id} product={product} />
                     ))}
                   </div>
                 )}
@@ -1010,15 +1127,15 @@ const Home = () => {
                 </div>
               </div>
             ) : (
-              /* Categories Grid View */
+              /* Categories Grid View - UPDATED FOR JUST PICTURES */
               <div>
-                {/* Categories Grid */}
+                {/* Categories Grid - 8 items visible */}
                 {categoriesLoading ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {Array.from({ length: 6 }).map((_, index) => (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
+                    {Array.from({ length: 8 }).map((_, index) => (
                       <div
                         key={index}
-                        className="category-skeleton h-[250px] animate-fade-up animate-on-visible"
+                        className="category-skeleton h-64 animate-fade-up animate-on-visible"
                         style={{ animationDelay: `${index * 100 + 300}ms` }}
                       />
                     ))}
@@ -1113,11 +1230,77 @@ const Home = () => {
                   </div>
                 ) : (
                   <>
-                    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {categories.map((category, index) => (
+                    {/* Categories Grid - Showing 8 items */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
+                      {visibleCategories.map((category, index) => (
                         <CategoryCard key={category._id} category={category} index={index} />
                       ))}
                     </div>
+
+                    {/* Pagination Controls */}
+                    {categories.length > itemsPerPage && (
+                      <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div className="text-gray-400 text-sm">
+                          Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
+                          {Math.min(currentPage * itemsPerPage, categories.length)} of {categories.length} categories
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={handlePrevPage}
+                            disabled={currentPage === 1}
+                            className={`p-2 rounded-lg border transition-all ${
+                              currentPage === 1
+                                ? "border-gray-800 text-gray-600 cursor-not-allowed"
+                                : "border-gray-700 text-gray-300 hover:border-red-500 hover:text-white hover:bg-gray-800"
+                            }`}
+                          >
+                            <ChevronLeft className="w-5 h-5" />
+                          </button>
+                          
+                          <div className="flex items-center gap-1">
+                            {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
+                              let pageNum;
+                              if (totalPages <= 5) {
+                                pageNum = i + 1;
+                              } else if (currentPage <= 3) {
+                                pageNum = i + 1;
+                              } else if (currentPage >= totalPages - 2) {
+                                pageNum = totalPages - 4 + i;
+                              } else {
+                                pageNum = currentPage - 2 + i;
+                              }
+                              
+                              return (
+                                <button
+                                  key={pageNum}
+                                  onClick={() => goToPage(pageNum)}
+                                  className={`w-8 h-8 rounded-lg transition-all ${
+                                    currentPage === pageNum
+                                      ? "bg-red-600 text-white"
+                                      : "text-gray-400 hover:text-white hover:bg-gray-800"
+                                  }`}
+                                >
+                                  {pageNum}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          
+                          <button
+                            onClick={handleNextPage}
+                            disabled={currentPage === totalPages}
+                            className={`p-2 rounded-lg border transition-all ${
+                              currentPage === totalPages
+                                ? "border-gray-800 text-gray-600 cursor-not-allowed"
+                                : "border-gray-700 text-gray-300 hover:border-red-500 hover:text-white hover:bg-gray-800"
+                            }`}
+                          >
+                            <ChevronRight className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
                     {/* View All Categories Button */}
                     <div className="mt-12 text-center">

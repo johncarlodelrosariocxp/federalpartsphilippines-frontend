@@ -111,12 +111,7 @@ const ProductCard = ({ product }) => {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         
-        {/* Discount Badge */}
-        {product.discountedPrice && product.discountedPrice < product.price && (
-          <div className="absolute top-3 left-3 bg-gradient-to-r from-red-600 to-red-700 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
-            -{Math.round(((product.price - product.discountedPrice) / product.price) * 100)}%
-          </div>
-        )}
+       
       </div>
       
       {/* Product Info */}
@@ -125,7 +120,6 @@ const ProductCard = ({ product }) => {
           <h3 className="font-semibold text-white text-sm line-clamp-1">{product.name}</h3>
           {product.featured && (
             <span className="px-1.5 py-0.5 text-[10px] bg-gradient-to-r from-amber-500/20 to-amber-600/20 text-amber-300 rounded-full">
-              <Award className="w-2.5 h-2.5 inline" />
             </span>
           )}
         </div>
@@ -134,50 +128,9 @@ const ProductCard = ({ product }) => {
           {product.shortDescription || product.description || 'No description available'}
         </p>
         
-        {/* Rating */}
-        {product.rating && (
-          <div className="flex items-center gap-1 mb-3">
-            {[...Array(5)].map((_, i) => (
-              <Star
-                key={i}
-                className={`w-3 h-3 ${
-                  i < Math.floor(product.rating)
-                    ? 'fill-yellow-400 text-yellow-400'
-                    : 'text-gray-600'
-                }`}
-              />
-            ))}
-            <span className="text-xs text-gray-400 ml-1">({product.rating})</span>
-          </div>
-        )}
+     
         
-        <div className="flex items-center justify-between">
-          <span className={`text-xs px-2 py-1 rounded-full ${
-            product.stock > 10 
-              ? 'bg-green-500/20 text-green-400' 
-              : product.stock > 0 
-                ? 'bg-yellow-500/20 text-yellow-400'
-                : 'bg-red-500/20 text-red-400'
-          }`}>
-            {product.stock > 10 ? 'In Stock' : product.stock > 0 ? 'Low Stock' : 'Out'}
-          </span>
-          <div className="text-right">
-            {product.discountedPrice && product.discountedPrice < product.price ? (
-              <>
-                <span className="text-sm font-bold text-white">
-                  ₱{product.discountedPrice?.toLocaleString() || '0.00'}
-                </span>
-                <span className="text-xs text-gray-400 line-through block">
-                  ₱{product.price?.toLocaleString() || '0.00'}
-                </span>
-              </>
-            ) : (
-              <span className="text-sm font-bold text-white">
-                ₱{product.price ? Number(product.price).toLocaleString() : '0.00'}
-              </span>
-            )}
-          </div>
-        </div>
+     
       </div>
     </div>
   );
@@ -823,14 +776,22 @@ const Categories = () => {
     ? allCategories.find(cat => cat._id === viewingProducts)
     : null;
 
-  // Render Hero Banner
+  // Render Hero Banner - UPDATED WITH NEW IMAGE
   const renderHeroBanner = () => (
     <div className="relative pt-20 pb-16 overflow-hidden bg-black">
-      {/* Background Gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900"></div>
+      {/* Background Image - UPDATED */}
+      <div className="absolute inset-0">
+        <img
+          src="/newbanner/destktop website Federal (Category).png"
+          alt="Federal Parts Categories Banner"
+          className="w-full h-full object-cover object-center"
+          loading="eager"
+        />
+   
+      </div>
       
       {/* Pattern Overlay */}
-      <div className="absolute inset-0 opacity-5" style={{
+      <div className="absolute inset-0 opacity-10" style={{
         backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
       }}></div>
 
@@ -854,14 +815,14 @@ const Categories = () => {
           )}
         </nav>
 
-        <div className="text-center mb-12">
-          <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 text-white">
+        <div className="text-center mt-13 mb-12">
+          <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 mt-19 text-white">
             {viewingProducts 
               ? `Products in ${currentCategoryWithProducts?.name || 'Category'}`
               : "Browse Categories"}
           </h1>
           
-          <p className="text-xl text-gray-300 max-w-3xl mx-auto mb-8">
+          <p className="text-xl text-gray-200 max-w-3xl mx-auto mb-8">
             {viewingProducts 
               ? "Discover our premium motorcycle parts and accessories"
               : "Explore our comprehensive collection of motorcycle parts organized by category"}
@@ -882,7 +843,7 @@ const Categories = () => {
                     ? "Search products by name, description..."
                     : "Search categories by name, description..."
                 }
-                className="w-full pl-12 pr-4 py-4 rounded-xl bg-black/50 backdrop-blur-sm border border-gray-700 focus:ring-2 focus:ring-red-500 focus:border-transparent text-white placeholder-gray-400 shadow-xl"
+                className="w-full pl-12 pr-4 py-4 rounded-xl bg-black/60 backdrop-blur-sm border border-gray-700 focus:ring-2 focus:ring-red-500 focus:border-transparent text-white placeholder-gray-400 shadow-xl"
               />
               {filters.search && (
                 <button
@@ -913,37 +874,12 @@ const Categories = () => {
               <Grid3x3 className="w-5 h-5 text-red-400" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-white">Main Categories</h3>
-              <p className="text-sm text-gray-400">Select a category to view its sub-categories</p>
+              <h3 className="text-lg font-bold text-white">BRANDS</h3>
+              <p className="text-sm text-gray-400">Select a brands to view its motorcycle</p>
             </div>
           </div>
           
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => handleFilterChange("type", "main")}
-              className={`px-4 py-2 rounded-lg transition-all ${filters.type === "main" 
-                ? "bg-red-500/20 text-red-400 border border-red-500/30" 
-                : "text-gray-400 hover:text-white hover:bg-black border border-gray-700"}`}
-            >
-              Main
-            </button>
-            <button
-              onClick={() => handleFilterChange("type", "sub")}
-              className={`px-4 py-2 rounded-lg transition-all ${filters.type === "sub" 
-                ? "bg-red-500/20 text-red-400 border border-red-500/30" 
-                : "text-gray-400 hover:text-white hover:bg-black border border-gray-700"}`}
-            >
-              Sub
-            </button>
-            <button
-              onClick={() => handleFilterChange("type", "all")}
-              className={`px-4 py-2 rounded-lg transition-all ${filters.type === "all" 
-                ? "bg-red-500/20 text-red-400 border border-red-500/30" 
-                : "text-gray-400 hover:text-white hover:bg-black border border-gray-700"}`}
-            >
-              All
-            </button>
-          </div>
+       
         </div>
 
         {/* Main Categories Grid */}
@@ -992,18 +928,12 @@ const Categories = () => {
               <Layers className="w-5 h-5 text-purple-400" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-white">Sub-categories of {activeCategory.name}</h3>
+              <h3 className="text-lg font-bold text-white">Motorcycles of {activeCategory.name}</h3>
               <p className="text-sm text-gray-400">Click any sub-category to view products</p>
             </div>
           </div>
           
-          <button
-            onClick={() => handleViewProducts(activeCategory._id)}
-            className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-red-500/25 flex items-center gap-2"
-          >
-            <ShoppingBag className="w-4 h-4" />
-            <span className="font-medium">View All Products</span>
-          </button>
+        
         </div>
 
         {/* Sub-categories Grid */}
@@ -1026,26 +956,8 @@ const Categories = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="hidden md:flex items-center gap-3">
-            <select
-              value={filters.sort}
-              onChange={(e) => handleFilterChange("sort", e.target.value)}
-              className="bg-black border border-gray-700 text-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent"
-            >
-              <option value="popular">Most Popular</option>
-              <option value="name">Name (A-Z)</option>
-              <option value="products">Most Products</option>
-              <option value="featured">Featured First</option>
-            </select>
-            
-            <select
-              value={filters.featured}
-              onChange={(e) => handleFilterChange("featured", e.target.value)}
-              className="bg-black border border-gray-700 text-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent"
-            >
-              <option value="all">All Status</option>
-              <option value="featured">Featured</option>
-              <option value="active">Active</option>
-            </select>
+           
+          
           </div>
         </div>
         
