@@ -478,28 +478,7 @@ const ProductDetail = () => {
                     please contact us.
                   </p>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex items-center gap-3 p-3 bg-gray-800 rounded-lg">
-                      <Users className="w-5 h-5 text-blue-500" />
-                      <div>
-                        <div className="font-medium text-white">
-                          Contact Sales
-                        </div>
-                        <div className="text-xs text-gray-400">
-                          Available for product demos
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 p-3 bg-gray-800 rounded-lg">
-                      <Clock className="w-5 h-5 text-purple-500" />
-                      <div>
-                      
-                        <div className="text-xs text-gray-400">
-                          Schedule a viewing
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+          
                 </div>
 
                 {/* Showcase Badges */}
@@ -538,9 +517,9 @@ const ProductDetail = () => {
                   <div className="flex items-center gap-3 p-3 bg-gray-900 rounded-lg">
                     <Headphones className="w-5 h-5 text-orange-500" />
                     <div>
-                      <div className="font-medium text-white">Live Support</div>
+                      <div className="font-medium text-white">Contact Sales</div>
                       <div className="text-xs text-gray-400">
-                        24/7 available
+                        Available for product demos
                       </div>
                     </div>
                   </div>
@@ -620,15 +599,7 @@ const ProductDetail = () => {
               <h2 className="text-2xl font-bold text-white">
                 Similar Products
               </h2>
-              {product.category && (
-                <Link
-                  to={`/category/${product.category._id || product.category}`}
-                  className="text-blue-400 hover:text-blue-300 font-medium flex items-center gap-2"
-                >
-                  View All
-                  <ExternalLink className="w-4 h-4" />
-                </Link>
-              )}
+             
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -636,7 +607,7 @@ const ProductDetail = () => {
                 <ProductCard
                   key={relatedProduct._id}
                   product={relatedProduct}
-                  variant="compact"
+                 
                   isClickable={true}
                 />
               ))}
