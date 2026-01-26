@@ -1,7 +1,7 @@
-// src/pages/admin/ProductForm.jsx - COMPLETE FIXED VERSION
+// src/pages/admin/ProductForm.jsx - FINAL FIXED VERSION WITH IMAGE UPLOAD
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { productAPI, categoryAPI, uploadImage } from "../../services/api";
+import { productAPI, categoryAPI } from "../../services/api";
 import {
   Save,
   Upload,
@@ -34,7 +34,6 @@ const ProductForm = () => {
   const [success, setSuccess] = useState("");
   const [formErrors, setFormErrors] = useState({});
   const [imageUploading, setImageUploading] = useState(false);
-  const [newImages, setNewImages] = useState([]);
 
   const [product, setProduct] = useState({
     name: "",
@@ -53,14 +52,13 @@ const ProductForm = () => {
 
   const [specifications, setSpecifications] = useState([]);
   const [newSpec, setNewSpec] = useState({ key: "", value: "" });
+  const [newImageFiles, setNewImageFiles] = useState([]);
 
   // Generate fallback SVG image
   const createFallbackImage = () => {
     return `data:image/svg+xml,${encodeURIComponent(`
       <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect width="200" height="200" fill="#F3F4F6"/>
-        <path d="M60 70L140 130M140 70L60 130M140 50L180 90M180 50L140 90" stroke="#D1D5DB" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M40 40H160V160H40V40Z" stroke="#D1D5DB" stroke-width="4"/>
         <text x="100" y="100" font-family="Arial" font-size="16" fill="#9CA3AF" text-anchor="middle" alignment-baseline="middle">No Image</text>
       </svg>
     `)}`;
@@ -83,6 +81,8 @@ const ProductForm = () => {
         setCategories(response.categories);
       } else if (Array.isArray(response)) {
         setCategories(response);
+      } else if (response?.data && Array.isArray(response.data)) {
+        setCategories(response.data);
       }
     } catch (err) {
       console.error("Error fetching categories:", err);
@@ -267,30 +267,27 @@ const ProductForm = () => {
     try {
       setImageUploading(true);
 
-      // Create local URLs for preview
-      const newImagePreviews = validFiles.map((file) => {
-        const localUrl = URL.createObjectURL(file);
-        return {
-          file,
-          preview: localUrl,
-          name: file.name,
-          size: file.size,
-        };
-      });
+      // Create blob URLs for preview
+      const newImages = validFiles.map(file => ({
+        file,
+        preview: URL.createObjectURL(file),
+        isNew: true
+      }));
 
-      // Add to new images array (will be uploaded when form is submitted)
-      setNewImages([...newImages, ...newImagePreviews]);
+      // Add to new image files
+      setNewImageFiles(prev => [...prev, ...newImages]);
 
-      // Add previews to product images for display
-      setProduct((prev) => ({
+      // Add preview URLs to product images for display
+      const previewUrls = newImages.map(img => img.preview);
+      setProduct(prev => ({
         ...prev,
-        images: [...prev.images, ...newImagePreviews.map(img => img.preview)],
+        images: [...prev.images, ...previewUrls]
       }));
 
       setSuccess(
         `Added ${validFiles.length} image${
           validFiles.length > 1 ? "s" : ""
-        } for preview. Images will be uploaded when you save.`
+        } for preview. Images will be converted to base64 when you save.`
       );
 
       setTimeout(() => {
@@ -308,16 +305,16 @@ const ProductForm = () => {
   const removeImage = (index) => {
     const imageToRemove = product.images[index];
     
-    // Check if it's a local preview image
-    if (imageToRemove.startsWith('blob:')) {
+    // Check if it's a blob URL (new image)
+    if (imageToRemove && imageToRemove.startsWith('blob:')) {
       URL.revokeObjectURL(imageToRemove);
       
-      // Remove from newImages array if it exists there
-      const newImgIndex = newImages.findIndex(img => img.preview === imageToRemove);
+      // Remove from newImageFiles
+      const newImgIndex = newImageFiles.findIndex(img => img.preview === imageToRemove);
       if (newImgIndex !== -1) {
-        const updatedNewImages = [...newImages];
+        const updatedNewImages = [...newImageFiles];
         updatedNewImages.splice(newImgIndex, 1);
-        setNewImages(updatedNewImages);
+        setNewImageFiles(updatedNewImages);
       }
     }
     
@@ -338,37 +335,59 @@ const ProductForm = () => {
       ...product,
       images: newImagesArray,
     });
-  };
-
-  // Upload all new images and get their URLs
-  const uploadNewImages = async () => {
-    if (newImages.length === 0) return [];
-
-    const uploadedImageUrls = [];
     
-    for (const img of newImages) {
-      try {
-        console.log("Uploading image:", img.name);
-        const uploadResponse = await uploadImage(img.file, "product");
-        
-        if (uploadResponse.success && uploadResponse.image) {
-          // The backend returns the image path/URL
-          const imageUrl = uploadResponse.image.url || uploadResponse.image.path || uploadResponse.image;
-          uploadedImageUrls.push(imageUrl);
-          console.log("Image uploaded successfully:", imageUrl);
-        } else {
-          console.error("Failed to upload image:", uploadResponse.message);
-          throw new Error(`Failed to upload ${img.name}: ${uploadResponse.message}`);
-        }
-      } catch (err) {
-        console.error("Error uploading image:", err);
-        throw new Error(`Failed to upload ${img.name}: ${err.message}`);
-      }
+    // Also reorder newImageFiles if needed
+    if (newImageFiles.length > 0) {
+      const newFilesArray = [...newImageFiles];
+      const [removedFile] = newFilesArray.splice(fromIndex, 1);
+      newFilesArray.splice(toIndex, 0, removedFile);
+      setNewImageFiles(newFilesArray);
     }
-    
-    return uploadedImageUrls;
   };
 
+  // Convert file to base64
+  const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        resolve(reader.result);
+      };
+      reader.onerror = error => reject(error);
+    });
+  };
+
+  // Optimize base64 image by reducing quality for large images
+  const optimizeBase64Image = async (base64Data, maxWidth = 1200, quality = 0.8) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.src = base64Data;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        // Resize if too large
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Convert to JPEG with quality setting
+        const optimizedBase64 = canvas.toDataURL('image/jpeg', quality);
+        resolve(optimizedBase64);
+      };
+      img.onerror = () => resolve(base64Data); // Return original if optimization fails
+    });
+  };
+
+  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -391,18 +410,37 @@ const ProductForm = () => {
         }
       });
 
-      // Upload new images if any
-      let uploadedImageUrls = [];
-      if (newImages.length > 0) {
-        setSuccess("Uploading images...");
-        uploadedImageUrls = await uploadNewImages();
-      }
-
-      // Combine existing images (filter out blob URLs) with newly uploaded images
+      // Separate existing images (URLs) from new blob URLs
       const existingImages = product.images.filter(img => 
-        !img.startsWith('blob:') && !img.startsWith('data:')
+        img && !img.startsWith('blob:') && !img.startsWith('data:image/svg+xml')
       );
-      const allImages = [...existingImages, ...uploadedImageUrls];
+
+      // Convert new image files to optimized base64
+      const newImageBase64 = [];
+      for (const imgFile of newImageFiles) {
+        try {
+          console.log(`Converting ${imgFile.file.name} to base64...`);
+          const base64 = await fileToBase64(imgFile.file);
+          
+          // Optimize image to reduce size
+          const optimizedBase64 = await optimizeBase64Image(base64);
+          
+          // Check if base64 is too large (over 1MB)
+          const base64Size = (optimizedBase64.length * 3) / 4; // Approximate size in bytes
+          if (base64Size > 1024 * 1024) { // 1MB
+            console.warn(`Image ${imgFile.file.name} is large (${Math.round(base64Size/1024)}KB), compressing further...`);
+            const moreOptimized = await optimizeBase64Image(base64, 800, 0.7);
+            newImageBase64.push(moreOptimized);
+          } else {
+            newImageBase64.push(optimizedBase64);
+          }
+          
+          console.log(`Successfully converted ${imgFile.file.name} to base64`);
+        } catch (err) {
+          console.error("Error converting file to base64:", err);
+          throw new Error(`Failed to process image: ${imgFile.file.name}. Please use a different image.`);
+        }
+      }
 
       // Prepare product data
       const productData = {
@@ -410,12 +448,12 @@ const ProductForm = () => {
         description: product.description.trim(),
         price: parseFloat(product.price),
         stock: parseInt(product.stock, 10) || 0,
-        sku: product.sku.trim() || undefined,
-        weight: product.weight.trim() || undefined,
-        dimensions: product.dimensions.trim() || undefined,
+        sku: product.sku.trim() || '',
+        weight: product.weight.trim() || '',
+        dimensions: product.dimensions.trim() || '',
         featured: product.featured,
         isActive: product.isActive,
-        images: allImages,
+        specifications: Object.keys(specs).length > 0 ? specs : undefined,
       };
 
       // Only include category if it's selected
@@ -423,31 +461,47 @@ const ProductForm = () => {
         productData.category = product.category;
       }
 
-      // Only include specifications if there are any
-      if (Object.keys(specs).length > 0) {
-        productData.specifications = specs;
+      // Handle images: combine existing and new
+      if (existingImages.length > 0 || newImageBase64.length > 0) {
+        productData.images = [
+          ...existingImages,
+          ...newImageBase64
+        ];
       }
 
-      console.log("Submitting product data:", productData);
+      console.log("Submitting product data:", {
+        ...productData,
+        existingImageCount: existingImages.length,
+        newBase64ImageCount: newImageBase64.length,
+        totalImages: productData.images?.length || 0
+      });
 
       let response;
       if (isEditMode) {
+        console.log(`Updating product ${id}...`);
         response = await productAPI.updateProduct(id, productData);
       } else {
+        console.log("Creating new product...");
         response = await productAPI.createProduct(productData);
       }
 
       console.log("Save response:", response);
 
       if (response?.success) {
+        // Clean up blob URLs
+        newImageFiles.forEach(img => {
+          if (img.preview && img.preview.startsWith('blob:')) {
+            URL.revokeObjectURL(img.preview);
+          }
+        });
+        
+        setNewImageFiles([]);
+        
         setSuccess(
           isEditMode
             ? "Product updated successfully!"
             : "Product created successfully!"
         );
-
-        // Clear new images array
-        setNewImages([]);
 
         // Navigate after successful save
         setTimeout(() => {
@@ -533,7 +587,8 @@ const ProductForm = () => {
           {/* Images Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-6">
             {product.images.map((img, index) => {
-              const isLocal = img.startsWith('blob:') || img.startsWith('data:');
+              const isNew = img && img.startsWith('blob:');
+              const isFirst = index === 0;
               
               return (
                 <div key={index} className="relative group">
@@ -578,8 +633,15 @@ const ProductForm = () => {
                       </button>
                     )}
                   </div>
-                  {isLocal && (
+                  {isFirst && (
                     <div className="absolute top-2 left-2">
+                      <span className="px-2 py-1 text-xs bg-blue-500 text-white rounded-full">
+                        Main
+                      </span>
+                    </div>
+                  )}
+                  {isNew && (
+                    <div className="absolute top-2 right-2">
                       <span className="px-2 py-1 text-xs bg-green-500 text-white rounded-full">
                         New
                       </span>
@@ -596,12 +658,12 @@ const ProductForm = () => {
                   {imageUploading ? (
                     <Loader2 className="h-8 w-8 text-blue-500 mb-2 animate-spin" />
                   ) : (
-                    <Upload className="h-8 w-8 text-gray-400 mb-2" />
+                    <>
+                      <Upload className="h-8 w-8 text-gray-400 mb-2" />
+                      <span className="text-sm text-gray-600">Add Image</span>
+                      <span className="text-xs text-gray-500 mt-1">Max 5MB</span>
+                    </>
                   )}
-                  <span className="text-sm text-gray-600">
-                    {imageUploading ? "Uploading..." : "Add Image"}
-                  </span>
-                  <span className="text-xs text-gray-500 mt-1">Max 5MB</span>
                 </div>
                 <input
                   type="file"
@@ -615,12 +677,18 @@ const ProductForm = () => {
             )}
           </div>
 
-          <div className="text-sm text-gray-600">
-            <p className="mb-2">
-              • The first image will be used as the main product image
+          <div className="text-sm text-gray-600 space-y-1">
+            <p className="flex items-center">
+              <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+              <strong>The first image</strong> will be used as the main product image
             </p>
-            <p>
-              • New images (marked with green "New" badge) will be uploaded when you save
+            <p className="flex items-center">
+              <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+              <strong>New images</strong> (with green "New" badge) will be converted to base64 format
+            </p>
+            <p className="flex items-center text-blue-600 font-medium mt-2">
+              <span className="w-2 h-2 bg-blue-600 rounded-full mr-2"></span>
+              <strong>Base64 Processing:</strong> All new images are converted to base64 format and sent to the backend for processing and storage
             </p>
           </div>
         </div>

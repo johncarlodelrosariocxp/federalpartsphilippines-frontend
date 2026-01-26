@@ -615,10 +615,7 @@ const Shop = () => {
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
-                <span className="font-medium text-gray-300 text-sm sm:text-base">Shop Products</span>
-              </div>
+              
               <button
                 onClick={() => setMobileFiltersOpen(true)}
                 className="lg:hidden p-2 hover:bg-gray-800 rounded-lg transition-colors"

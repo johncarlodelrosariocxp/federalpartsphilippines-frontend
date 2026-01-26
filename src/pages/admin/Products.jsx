@@ -1,4 +1,4 @@
-// src/pages/admin/Products.js - COMPLETE FIXED VERSION
+// src/pages/admin/Products.js - COMPLETE WORKING VERSION
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { productAPI, categoryAPI } from "../../services/api";
@@ -17,16 +17,10 @@ import {
   CheckCircle,
   XCircle,
   Filter,
-  MoreVertical,
   Star,
   Archive,
   TrendingUp,
   BarChart3,
-  Box,
-  Tag,
-  DollarSign,
-  Hash,
-  Image as ImageIcon,
 } from "lucide-react";
 
 const AdminProducts = () => {
@@ -60,8 +54,8 @@ const AdminProducts = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState("table");
 
-  // Simple fallback image
-  const createFallbackImage = () => {
+  // Create fallback image
+  const getFallbackImage = () => {
     return `data:image/svg+xml,${encodeURIComponent(`
       <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect width="200" height="200" fill="#F3F4F6"/>
@@ -69,8 +63,6 @@ const AdminProducts = () => {
       </svg>
     `)}`;
   };
-
-  const fallbackImageUrl = createFallbackImage();
 
   useEffect(() => {
     fetchProducts();
@@ -91,17 +83,16 @@ const AdminProducts = () => {
     products,
   ]);
 
-  // Get image URL - SIMPLIFIED
-  const getProductImageUrl = (imagePath) => {
-    // If no image path, return fallback
+  // Get image URL
+  const getImageUrl = (imagePath) => {
     if (!imagePath || 
         imagePath === "undefined" || 
         imagePath === "null" || 
         imagePath.trim() === "") {
-      return fallbackImageUrl;
+      return getFallbackImage();
     }
 
-    // If it's already a full URL or data URL, return as-is
+    // If it's already a full URL, return as-is
     if (
       imagePath.startsWith("http://") ||
       imagePath.startsWith("https://") ||
@@ -111,19 +102,25 @@ const AdminProducts = () => {
       return imagePath;
     }
 
-    // If it's a filename, construct URL
+    // Construct URL from backend
     const baseUrl = "https://federalpartsphilippines-backend.onrender.com";
+    
+    // If it starts with /uploads
+    if (imagePath.startsWith("/uploads/")) {
+      return `${baseUrl}${imagePath}`;
+    }
+    
+    // If it's a filename
     return `${baseUrl}/uploads/products/${imagePath}`;
   };
 
   // Get first product image
   const getFirstProductImage = (product) => {
-    if (!product) return fallbackImageUrl;
+    if (!product) return getFallbackImage();
 
     let images = [];
 
     if (Array.isArray(product.images) && product.images.length > 0) {
-      // Filter valid images
       images = product.images.filter(img => 
         img && img.trim() !== "" && img !== "undefined" && img !== "null"
       );
@@ -132,16 +129,16 @@ const AdminProducts = () => {
     }
 
     if (images.length === 0) {
-      return fallbackImageUrl;
+      return getFallbackImage();
     }
 
     const firstImage = images[0];
-    return getProductImageUrl(firstImage);
+    return getImageUrl(firstImage);
   };
 
-  // Handle image loading errors
+  // Handle image error
   const handleImageError = (e) => {
-    e.target.src = fallbackImageUrl;
+    e.target.src = getFallbackImage();
     e.target.onerror = null;
   };
 
@@ -169,7 +166,7 @@ const AdminProducts = () => {
       }
 
       if (Array.isArray(productsData)) {
-        // Process products to ensure images are properly formatted
+        // Process products
         const processedProducts = productsData.map(product => ({
           ...product,
           images: Array.isArray(product.images) 
@@ -205,10 +202,14 @@ const AdminProducts = () => {
         categoriesData = response.categories;
       } else if (Array.isArray(response)) {
         categoriesData = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        categoriesData = response.data;
       }
 
       if (Array.isArray(categoriesData)) {
-        const activeCategories = categoriesData.filter((cat) => cat.isActive);
+        const activeCategories = categoriesData.filter((cat) => 
+          cat.isActive !== undefined ? cat.isActive : true
+        );
         setCategories([
           { _id: "all", name: "All Categories" },
           ...activeCategories,

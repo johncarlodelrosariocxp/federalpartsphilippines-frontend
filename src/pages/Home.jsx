@@ -22,6 +22,8 @@ import {
   Loader,
   ChevronLeft,
   ChevronRight,
+  Menu,
+  X,
 } from "lucide-react";
 import { categoryAPI, productAPI, getImageUrl, formatPrice } from "../services/api";
 import { toast } from "react-hot-toast";
@@ -39,7 +41,8 @@ const Home = () => {
   const [categoryView, setCategoryView] = useState("grid");
   const [visibleCategories, setVisibleCategories] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const itemsPerPage = 8; // Changed back to 8 for desktop view
 
   // Get API base URL
   const getApiBaseUrl = () => {
@@ -66,6 +69,16 @@ const Home = () => {
       fetchCategoryProducts();
     }
   }, [categories, categoriesLoading]);
+
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileMenuOpen(false);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const fetchCategories = async () => {
     try {
@@ -167,7 +180,7 @@ const Home = () => {
                   slug: sub.slug || sub.name.toLowerCase().replace(/\s+/g, "-").replace(/[^\w-]/g, ""),
                   count: sub.productCount || sub.count || 0
                 }))
-                .slice(0, 4)
+                .slice(0, 3) // Reduced for mobile
             : [];
 
           return {
@@ -657,7 +670,7 @@ const Home = () => {
     }
   };
 
-  // Product Card Component
+  // Product Card Component - Optimized for mobile
   const ProductCard = ({ product }) => {
     const [isWishlisted, setIsWishlisted] = useState(false);
     const [imageError, setImageError] = useState(false);
@@ -731,7 +744,7 @@ const Home = () => {
       >
         <div className="bg-gradient-to-b from-gray-900 to-gray-950 rounded-xl overflow-hidden border border-gray-800 hover:border-red-500 transition-all duration-300 hover:shadow-2xl h-full flex flex-col">
           {/* Product Image Container */}
-          <div className="relative h-48 overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900">
+          <div className="relative h-40 sm:h-48 overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900">
             <img
               src={getProductImage()}
               alt={product.name}
@@ -740,95 +753,38 @@ const Home = () => {
               loading="lazy"
             />
             
-            {/* Discount Badge */}
-            {discountPercentage > 0 && (
-              <div className="absolute top-3 left-3 bg-gradient-to-r from-red-600 to-red-700 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
-                -{discountPercentage}% OFF
-              </div>
-            )}
+          
             
-            {/* Wishlist Button */}
-            <button
-              onClick={handleWishlistClick}
-              className="absolute top-3 right-3 p-2 bg-black/70 backdrop-blur-sm rounded-full hover:bg-red-600 transition-colors"
-            >
-              <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-red-500 text-red-500' : 'text-gray-300'}`} />
-            </button>
-            
-            {/* Quick View Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-4">
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  toast.success("Quick view coming soon!");
-                }}
-                className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white text-sm font-medium rounded-lg transition-all transform hover:scale-105"
-              >
-                Quick View
-              </button>
-            </div>
+           
           </div>
           
           {/* Product Info */}
-          <div className="p-4 flex-1 flex flex-col">
+          <div className="p-3 sm:p-4 flex-1 flex flex-col">
             {/* Category */}
-            <div className="text-xs text-gray-400 mb-1">
+            <div className="text-xs text-gray-400 mb-1 truncate">
               {product.category?.name || "Motorcycle Parts"}
             </div>
             
             {/* Product Name */}
-            <h3 className="font-bold text-white mb-2 line-clamp-1 group-hover:text-red-400 transition-colors text-base">
+            <h3 className="font-bold text-white mb-2 line-clamp-1 group-hover:text-red-400 transition-colors text-sm sm:text-base">
               {product.name}
             </h3>
             
             {/* Description */}
-            <p className="text-sm text-gray-300 mb-3 line-clamp-2 flex-1">
+            <p className="text-xs sm:text-sm text-gray-300 mb-2 sm:mb-3 line-clamp-2 flex-1">
               {product.description}
             </p>
             
-            {/* Rating and Stock */}
-            <div className="flex items-center justify-between mb-4">
-              {getRatingStars(product.rating)}
-              <div className={`text-xs font-medium px-2 py-1 rounded-full ${
-                product.stock > 10 ? 'bg-green-500/20 text-green-400' : 
-                product.stock > 0 ? 'bg-yellow-500/20 text-yellow-400' : 
-                'bg-red-500/20 text-red-400'
-              }`}>
-                {product.stock > 10 ? 'In Stock' : product.stock > 0 ? 'Low Stock' : 'Out of Stock'}
-              </div>
-            </div>
+      
             
-            {/* Price */}
-            <div className="mt-auto">
-              <div className="flex items-baseline gap-2">
-                <span className="text-lg font-bold text-white">
-                  {formatPrice ? formatPrice(finalPrice) : `₱${finalPrice?.toLocaleString() || '0'}`}
-                </span>
-                {discountPercentage > 0 && (
-                  <span className="text-sm text-gray-400 line-through">
-                    {formatPrice ? formatPrice(product.price) : `₱${product.price?.toLocaleString() || '0'}`}
-                  </span>
-                )}
-              </div>
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  toast.success("Added to cart!");
-                }}
-                className="w-full mt-3 py-2.5 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-red-600 hover:to-red-700 text-white text-sm font-medium rounded-lg transition-all transform hover:scale-[1.02] border border-gray-700 hover:border-red-500"
-              >
-                Add to Cart
-              </button>
-            </div>
+       
           </div>
         </div>
       </Link>
     );
   };
 
-  // List View Product Card Component
+  // List View Product Card Component - Mobile optimized
   const ListProductCard = ({ product }) => {
     const [isWishlisted, setIsWishlisted] = useState(false);
     const [imageError, setImageError] = useState(false);
@@ -906,7 +862,7 @@ const Home = () => {
                 
                 {/* Discount Badge */}
                 {discountPercentage > 0 && (
-                  <div className="absolute top-3 left-3 bg-gradient-to-r from-red-600 to-red-700 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
+                  <div className="absolute top-2 left-2 md:top-3 md:left-3 bg-gradient-to-r from-red-600 to-red-700 text-white text-xs font-bold px-2 py-1 md:px-3 md:py-1.5 rounded-full shadow-lg">
                     -{discountPercentage}% OFF
                   </div>
                 )}
@@ -914,7 +870,7 @@ const Home = () => {
             </div>
             
             {/* Product Info */}
-            <div className="md:w-3/4 p-6 flex flex-col justify-between">
+            <div className="md:w-3/4 p-4 md:p-6 flex flex-col justify-between">
               <div>
                 {/* Category */}
                 <div className="text-xs text-gray-400 mb-2">
@@ -922,24 +878,24 @@ const Home = () => {
                 </div>
                 
                 {/* Product Name */}
-                <h3 className="font-bold text-white text-lg mb-2 line-clamp-1 group-hover:text-red-400 transition-colors">
+                <h3 className="font-bold text-white text-base md:text-lg mb-2 line-clamp-1 group-hover:text-red-400 transition-colors">
                   {product.name}
                 </h3>
                 
                 {/* Description */}
-                <p className="text-gray-300 mb-4 line-clamp-2">
+                <p className="text-gray-300 text-sm md:text-base mb-3 md:mb-4 line-clamp-2">
                   {product.description}
                 </p>
                 
                 {/* Rating and Stock */}
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-3 md:mb-4">
                   <div className="flex items-center gap-2">
                     {getRatingStars(product.rating)}
-                    <span className="text-sm text-gray-400">
+                    <span className="text-xs md:text-sm text-gray-400">
                       ({product.reviewCount || 0} reviews)
                     </span>
                   </div>
-                  <div className={`text-sm font-medium px-3 py-1 rounded-full ${
+                  <div className={`text-xs md:text-sm font-medium px-2 py-1 md:px-3 md:py-1 rounded-full ${
                     product.stock > 10 ? 'bg-green-500/20 text-green-400' : 
                     product.stock > 0 ? 'bg-yellow-500/20 text-yellow-400' : 
                     'bg-red-500/20 text-red-400'
@@ -950,14 +906,14 @@ const Home = () => {
               </div>
               
               {/* Price and Actions */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4 border-t border-gray-800">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 md:gap-4 pt-3 md:pt-4 border-t border-gray-800">
                 <div>
-                  <div className="flex items-baseline gap-3">
-                    <span className="text-xl font-bold text-white">
+                  <div className="flex items-baseline gap-2 md:gap-3">
+                    <span className="text-lg md:text-xl font-bold text-white">
                       {formatPrice ? formatPrice(finalPrice) : `₱${finalPrice?.toLocaleString() || '0'}`}
                     </span>
                     {discountPercentage > 0 && (
-                      <span className="text-sm text-gray-400 line-through">
+                      <span className="text-xs md:text-sm text-gray-400 line-through">
                         {formatPrice ? formatPrice(product.price) : `₱${product.price?.toLocaleString() || '0'}`}
                       </span>
                     )}
@@ -965,14 +921,14 @@ const Home = () => {
                 </div>
                 
                 {/* Action Buttons */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 md:gap-3 w-full sm:w-auto">
                   <button
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
                       toast.success("Added to cart!");
                     }}
-                    className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white text-sm font-medium rounded-lg transition-all transform hover:scale-105"
+                    className="flex-1 sm:flex-none px-3 py-2 md:px-4 md:py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white text-xs md:text-sm font-medium rounded-lg transition-all transform hover:scale-105"
                   >
                     Add to Cart
                   </button>
@@ -982,7 +938,7 @@ const Home = () => {
                       e.stopPropagation();
                       toast.success("Quick view coming soon!");
                     }}
-                    className="px-4 py-2 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800 text-white text-sm font-medium rounded-lg border border-gray-700 hover:border-red-500 transition-all"
+                    className="flex-1 sm:flex-none px-3 py-2 md:px-4 md:py-2 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800 text-white text-xs md:text-sm font-medium rounded-lg border border-gray-700 hover:border-red-500 transition-all"
                   >
                     Quick View
                   </button>
@@ -1017,7 +973,7 @@ const Home = () => {
     </svg>
   );
 
-  // Compact Category Card Component
+  // Compact Category Card Component - Mobile optimized
   const CategoryCard = ({ category, index }) => {
     const [imgError, setImgError] = useState(false);
 
@@ -1068,10 +1024,10 @@ const Home = () => {
       >
         <button
           onClick={() => handleCategoryClick(category)}
-          className="w-full bg-gradient-to-b from-gray-900 to-gray-950 rounded-xl overflow-hidden shadow-lg border border-gray-800 hover:border-red-500 transition-all duration-300 hover:shadow-xl group cursor-pointer h-64 flex flex-col"
+          className="w-full bg-gradient-to-b from-gray-900 to-gray-950 rounded-xl overflow-hidden shadow-lg border border-gray-800 hover:border-red-500 transition-all duration-300 hover:shadow-xl group cursor-pointer h-56 sm:h-64 flex flex-col"
         >
           {/* Simple Image Container */}
-          <div className="relative h-48 overflow-hidden flex-1">
+          <div className="relative h-40 sm:h-48 overflow-hidden flex-1">
             <img
               src={getFinalImageUrl()}
               alt={category.title}
@@ -1081,9 +1037,9 @@ const Home = () => {
             />
             
             {/* Category Name Overlay */}
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent p-3">
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent p-2 sm:p-3">
               <div className="text-center">
-                <h3 className="text-sm font-semibold text-white truncate">
+                <h3 className="text-sm font-semibold text-white truncate px-1">
                   {category.title}
                 </h3>
                 <p className="text-xs text-gray-300 mt-0.5">
@@ -1094,8 +1050,8 @@ const Home = () => {
           </div>
           
           {/* Simple bottom bar */}
-          <div className="bg-gray-900 px-3 py-2 flex items-center justify-center border-t border-gray-800">
-            <span className="text-xs text-gray-300 truncate">
+          <div className="bg-gray-900 px-2 sm:px-3 py-2 flex items-center justify-center border-t border-gray-800">
+            <span className="text-xs text-gray-300 truncate px-1">
               {category.title}
             </span>
           </div>
@@ -1106,6 +1062,21 @@ const Home = () => {
 
   return (
     <>
+      {/* Mobile Menu Overlay */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 bg-black/90 z-50 md:hidden">
+          <div className="p-4">
+            <button
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="absolute top-4 right-4 p-2 text-white"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            {/* Add mobile menu items here if needed */}
+          </div>
+        </div>
+      )}
+
       {/* Animation Styles */}
       <style>
         {`
@@ -1117,7 +1088,7 @@ const Home = () => {
           @keyframes fadeInUp {
             from {
               opacity: 0;
-              transform: translateY(30px);
+              transform: translateY(20px);
             }
             to {
               opacity: 1;
@@ -1185,11 +1156,28 @@ const Home = () => {
             -webkit-box-orient: vertical;
             -webkit-line-clamp: 2;
           }
+          
+          /* Mobile responsive fixes */
+          @media (max-width: 640px) {
+            .text-5xl {
+              font-size: 2.5rem !important;
+            }
+            .text-6xl {
+              font-size: 3rem !important;
+            }
+            .text-4xl {
+              font-size: 2rem !important;
+            }
+            .container {
+              padding-left: 1rem !important;
+              padding-right: 1rem !important;
+            }
+          }
         `}
       </style>
 
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black">
+      <section className="relative min-h-[50vh] sm:min-h-screen flex items-center justify-center overflow-hidden bg-black">
         <div className="absolute inset-0 z-0">
           <img
             src="/banner/FRONT PAGE.jpg"
@@ -1200,21 +1188,23 @@ const Home = () => {
               e.target.src = "https://images.unsplash.com/photo-1566473359723-7e3e4d6c8c1b?w=1200&h=800&fit=crop";
             }}
           />
+          {/* Mobile overlay for better text visibility */}
+          <div className="absolute inset-0 bg-black/30 md:hidden"></div>
         </div>
       </section>
 
       {/* Categories Section */}
       <section
         ref={(el) => (sectionRefs.current[0] = el)}
-        className="py-16 bg-gradient-to-b from-black to-gray-900"
+        className="py-8 sm:py-16 bg-gradient-to-b from-black to-gray-900"
       >
-        <div className="container mx-auto px-4 max-w-7xl">
+        <div className="container mx-auto px-3 sm:px-4 max-w-7xl">
           {/* Section Header */}
-          <div className="text-center mb-12 animate-fade-up animate-on-visible">
-            <h2 className="font-bebas text-4xl md:text-5xl text-white mb-3">
+          <div className="text-center mb-8 sm:mb-12 animate-fade-up animate-on-visible">
+            <h2 className="font-bebas text-3xl sm:text-4xl md:text-5xl text-white mb-2 sm:mb-3">
               Product Categories
             </h2>
-            <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+            <p className="text-gray-400 text-sm sm:text-lg max-w-2xl mx-auto px-2">
               Browse our premium motorcycle parts organized by category
             </p>
           </div>
@@ -1225,57 +1215,57 @@ const Home = () => {
               /* Category Products View */
               <div>
                 {/* Category Header */}
-                <div className="mb-8">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-                    <div className="flex items-center gap-4">
+                <div className="mb-6 sm:mb-8">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4 sm:mb-6">
+                    <div className="flex items-center gap-3 sm:gap-4">
                       <button
                         onClick={clearSelectedCategory}
-                        className="p-2 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800 rounded-lg border border-gray-700 hover:border-red-500 transition-all"
+                        className="p-1.5 sm:p-2 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800 rounded-lg border border-gray-700 hover:border-red-500 transition-all"
                         title="Back to Categories"
                       >
-                        <ArrowRight className="w-5 h-5 text-gray-400 rotate-180" />
+                        <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 rotate-180" />
                       </button>
                       <div>
-                        <h3 className="text-2xl font-bold text-white">
+                        <h3 className="text-xl sm:text-2xl font-bold text-white">
                           {selectedCategory.title}
                         </h3>
-                        <p className="text-gray-400 text-sm mt-1">
+                        <p className="text-gray-400 text-xs sm:text-sm mt-1">
                           {getProductsForSelectedCategory().length} products • {selectedCategory.description}
                         </p>
                       </div>
                     </div>
                     
                     {/* View Toggle Buttons */}
-                    <div className="flex items-center gap-2 bg-gradient-to-r from-gray-900 to-black p-1 rounded-lg border border-gray-800">
+                    <div className="flex items-center gap-1 sm:gap-2 bg-gradient-to-r from-gray-900 to-black p-1 rounded-lg border border-gray-800 self-end sm:self-auto">
                       <button
                         onClick={() => setCategoryView("grid")}
-                        className={`p-2 rounded-md transition-all ${categoryView === "grid" ? "bg-gray-800 text-white" : "text-gray-400 hover:text-white"}`}
+                        className={`p-1.5 sm:p-2 rounded-md transition-all ${categoryView === "grid" ? "bg-gray-800 text-white" : "text-gray-400 hover:text-white"}`}
                         title="Grid View"
                       >
-                        <Grid className="w-4 h-4" />
+                        <Grid className="w-3 h-3 sm:w-4 sm:h-4" />
                       </button>
                       <button
                         onClick={() => setCategoryView("list")}
-                        className={`p-2 rounded-md transition-all ${categoryView === "list" ? "bg-gray-800 text-white" : "text-gray-400 hover:text-white"}`}
+                        className={`p-1.5 sm:p-2 rounded-md transition-all ${categoryView === "list" ? "bg-gray-800 text-white" : "text-gray-400 hover:text-white"}`}
                         title="List View"
                       >
-                        <List className="w-4 h-4" />
+                        <List className="w-3 h-3 sm:w-4 sm:h-4" />
                       </button>
                     </div>
                   </div>
                   
                   {/* Subcategories */}
                   {selectedCategory.subcategories && selectedCategory.subcategories.length > 0 && (
-                    <div className="mb-6">
-                      <h4 className="text-sm font-medium text-gray-400 mb-3 uppercase tracking-wider">
+                    <div className="mb-4 sm:mb-6">
+                      <h4 className="text-xs sm:text-sm font-medium text-gray-400 mb-2 sm:mb-3 uppercase tracking-wider">
                         Popular Subcategories
                       </h4>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-1 sm:gap-2">
                         {selectedCategory.subcategories.map((sub, idx) => (
                           <button
                             key={sub._id || idx}
                             onClick={() => toast.success(`Filtering by ${sub.name}`)}
-                            className="px-3 py-1.5 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800 text-gray-300 hover:text-white text-sm rounded-lg border border-gray-700 hover:border-red-500 transition-all"
+                            className="px-2 py-1 sm:px-3 sm:py-1.5 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800 text-gray-300 hover:text-white text-xs sm:text-sm rounded-lg border border-gray-700 hover:border-red-500 transition-all"
                           >
                             {sub.name} ({sub.count || 0})
                           </button>
@@ -1287,19 +1277,19 @@ const Home = () => {
 
                 {/* Products Grid/List */}
                 {loadingProducts[selectedCategory._id] ? (
-                  <div className="text-center py-12">
-                    <Loader className="w-8 h-8 animate-spin text-red-500 mx-auto mb-4" />
-                    <p className="text-gray-400">Loading products...</p>
+                  <div className="text-center py-8 sm:py-12">
+                    <Loader className="w-6 h-6 sm:w-8 sm:h-8 animate-spin text-red-500 mx-auto mb-3 sm:mb-4" />
+                    <p className="text-gray-400 text-sm">Loading products...</p>
                   </div>
                 ) : getProductsForSelectedCategory().length > 0 ? (
                   categoryView === "grid" ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                       {getProductsForSelectedCategory().map((product, index) => (
                         <ProductCard key={product._id || product.id || `product-${index}`} product={product} />
                       ))}
                     </div>
                   ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-3 sm:space-y-4">
                       {getProductsForSelectedCategory().map((product, index) => (
                         <ListProductCard key={product._id || product.id || `product-${index}`} product={product} />
                       ))}
@@ -1307,27 +1297,27 @@ const Home = () => {
                   )
                 ) : (
                   /* Empty State for Products */
-                  <div className="text-center py-12">
-                    <FolderTree className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                    <h4 className="text-xl font-bold text-white mb-2">No Products Found</h4>
-                    <p className="text-gray-400 mb-6">
+                  <div className="text-center py-8 sm:py-12">
+                    <FolderTree className="w-12 h-12 sm:w-16 sm:h-16 text-gray-600 mx-auto mb-3 sm:mb-4" />
+                    <h4 className="text-lg sm:text-xl font-bold text-white mb-1 sm:mb-2">No Products Found</h4>
+                    <p className="text-gray-400 text-sm sm:text-base mb-4 sm:mb-6 max-w-md mx-auto px-2">
                       There are no products available in this category yet. 
                       Please check back later or browse other categories.
                     </p>
-                    <div className="flex gap-3 justify-center">
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center">
                       <button
                         onClick={() => {
                           fetchProductsForCategory(selectedCategory);
                           toast.success("Refreshing products...");
                         }}
-                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center gap-2"
+                        className="px-3 py-2 sm:px-4 sm:py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center justify-center gap-1 sm:gap-2 text-sm"
                       >
-                        <RefreshCw className="w-4 h-4" />
+                        <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
                         Refresh Products
                       </button>
                       <button
                         onClick={clearSelectedCategory}
-                        className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                        className="px-3 py-2 sm:px-4 sm:py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors text-sm"
                       >
                         Browse Other Categories
                       </button>
@@ -1337,8 +1327,8 @@ const Home = () => {
 
                 {/* Product Count Display */}
                 {!loadingProducts[selectedCategory._id] && getProductsForSelectedCategory().length > 0 && (
-                  <div className="mt-6 text-center">
-                    <p className="text-gray-400 text-sm">
+                  <div className="mt-4 sm:mt-6 text-center">
+                    <p className="text-gray-400 text-xs sm:text-sm">
                       Showing {getProductsForSelectedCategory().length} products in {selectedCategory.title}
                     </p>
                   </div>
@@ -1346,13 +1336,13 @@ const Home = () => {
 
                 {/* View All Button */}
                 {!loadingProducts[selectedCategory._id] && getProductsForSelectedCategory().length > 0 && (
-                  <div className="text-center mt-12">
+                  <div className="text-center mt-8 sm:mt-12">
                     <Link
                       to={`/products?category=${selectedCategory.slug || selectedCategory._id}`}
-                      className="inline-flex items-center gap-3 bg-gradient-to-r from-gray-900 to-black hover:from-gray-800 hover:to-gray-900 text-white px-8 py-4 rounded-xl font-semibold transition-all duration-300 hover:scale-105 border border-gray-800 hover:border-red-500/30 shadow-lg"
+                      className="inline-flex items-center justify-center gap-2 sm:gap-3 bg-gradient-to-r from-gray-900 to-black hover:from-gray-800 hover:to-gray-900 text-white px-4 py-3 sm:px-8 sm:py-4 rounded-xl font-semibold transition-all duration-300 hover:scale-105 border border-gray-800 hover:border-red-500/30 shadow-lg text-sm sm:text-base w-full sm:w-auto"
                     >
                       <span>View All {selectedCategory.title} Products ({getProductsForSelectedCategory().length})</span>
-                      <ArrowRight className="w-5 h-5" />
+                      <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
                     </Link>
                   </div>
                 )}
@@ -1360,36 +1350,36 @@ const Home = () => {
             ) : (
               /* Categories Grid View */
               <div>
-                {/* Categories Grid - 8 items visible */}
+                {/* Categories Grid - 8 items visible per page (4 on mobile) */}
                 {categoriesLoading ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
                     {Array.from({ length: 8 }).map((_, index) => (
                       <div
                         key={index}
-                        className="category-skeleton h-64 animate-fade-up animate-on-visible"
+                        className="category-skeleton h-56 sm:h-64 animate-fade-up animate-on-visible"
                         style={{ animationDelay: `${index * 100 + 300}ms` }}
                       />
                     ))}
                   </div>
                 ) : apiStatus === "error" ? (
-                  <div className="text-center py-16">
-                    <AlertCircle className="w-24 h-24 text-red-500 mx-auto mb-6" />
-                    <h3 className="text-2xl font-bold text-white mb-3">
+                  <div className="text-center py-8 sm:py-16">
+                    <AlertCircle className="w-16 h-16 sm:w-24 sm:h-24 text-red-500 mx-auto mb-4 sm:mb-6" />
+                    <h3 className="text-xl sm:text-2xl font-bold text-white mb-2 sm:mb-3">
                       Connection Error
                     </h3>
-                    <p className="text-gray-400 mb-8 max-w-md mx-auto">
+                    <p className="text-gray-400 text-sm sm:text-base mb-6 sm:mb-8 max-w-md mx-auto px-2">
                       Unable to connect to the server. Please check your backend connection.
                     </p>
                     
-                    <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 justify-center items-center">
                       <button
                         onClick={() => {
                           setRetryCount(0);
                           fetchCategories();
                         }}
-                        className="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg font-medium flex items-center gap-2 transition-all hover:scale-105"
+                        className="px-4 py-2 sm:px-6 sm:py-3 bg-red-600 hover:bg-red-700 rounded-lg font-medium flex items-center justify-center gap-1 sm:gap-2 transition-all hover:scale-105 text-sm sm:text-base w-full sm:w-auto"
                       >
-                        <RefreshCw className="w-4 h-4" />
+                        <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
                         Reset & Retry
                       </button>
                       
@@ -1399,52 +1389,52 @@ const Home = () => {
                           window.open(`${backendUrl}/api/categories`, '_blank');
                           toast.info(`Opening categories endpoint in new tab`);
                         }}
-                        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-all hover:scale-105"
+                        className="px-4 py-2 sm:px-6 sm:py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-all hover:scale-105 text-sm sm:text-base w-full sm:w-auto"
                       >
                         Test Endpoint
                       </button>
                     </div>
                     
-                    <div className="mt-8 p-4 bg-gray-900/50 rounded-lg max-w-lg mx-auto">
-                      <h4 className="text-white font-semibold mb-2">Troubleshooting Tips:</h4>
-                      <ul className="text-sm text-gray-400 space-y-1">
+                    <div className="mt-6 sm:mt-8 p-3 sm:p-4 bg-gray-900/50 rounded-lg max-w-lg mx-auto text-left">
+                      <h4 className="text-white font-semibold mb-2 text-sm sm:text-base">Troubleshooting Tips:</h4>
+                      <ul className="text-xs sm:text-sm text-gray-400 space-y-1">
                         <li>• Ensure your backend server is running on Render</li>
-                        <li>• Check the API endpoint: <code className="bg-gray-800 px-2 py-1 rounded">https://federalpartsphilippines-backend.onrender.com/api/categories</code></li>
+                        <li>• Check the API endpoint: <code className="bg-gray-800 px-1 py-0.5 sm:px-2 sm:py-1 rounded text-xs">https://federalpartsphilippines-backend.onrender.com/api/categories</code></li>
                         <li>• Verify CORS is enabled on the backend</li>
                         <li>• Check browser console for detailed error messages</li>
                       </ul>
-                      <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded">
-                        <p className="text-yellow-500 text-sm">
+                      <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-yellow-500/10 border border-yellow-500/20 rounded">
+                        <p className="text-yellow-500 text-xs sm:text-sm">
                           <strong>Backend URL:</strong> {getApiBaseUrl()}
                         </p>
                       </div>
                     </div>
                   </div>
                 ) : categories.length === 0 ? (
-                  <div className="text-center py-16">
-                    <FolderTree className="w-24 h-24 text-gray-600 mx-auto mb-6" />
-                    <h3 className="text-2xl font-bold text-white mb-3">
+                  <div className="text-center py-8 sm:py-16">
+                    <FolderTree className="w-16 h-16 sm:w-24 sm:h-24 text-gray-600 mx-auto mb-4 sm:mb-6" />
+                    <h3 className="text-xl sm:text-2xl font-bold text-white mb-2 sm:mb-3">
                       No Categories Available
                     </h3>
-                    <p className="text-gray-400 mb-8 max-w-md mx-auto">
+                    <p className="text-gray-400 text-sm sm:text-base mb-6 sm:mb-8 max-w-md mx-auto px-2">
                       No categories found in the database. Please add categories through the admin panel.
                     </p>
                     
-                    <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 justify-center items-center">
                       <button
                         onClick={() => {
                           setRetryCount(0);
                           fetchCategories();
                         }}
-                        className="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg font-medium flex items-center gap-2 transition-all hover:scale-105"
+                        className="px-4 py-2 sm:px-6 sm:py-3 bg-red-600 hover:bg-red-700 rounded-lg font-medium flex items-center justify-center gap-1 sm:gap-2 transition-all hover:scale-105 text-sm sm:text-base w-full sm:w-auto"
                       >
-                        <RefreshCw className="w-4 h-4" />
+                        <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
                         Refresh
                       </button>
                       
                       <Link
                         to="/admin/categories"
-                        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-all hover:scale-105"
+                        className="px-4 py-2 sm:px-6 sm:py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-all hover:scale-105 text-sm sm:text-base w-full sm:w-auto text-center"
                       >
                         Add Categories
                       </Link>
@@ -1452,8 +1442,8 @@ const Home = () => {
                   </div>
                 ) : (
                   <>
-                    {/* Categories Grid - Showing 8 items */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
+                    {/* Categories Grid - Showing 8 items per page on desktop (4 on mobile) */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
                       {visibleCategories.map((category, index) => (
                         <CategoryCard key={category._id} category={category} index={index} />
                       ))}
@@ -1461,23 +1451,23 @@ const Home = () => {
 
                     {/* Pagination Controls */}
                     {categories.length > itemsPerPage && (
-                      <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-                        <div className="text-gray-400 text-sm">
+                      <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
+                        <div className="text-gray-400 text-xs sm:text-sm order-2 sm:order-1">
                           Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
                           {Math.min(currentPage * itemsPerPage, categories.length)} of {categories.length} categories
                         </div>
                         
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 sm:gap-2 order-1 sm:order-2">
                           <button
                             onClick={handlePrevPage}
                             disabled={currentPage === 1}
-                            className={`p-2 rounded-lg border transition-all ${
+                            className={`p-1.5 sm:p-2 rounded-lg border transition-all ${
                               currentPage === 1
                                 ? "border-gray-800 text-gray-600 cursor-not-allowed"
                                 : "border-gray-700 text-gray-300 hover:border-red-500 hover:text-white hover:bg-gray-800"
                             }`}
                           >
-                            <ChevronLeft className="w-5 h-5" />
+                            <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
                           </button>
                           
                           <div className="flex items-center gap-1">
@@ -1497,7 +1487,7 @@ const Home = () => {
                                 <button
                                   key={pageNum}
                                   onClick={() => goToPage(pageNum)}
-                                  className={`w-8 h-8 rounded-lg transition-all ${
+                                  className={`w-6 h-6 sm:w-8 sm:h-8 rounded-lg transition-all text-xs sm:text-sm ${
                                     currentPage === pageNum
                                       ? "bg-red-600 text-white"
                                       : "text-gray-400 hover:text-white hover:bg-gray-800"
@@ -1512,26 +1502,26 @@ const Home = () => {
                           <button
                             onClick={handleNextPage}
                             disabled={currentPage === totalPages}
-                            className={`p-2 rounded-lg border transition-all ${
+                            className={`p-1.5 sm:p-2 rounded-lg border transition-all ${
                               currentPage === totalPages
                                 ? "border-gray-800 text-gray-600 cursor-not-allowed"
                                 : "border-gray-700 text-gray-300 hover:border-red-500 hover:text-white hover:bg-gray-800"
                             }`}
                           >
-                            <ChevronRight className="w-5 h-5" />
+                            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
                           </button>
                         </div>
                       </div>
                     )}
 
                     {/* View All Categories Button */}
-                    <div className="mt-12 text-center">
+                    <div className="mt-8 sm:mt-12 text-center">
                       <Link
                         to="/products"
-                        className="inline-flex items-center gap-3 bg-gradient-to-r from-gray-900 to-black hover:from-gray-800 hover:to-gray-900 text-white px-8 py-4 rounded-xl font-semibold transition-all duration-300 hover:scale-105 border border-gray-800 hover:border-red-500/30 shadow-lg"
+                        className="inline-flex items-center justify-center gap-2 sm:gap-3 bg-gradient-to-r from-gray-900 to-black hover:from-gray-800 hover:to-gray-900 text-white px-4 py-3 sm:px-8 sm:py-4 rounded-xl font-semibold transition-all duration-300 hover:scale-105 border border-gray-800 hover:border-red-500/30 shadow-lg text-sm sm:text-base w-full sm:w-auto"
                       >
                         <span>Browse All Categories & Products</span>
-                        <ArrowRight className="w-5 h-5" />
+                        <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
                       </Link>
                     </div>
 
@@ -1546,61 +1536,61 @@ const Home = () => {
       {/* About Section */}
       <section
         ref={(el) => (sectionRefs.current[1] = el)}
-        className="py-16 bg-black"
+        className="py-8 sm:py-16 bg-black"
       >
-        <div className="container mx-auto px-4 max-w-7xl">
-          <div className="text-center mb-12 animate-fade-up animate-on-visible">
-            <h2 className="font-bebas text-5xl md:text-6xl text-white mb-4">
+        <div className="container mx-auto px-3 sm:px-4 max-w-7xl">
+          <div className="text-center mb-8 sm:mb-12 animate-fade-up animate-on-visible">
+            <h2 className="font-bebas text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-white mb-3 sm:mb-4 px-2">
               Quality you can Trust. Price You Can Afford.
             </h2>
-            <p className="text-gray-300 text-lg max-w-3xl mx-auto">
+            <p className="text-gray-300 text-sm sm:text-lg max-w-3xl mx-auto px-2">
               Experience the perfect balance of premium quality and exceptional value with Federal Parts - where trust meets affordability.
             </p>
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+          <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 items-center">
             <div className="animate-slide-down animate-on-visible">
-              <h2 className="font-bebas text-4xl text-white mb-6">
+              <h2 className="font-bebas text-2xl sm:text-3xl md:text-4xl text-white mb-4 sm:mb-6">
                 About Federal Parts
               </h2>
-              <p className="text-gray-300 mb-8">
+              <p className="text-gray-300 text-sm sm:text-base mb-6 sm:mb-8">
                 Cutting-edge innovative technology Federal Parts is one of the brands of motorcycle spare parts marketed by PT Astra Otoparts Tbk's Domestic business unit. Consumers in Indonesia can easily obtain Federal Parts products due to the extensive marketing network, which includes 50 main dealers, 23 sales offices, and nearly 10,000 shops or workshops. In addition, Federal Parts is well known for its quality because it is manufactured according to OEM (Original Equipment Manufacturer) standards and is suitable for all motorcycle brands circulating in Indonesia, such as Honda, Kawasaki, Suzuki, and Yamaha. It is also supported by the large variety of products offered. Federal Parts is always committed to providing added value for consumers by continuously launching spare parts with the latest technology at affordable prices without compromising quality.
               </p>
 
-              <div className="space-y-4">
-                <div className="flex items-center gap-4 p-4 bg-gray-900/50 rounded-lg hover:bg-gray-800 transition-colors animate-fade-up animate-on-visible border border-gray-800">
-                  <Shield className="w-8 h-8 text-red-600 flex-shrink-0" />
+              <div className="space-y-3 sm:space-y-4">
+                <div className="flex items-start sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-900/50 rounded-lg hover:bg-gray-800 transition-colors animate-fade-up animate-on-visible border border-gray-800">
+                  <Shield className="w-6 h-6 sm:w-8 sm:h-8 text-red-600 flex-shrink-0 mt-0.5 sm:mt-0" />
                   <div>
-                    <h4 className="font-bold text-white">
+                    <h4 className="font-bold text-white text-sm sm:text-base">
                       Japanese-level Engineering
                     </h4>
-                    <p className="text-sm text-gray-400">
+                    <p className="text-xs sm:text-sm text-gray-400 mt-0.5">
                       Precision engineering meets world-class quality standards
                     </p>
                   </div>
                 </div>
                 <div 
-                  className="flex items-center gap-4 p-4 bg-gray-900/50 rounded-lg hover:bg-gray-800 transition-colors animate-fade-up animate-on-visible border border-gray-800"
+                  className="flex items-start sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-900/50 rounded-lg hover:bg-gray-800 transition-colors animate-fade-up animate-on-visible border border-gray-800"
                   style={{ animationDelay: "200ms" }}
                 >
-                  <Target className="w-8 h-8 text-red-600 flex-shrink-0" />
+                  <Target className="w-6 h-6 sm:w-8 sm:h-8 text-red-600 flex-shrink-0 mt-0.5 sm:mt-0" />
                   <div>
-                    <h4 className="font-bold text-white">Indonesia-DNA</h4>
-                    <p className="text-sm text-gray-400">
+                    <h4 className="font-bold text-white text-sm sm:text-base">Indonesia-DNA</h4>
+                    <p className="text-xs sm:text-sm text-gray-400 mt-0.5">
                       Locally manufactured, nationally trusted
                     </p>
                   </div>
                 </div>
                 <div 
-                  className="flex items-center gap-4 p-4 bg-gray-900/50 rounded-lg hover:bg-gray-800 transition-colors animate-fade-up animate-on-visible border border-gray-800"
+                  className="flex items-start sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-900/50 rounded-lg hover:bg-gray-800 transition-colors animate-fade-up animate-on-visible border border-gray-800"
                   style={{ animationDelay: "300ms" }}
                 >
-                  <TrendingDown className="w-8 h-8 text-red-600 flex-shrink-0" />
+                  <TrendingDown className="w-6 h-6 sm:w-8 sm:h-8 text-red-600 flex-shrink-0 mt-0.5 sm:mt-0" />
                   <div>
-                    <h4 className="font-bold text-white">
+                    <h4 className="font-bold text-white text-sm sm:text-base">
                       China-level Affordability
                     </h4>
-                    <p className="text-sm text-gray-400">
+                    <p className="text-xs sm:text-sm text-gray-400 mt-0.5">
                       Competitive pricing without compromising on quality
                     </p>
                   </div>
@@ -1608,23 +1598,24 @@ const Home = () => {
               </div>
             </div>
 
-            <div className="relative animate-fade-up animate-on-visible">
+            <div className="relative animate-fade-up animate-on-visible mt-8 lg:mt-0">
               <div className="relative rounded-xl overflow-hidden shadow-2xl border border-gray-800">
+                {/* Updated about picture */}
                 <img
-                  src="/wmremove-transformed (1).png"
-                  alt="Motorcycle parts"
+                  src="/newbanner/Desktop (about federal parts.png"
+                  alt="About Federal Parts"
                   className="w-full h-auto"
                   onError={(e) => {
                     e.target.onerror = null;
-                    e.target.src = "https://images.unsplash.com/photo-1621422206586-8b4e69e4b8a1?w=600&h=400&fit=crop";
+                    e.target.src = "/wmremove-transformed (1).png";
                   }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end">
-                  <div className="p-6">
-                    <h3 className="font-bebas text-3xl text-white mb-2">
+                  <div className="p-4 sm:p-6">
+                    <h3 className="font-bebas text-xl sm:text-2xl md:text-3xl text-white mb-1 sm:mb-2">
                       Trusted by Riders Nationwide
                     </h3>
-                    <p className="text-gray-200">
+                    <p className="text-gray-200 text-sm sm:text-base">
                       Quality parts for every motorcycle, everywhere in Indonesia
                     </p>
                   </div>

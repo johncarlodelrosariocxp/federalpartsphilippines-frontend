@@ -83,21 +83,27 @@ const About = () => {
                 className="rounded-2xl shadow-2xl border border-gray-800 w-full h-auto object-cover"
               />
               <div className="absolute inset-0 rounded-2xl bg-gradient-to-t from-black/40 to-transparent" />
-              {/* Flags Badge - Cleaner design */}
+              {/* Flags Badge - Using image files */}
               <div className="absolute bottom-6 right-6 flex gap-2">
-                <div className="bg-white p-2 rounded-lg shadow-lg">
-                  <div className="w-12 h-8 bg-gradient-to-r from-red-500 to-white flex items-center justify-center">
-                    <div className="text-xs font-bold text-center">ID</div>
-                  </div>
-                  <div className="text-xs text-gray-700 text-center mt-1">
+                {/* Indonesia Flag */}
+                <div className=" p-2 rounded-lg shadow-lg">
+                  <img
+                    src="/newbanner/OIP.jpg"
+                    alt="Indonesia Flag"
+                    className="w-12 h-8 object-cover rounded-sm"
+                  />
+                  <div className="text-xs text-white-700 text-center mt-1">
                     Indonesia
                   </div>
                 </div>
-                <div className="bg-white p-2 rounded-lg shadow-lg">
-                  <div className="w-12 h-8 bg-gradient-to-r from-blue-500 via-red-500 to-yellow-500 flex items-center justify-center">
-                    <div className="text-xs font-bold text-center">PH</div>
-                  </div>
-                  <div className="text-xs text-gray-700 text-center mt-1">
+                {/* Philippines Flag */}
+                <div className=" p-2 rounded-lg shadow-lg">
+                  <img
+                    src="/newbanner/philippines-7554304_1280.png"
+                    alt="Philippines Flag"
+                    className="w-12 h-8 object-cover rounded-sm"
+                  />
+                  <div className="text-xs text-white-700 text-center mt-1">
                     Philippines
                   </div>
                 </div>
