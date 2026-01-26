@@ -413,27 +413,7 @@ const Header = () => {
                               <Search className="w-5 h-5 text-gray-400" />
                             </div>
                           )}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-white truncate">
-                              {product.name}
-                            </p>
-                            <p className="text-xs text-gray-300 mt-0.5">
-                              {product.discountedPrice ? (
-                                <>
-                                  <span className="font-semibold text-[#cc0000]">
-                                    {formatPrice(product.discountedPrice)}
-                                  </span>
-                                  <span className="line-through ml-2 text-gray-400">
-                                    {formatPrice(product.price)}
-                                  </span>
-                                </>
-                              ) : (
-                                <span className="font-semibold text-white">
-                                  {formatPrice(product.price)}
-                                </span>
-                              )}
-                            </p>
-                          </div>
+                         
                         </div>
                       </button>
                     ))}

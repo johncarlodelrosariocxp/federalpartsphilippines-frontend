@@ -246,15 +246,18 @@ const Home = () => {
         
         // Try to fetch products from API
         try {
-          const response = await productAPI.getProductsByCategory(category._id, { limit: 3 });
+          const response = await productAPI.getProductsByCategory(category._id);
           console.log(`Products response for ${category.name}:`, response);
           
+          // Parse different response formats
           if (response?.success && response.products) {
-            products = response.products.slice(0, 3);
+            products = response.products;
           } else if (response?.data && Array.isArray(response.data)) {
-            products = response.data.slice(0, 3);
+            products = response.data;
           } else if (Array.isArray(response)) {
-            products = response.slice(0, 3);
+            products = response;
+          } else if (response?.success && response.data?.products) {
+            products = response.data.products;
           } else {
             console.warn(`No products found for category ${category.name}`);
             products = [];
@@ -264,24 +267,71 @@ const Home = () => {
           products = [];
         }
 
-        // Process products
-        const processedProducts = products.map(product => ({
-          ...product,
-          price: product.price || 0,
-          discountedPrice: product.discountedPrice || product.discountPrice || null,
-          rating: product.rating || product.averageRating || 4.0,
-          reviewCount: product.reviewCount || product.reviews || 0,
-          stock: product.stock || product.quantity || Math.floor(Math.random() * 50) + 1,
-          images: product.images || product.image ? [product.image] : [
-            "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop"
-          ]
-        }));
+        // Process products - DYNAMIC: Only process if products exist
+        const processedProducts = products.map(product => {
+          // Get the main image - handle multiple formats
+          let mainImage = "";
+          
+          if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+            // If images array exists and has items
+            mainImage = product.images[0];
+          } else if (product.image) {
+            // If single image field exists
+            mainImage = product.image;
+          } else if (product.imageUrl) {
+            // If imageUrl field exists
+            mainImage = product.imageUrl;
+          } else if (product.thumbnail) {
+            // If thumbnail field exists
+            mainImage = product.thumbnail;
+          }
+          
+          // Convert relative path to absolute URL if needed
+          let finalImageUrl = mainImage;
+          if (mainImage && !mainImage.startsWith("http") && !mainImage.startsWith("data:")) {
+            if (mainImage.startsWith("/")) {
+              const API_BASE_URL = getApiBaseUrl();
+              // Remove any double slashes
+              const cleanPath = mainImage.replace(/^\/+/, '');
+              finalImageUrl = `${API_BASE_URL}/${cleanPath}`;
+            } else {
+              const API_BASE_URL = getApiBaseUrl();
+              finalImageUrl = `${API_BASE_URL}/uploads/products/${mainImage}`;
+            }
+          }
+          
+          // Fallback if no image
+          if (!finalImageUrl || finalImageUrl.trim() === '') {
+            finalImageUrl = "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop";
+          }
+          
+          return {
+            ...product,
+            price: product.price || 0,
+            discountedPrice: product.discountedPrice || product.discountPrice || null,
+            rating: product.rating || product.averageRating || 4.0,
+            reviewCount: product.reviewCount || product.reviews || 0,
+            stock: product.stock || product.quantity || Math.floor(Math.random() * 50) + 1,
+            images: [finalImageUrl], // Always ensure images array has at least one valid URL
+            image: finalImageUrl, // Also set single image field
+            category: product.category || { name: category.name }
+          };
+        });
 
-        newCategoryProducts[category._id] = processedProducts;
+        // DYNAMIC: Only set products if API returns them
+        if (processedProducts.length > 0) {
+          newCategoryProducts[category._id] = processedProducts;
+          console.log(`Loaded ${processedProducts.length} real products for ${category.name}`);
+        } else {
+          newCategoryProducts[category._id] = []; // Empty array if no products
+          console.log(`No real products found for ${category.name}`);
+        }
+        
         newLoadingProducts[category._id] = false;
         
       } catch (error) {
         console.error(`Error processing category ${category.name}:`, error);
+        // DYNAMIC: Don't create mock products, just set empty array
         newCategoryProducts[category._id] = [];
         newLoadingProducts[category._id] = false;
       }
@@ -434,7 +484,7 @@ const Home = () => {
     }
   };
 
-  // Product Card Component
+  // Product Card Component - ONLY RENDERS IF PRODUCT EXISTS
   const ProductCard = ({ product }) => {
     const [isWishlisted, setIsWishlisted] = useState(false);
     const [imageError, setImageError] = useState(false);
@@ -447,20 +497,21 @@ const Home = () => {
       ? Math.round(((product.price - product.discountedPrice) / product.price) * 100)
       : 0;
     
-    // Get product image with proper URL handling
+    // Get product image with proper URL handling - FIXED VERSION
     const getProductImage = () => {
       if (imageError) {
         return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop";
       }
       
-      const mainImage = product.images?.[0] || product.image;
+      // Check multiple image sources
+      const mainImage = product.images?.[0] || product.image || product.imageUrl || product.thumbnail;
       
       if (!mainImage) {
         return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop";
       }
       
-      // If it's already a full URL
-      if (mainImage.startsWith("http")) {
+      // If it's already a full URL or data URL
+      if (mainImage.startsWith("http") || mainImage.startsWith("data:")) {
         return mainImage;
       }
       
@@ -607,7 +658,7 @@ const Home = () => {
     );
   };
 
-  // List View Product Card Component
+  // List View Product Card Component - ONLY RENDERS IF PRODUCT EXISTS
   const ListProductCard = ({ product }) => {
     const [isWishlisted, setIsWishlisted] = useState(false);
     const [imageError, setImageError] = useState(false);
@@ -620,20 +671,21 @@ const Home = () => {
       ? Math.round(((product.price - product.discountedPrice) / product.price) * 100)
       : 0;
     
-    // Get product image with proper URL handling
+    // Get product image with proper URL handling - FIXED VERSION
     const getProductImage = () => {
       if (imageError) {
         return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop";
       }
       
-      const mainImage = product.images?.[0] || product.image;
+      // Check multiple image sources
+      const mainImage = product.images?.[0] || product.image || product.imageUrl || product.thumbnail;
       
       if (!mainImage) {
         return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop";
       }
       
-      // If it's already a full URL
-      if (mainImage.startsWith("http")) {
+      // If it's already a full URL or data URL
+      if (mainImage.startsWith("http") || mainImage.startsWith("data:")) {
         return mainImage;
       }
       
@@ -1035,7 +1087,7 @@ const Home = () => {
                           {selectedCategory.title}
                         </h3>
                         <p className="text-gray-400 text-sm mt-1">
-                          {selectedCategory.count} • {selectedCategory.description}
+                          {getProductsForSelectedCategory().length} products • {selectedCategory.description}
                         </p>
                       </div>
                     </div>
@@ -1080,51 +1132,77 @@ const Home = () => {
                   )}
                 </div>
 
-                {/* Products Grid/List */}
+                {/* Products Grid/List - DYNAMIC: Only shows if products exist */}
                 {loadingProducts[selectedCategory._id] ? (
                   <div className="text-center py-12">
                     <Loader className="w-8 h-8 animate-spin text-red-500 mx-auto mb-4" />
                     <p className="text-gray-400">Loading products...</p>
                   </div>
-                ) : categoryView === "grid" ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {getProductsForSelectedCategory().map((product) => (
-                      <ProductCard key={product._id || product.id} product={product} />
-                    ))}
-                  </div>
+                ) : getProductsForSelectedCategory().length > 0 ? (
+                  categoryView === "grid" ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                      {getProductsForSelectedCategory().map((product) => (
+                        <ProductCard key={product._id || product.id} product={product} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {getProductsForSelectedCategory().map((product) => (
+                        <ListProductCard key={product._id || product.id} product={product} />
+                      ))}
+                    </div>
+                  )
                 ) : (
-                  <div className="space-y-4">
-                    {getProductsForSelectedCategory().map((product) => (
-                      <ListProductCard key={product._id || product.id} product={product} />
-                    ))}
-                  </div>
-                )}
-
-                {/* Empty State for Products */}
-                {!loadingProducts[selectedCategory._id] && getProductsForSelectedCategory().length === 0 && (
+                  /* Empty State for Products - Only shows when NO products exist */
                   <div className="text-center py-12">
                     <FolderTree className="w-16 h-16 text-gray-600 mx-auto mb-4" />
                     <h4 className="text-xl font-bold text-white mb-2">No Products Found</h4>
-                    <p className="text-gray-400 mb-6">No products available in this category yet.</p>
-                    <button
-                      onClick={() => toast.success("Notification set for when products are added!")}
-                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-                    >
-                      Notify Me When Available
-                    </button>
+                    <p className="text-gray-400 mb-6">
+                      There are no products available in this category yet. 
+                      Please check back later or browse other categories.
+                    </p>
+                    <div className="flex gap-3 justify-center">
+                      <button
+                        onClick={() => {
+                          fetchCategoryProducts();
+                          toast.success("Refreshing products...");
+                        }}
+                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center gap-2"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        Refresh Products
+                      </button>
+                      <button
+                        onClick={clearSelectedCategory}
+                        className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                      >
+                        Browse Other Categories
+                      </button>
+                    </div>
                   </div>
                 )}
 
-                {/* View All Button */}
-                <div className="text-center mt-12">
-                  <Link
-                    to={`/products?category=${selectedCategory.slug}`}
-                    className="inline-flex items-center gap-3 bg-gradient-to-r from-gray-900 to-black hover:from-gray-800 hover:to-gray-900 text-white px-8 py-4 rounded-xl font-semibold transition-all duration-300 hover:scale-105 border border-gray-800 hover:border-red-500/30 shadow-lg"
-                  >
-                    <span>View All {selectedCategory.title} Products</span>
-                    <ArrowRight className="w-5 h-5" />
-                  </Link>
-                </div>
+                {/* Product Count Display - Only shows if products exist */}
+                {!loadingProducts[selectedCategory._id] && getProductsForSelectedCategory().length > 0 && (
+                  <div className="mt-6 text-center">
+                    <p className="text-gray-400 text-sm">
+                      Showing {getProductsForSelectedCategory().length} products in {selectedCategory.title}
+                    </p>
+                  </div>
+                )}
+
+                {/* View All Button - Only shows if products exist */}
+                {!loadingProducts[selectedCategory._id] && getProductsForSelectedCategory().length > 0 && (
+                  <div className="text-center mt-12">
+                    <Link
+                      to={`/products?category=${selectedCategory.slug}`}
+                      className="inline-flex items-center gap-3 bg-gradient-to-r from-gray-900 to-black hover:from-gray-800 hover:to-gray-900 text-white px-8 py-4 rounded-xl font-semibold transition-all duration-300 hover:scale-105 border border-gray-800 hover:border-red-500/30 shadow-lg"
+                    >
+                      <span>View All {selectedCategory.title} Products ({getProductsForSelectedCategory().length})</span>
+                      <ArrowRight className="w-5 h-5" />
+                    </Link>
+                  </div>
+                )}
               </div>
             ) : (
               /* Categories Grid View - UPDATED FOR JUST PICTURES */
@@ -1313,22 +1391,6 @@ const Home = () => {
                       </Link>
                     </div>
 
-                    {/* Status Notice */}
-                    {apiStatus === "success" && categories.length > 0 && (
-                      <div className="mt-8 p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                          <div>
-                            <p className="text-green-500 font-medium">
-                              Successfully loaded {categories.length} categories
-                            </p>
-                            <p className="text-green-400/80 text-sm mt-1">
-                              All data is loaded from your backend API
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
                   </>
                 )}
               </div>
