@@ -1036,17 +1036,7 @@ const Home = () => {
               onError={handleImageError}
             />
             
-            {/* Category Name Overlay */}
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent p-2 sm:p-3">
-              <div className="text-center">
-                <h3 className="text-sm font-semibold text-white truncate px-1">
-                  {category.title}
-                </h3>
-                <p className="text-xs text-gray-300 mt-0.5">
-                  {category.count || "0 items"}
-                </p>
-              </div>
-            </div>
+         
           </div>
           
           {/* Simple bottom bar */}
@@ -1610,16 +1600,7 @@ const Home = () => {
                     e.target.src = "/wmremove-transformed (1).png";
                   }}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end">
-                  <div className="p-4 sm:p-6">
-                    <h3 className="font-bebas text-xl sm:text-2xl md:text-3xl text-white mb-1 sm:mb-2">
-                      Trusted by Riders Nationwide
-                    </h3>
-                    <p className="text-gray-200 text-sm sm:text-base">
-                      Quality parts for every motorcycle, everywhere in Indonesia
-                    </p>
-                  </div>
-                </div>
+               
               </div>
             </div>
           </div>

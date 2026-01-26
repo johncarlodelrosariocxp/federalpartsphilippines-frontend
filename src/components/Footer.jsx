@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Facebook, Send, Phone, Mail, MapPin } from "lucide-react";
+import { Facebook, Phone, Mail, MapPin } from "lucide-react";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -8,7 +8,7 @@ const Footer = () => {
   return (
     <footer className="bg-[#cc0000] text-white pt-12 pb-12">
       <div className="container-custom py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
           {/* Brand Column */}
           <div className="lg:col-span-2 space-y-6">
             <div className="flex items-center gap-3">
@@ -56,12 +56,19 @@ const Footer = () => {
             </div>
           </div>
 
-          {/* Quick Links */}
+          {/* Quick Links - Updated to match Header navigation */}
           <div>
             <h3 className="font-bebas text-xl mb-6 text-white border-b border-red-800 pb-2">
               Quick Links
             </h3>
             <div className="space-y-3">
+              <Link
+                to="/"
+                className="block text-gray-100 hover:text-white transition-all duration-300 text-sm hover:translate-x-1 flex items-center gap-2 group"
+              >
+                <span className="w-1 h-1 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></span>
+                Home
+              </Link>
               <Link
                 to="/shop"
                 className="block text-gray-100 hover:text-white transition-all duration-300 text-sm hover:translate-x-1 flex items-center gap-2 group"
@@ -77,55 +84,18 @@ const Footer = () => {
                 Categories
               </Link>
               <Link
+                to="/about"
+                className="block text-gray-100 hover:text-white transition-all duration-300 text-sm hover:translate-x-1 flex items-center gap-2 group"
+              >
+                <span className="w-1 h-1 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></span>
+                About Us
+              </Link>
+              <Link
                 to="/contact"
                 className="block text-gray-100 hover:text-white transition-all duration-300 text-sm hover:translate-x-1 flex items-center gap-2 group"
               >
                 <span className="w-1 h-1 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></span>
                 Contact Us
-              </Link>
-            </div>
-          </div>
-
-          {/* Categories */}
-          <div>
-            <h3 className="font-bebas text-xl mb-6 text-white border-b border-red-800 pb-2">
-              Top Categories
-            </h3>
-            <div className="space-y-3">
-              <Link
-                to="/categories/engine-parts"
-                className="block text-gray-100 hover:text-white transition-all duration-300 text-sm hover:translate-x-1 flex items-center gap-2 group"
-              >
-                <span className="w-1 h-1 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></span>
-                Engine Parts
-              </Link>
-              <Link
-                to="/categories/brakes"
-                className="block text-gray-100 hover:text-white transition-all duration-300 text-sm hover:translate-x-1 flex items-center gap-2 group"
-              >
-                <span className="w-1 h-1 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></span>
-                Braking Systems
-              </Link>
-              <Link
-                to="/categories/tires"
-                className="block text-gray-100 hover:text-white transition-all duration-300 text-sm hover:translate-x-1 flex items-center gap-2 group"
-              >
-                <span className="w-1 h-1 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></span>
-                Tires & Wheels
-              </Link>
-              <Link
-                to="/categories/electrical"
-                className="block text-gray-100 hover:text-white transition-all duration-300 text-sm hover:translate-x-1 flex items-center gap-2 group"
-              >
-                <span className="w-1 h-1 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></span>
-                Electrical Parts
-              </Link>
-              <Link
-                to="/categories/accessories"
-                className="block text-gray-100 hover:text-white transition-all duration-300 text-sm hover:translate-x-1 flex items-center gap-2 group"
-              >
-                <span className="w-1 h-1 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></span>
-                Accessories
               </Link>
             </div>
           </div>
@@ -148,6 +118,8 @@ const Footer = () => {
                 <span className="font-medium">Follow on Facebook</span>
               </a>
             </div>
+
+           
           </div>
         </div>
 
@@ -162,6 +134,8 @@ const Footer = () => {
                 Premium Motorcycle Parts & Accessories
               </p>
             </div>
+            
+           
           </div>
         </div>
       </div>
