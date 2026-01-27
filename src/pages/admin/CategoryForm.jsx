@@ -1,4 +1,4 @@
-// src/pages/admin/CategoryForm.js - FIXED VERSION WITH CORRECTED parentCategory HANDLING
+// src/pages/admin/CategoryForm.js - FIXED VERSION WITH PROPER parentCategory HANDLING
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { categoryAPI, productAPI, getImageUrl } from "../../services/api";
@@ -626,7 +626,7 @@ const CategoryForm = () => {
     return Object.keys(errors).length === 0;
   };
 
-  // ========== FIXED: Handle form submission - CORRECTED VERSION ==========
+  // ========== FIXED: Handle form submission - PROPERLY FIXED VERSION ==========
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -647,22 +647,6 @@ const CategoryForm = () => {
     setSaving(true);
 
     try {
-      // Prepare category data - FIXED: Only include parentCategory if it's truthy
-      const categoryData = {
-        name: category.name.trim(),
-        description: category.description.trim(),
-        isActive: category.isActive,
-        order: category.order || 0,
-        seoTitle: category.seoTitle.trim(),
-        seoDescription: category.seoDescription.trim(),
-        seoKeywords: category.seoKeywords.trim(),
-      };
-
-      // Add parent category ONLY if it's truthy (not null, not empty string)
-      if (category.parentCategory) {
-        categoryData.parentCategory = category.parentCategory;
-      }
-
       let response;
       
       if (imageFile) {
@@ -670,17 +654,19 @@ const CategoryForm = () => {
         const formData = new FormData();
 
         // Append all category data
-        Object.keys(categoryData).forEach((key) => {
-          if (categoryData[key] !== null && categoryData[key] !== undefined) {
-            // For FormData, we need to convert boolean to string
-            if (typeof categoryData[key] === 'boolean') {
-              formData.append(key, categoryData[key].toString());
-            } else {
-              formData.append(key, categoryData[key]);
-            }
-          }
-        });
-
+        formData.append('name', category.name.trim());
+        formData.append('description', category.description.trim());
+        formData.append('isActive', category.isActive.toString());
+        formData.append('order', (category.order || 0).toString());
+        formData.append('seoTitle', category.seoTitle.trim());
+        formData.append('seoDescription', category.seoDescription.trim());
+        formData.append('seoKeywords', category.seoKeywords.trim());
+        
+        // FIXED: Only append parentCategory if it exists and is a string
+        if (category.parentCategory && typeof category.parentCategory === 'string' && category.parentCategory.trim() !== '') {
+          formData.append('parentCategory', category.parentCategory);
+        }
+        
         // Append image
         formData.append("image", imageFile);
 
@@ -691,6 +677,21 @@ const CategoryForm = () => {
         }
       } else {
         // Use regular JSON for non-image updates
+        const categoryData = {
+          name: category.name.trim(),
+          description: category.description.trim(),
+          isActive: category.isActive,
+          order: category.order || 0,
+          seoTitle: category.seoTitle.trim(),
+          seoDescription: category.seoDescription.trim(),
+          seoKeywords: category.seoKeywords.trim(),
+        };
+
+        // FIXED: Only add parentCategory if it exists and is a valid string
+        if (category.parentCategory && typeof category.parentCategory === 'string' && category.parentCategory.trim() !== '') {
+          categoryData.parentCategory = category.parentCategory;
+        }
+
         // If editing and there's existing image, include it
         if (isEditMode && category.image && !imageFile) {
           categoryData.image = category.image;

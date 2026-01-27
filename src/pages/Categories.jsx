@@ -76,7 +76,7 @@ const getImageUrl = (imagePath, type = "categories") => {
 };
 
 // Product Card Component
-const ProductCard = ({ product }) => {
+const ProductCard = ({ product, categoryId }) => {
   const [imageError, setImageError] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
@@ -115,7 +115,13 @@ const ProductCard = ({ product }) => {
   const currentImage = productImages[currentImageIndex] || productImages[0];
 
   const handleProductClick = () => {
-    navigate(`/product/${product._id}`);
+    // Navigate to product detail with return state
+    navigate(`/product/${product._id}`, {
+      state: {
+        returnTo: `/categories?view=products&category=${categoryId}`,
+        categoryId: categoryId
+      }
+    });
   };
 
   const handleImageError = (e) => {
@@ -431,7 +437,11 @@ const ProductsSection = ({
         <div className="p-3 sm:p-4 md:p-6">
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
             {products.map((product) => (
-              <ProductCard key={product._id || product.id} product={product} />
+              <ProductCard 
+                key={product._id || product.id} 
+                product={product}
+                categoryId={category?._id}
+              />
             ))}
           </div>
         </div>
@@ -488,16 +498,44 @@ const Categories = () => {
     limit: 12,
   });
 
-  // Update URL when filters change
+  // NEW: Check URL for view state when component mounts
+  useEffect(() => {
+    const viewParam = searchParams.get("view");
+    const categoryParam = searchParams.get("category");
+    
+    if (viewParam === "products" && categoryParam) {
+      // We're coming back from a product detail page
+      // Wait for categories to load, then restore the products view
+      if (allCategories.length > 0) {
+        const category = allCategories.find(cat => cat._id === categoryParam);
+        if (category) {
+          console.log("🔙 Restoring products view for category:", category.name);
+          setViewingProducts(categoryParam);
+          fetchCategoryProducts(categoryParam);
+        }
+      }
+    }
+  }, [searchParams, allCategories]);
+
+  // Update URL when filters OR viewingProducts change
   useEffect(() => {
     const params = new URLSearchParams();
+    
+    // Always preserve view state
+    if (viewingProducts) {
+      params.set("view", "products");
+      params.set("category", viewingProducts);
+    }
+    
+    // Add filter params
     Object.entries(filters).forEach(([key, value]) => {
       if (value && value.toString().trim() !== "") {
         params.set(key, value.toString());
       }
     });
+    
     setSearchParams(params);
-  }, [filters, setSearchParams]);
+  }, [filters, viewingProducts, setSearchParams]);
 
   // Close mobile filters when screen size changes
   useEffect(() => {
@@ -698,7 +736,20 @@ const Categories = () => {
         return flat;
       };
       
-      setAllCategories(flattenCategories(rootCategories));
+      const flattened = flattenCategories(rootCategories);
+      setAllCategories(flattened);
+      
+      // NEW: Check if we need to restore products view after loading categories
+      const viewParam = searchParams.get("view");
+      const categoryParam = searchParams.get("category");
+      if (viewParam === "products" && categoryParam) {
+        const category = flattened.find(cat => cat._id === categoryParam);
+        if (category) {
+          console.log("🔄 Restoring products view after categories load");
+          setViewingProducts(categoryParam);
+          fetchCategoryProducts(categoryParam);
+        }
+      }
       
       toast.success(`Loaded ${rootCategories.length} main categories`);
       
