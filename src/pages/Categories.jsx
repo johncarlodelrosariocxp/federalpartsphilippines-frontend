@@ -161,14 +161,15 @@ const ProductCard = ({ product }) => {
       <div className="p-3 sm:p-4">
         <div className="flex items-start justify-between mb-2">
           <h3 className="font-semibold text-white text-xs sm:text-sm line-clamp-1">{product.name || "Unnamed Product"}</h3>
-        
+         
         </div>
         
         <p className="text-[10px] sm:text-xs text-gray-400 line-clamp-2 mb-2 sm:mb-3">
           {product.shortDescription || product.description || 'No description available'}
         </p>
         
-     
+  
+       
       </div>
     </div>
   );
@@ -250,8 +251,7 @@ const MainCategoryCard = ({
               {category.productCount || category.totalProducts || 0} products
             </p>
           </div>
-          
-      
+         
         </div>
       </div>
     </div>

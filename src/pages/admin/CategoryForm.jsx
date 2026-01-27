@@ -1,4 +1,4 @@
-// src/pages/admin/CategoryForm.js - FIXED IMAGE UPLOAD VERSION
+// src/pages/admin/CategoryForm.js - FIXED VERSION WITH CORRECTED parentCategory HANDLING
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { categoryAPI, productAPI, getImageUrl } from "../../services/api";
@@ -626,7 +626,7 @@ const CategoryForm = () => {
     return Object.keys(errors).length === 0;
   };
 
-  // Handle form submission - FIXED VERSION
+  // ========== FIXED: Handle form submission - CORRECTED VERSION ==========
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -647,7 +647,7 @@ const CategoryForm = () => {
     setSaving(true);
 
     try {
-      // Prepare category data
+      // Prepare category data - FIXED: Only include parentCategory if it's truthy
       const categoryData = {
         name: category.name.trim(),
         description: category.description.trim(),
@@ -658,7 +658,7 @@ const CategoryForm = () => {
         seoKeywords: category.seoKeywords.trim(),
       };
 
-      // Add parent category if selected
+      // Add parent category ONLY if it's truthy (not null, not empty string)
       if (category.parentCategory) {
         categoryData.parentCategory = category.parentCategory;
       }
@@ -672,7 +672,12 @@ const CategoryForm = () => {
         // Append all category data
         Object.keys(categoryData).forEach((key) => {
           if (categoryData[key] !== null && categoryData[key] !== undefined) {
-            formData.append(key, categoryData[key]);
+            // For FormData, we need to convert boolean to string
+            if (typeof categoryData[key] === 'boolean') {
+              formData.append(key, categoryData[key].toString());
+            } else {
+              formData.append(key, categoryData[key]);
+            }
           }
         });
 
@@ -743,6 +748,7 @@ const CategoryForm = () => {
       setSaving(false);
     }
   };
+  // ========== END OF FIXED SUBMISSION FUNCTION ==========
 
   // Navigate to view all products in this category
   const viewAllProducts = () => {

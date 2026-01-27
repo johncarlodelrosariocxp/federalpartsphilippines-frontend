@@ -420,20 +420,6 @@ const ProductDetail = () => {
                     />
                   )}
 
-                  {/* Badges */}
-                  <div className="absolute top-4 left-4 flex flex-col gap-2">
-                    {product.featured && (
-                      <span className="inline-flex items-center gap-1 px-3 py-1 text-sm font-bold bg-gradient-to-r from-yellow-600 to-orange-600 text-white rounded-full shadow-lg">
-                        <Star className="w-3 h-3" />
-                        Featured
-                      </span>
-                    )}
-                    {hasDiscount && (
-                      <span className="px-3 py-1 text-sm font-bold bg-red-600 text-white rounded-full shadow-lg">
-                        -{discountPercentage}% OFF
-                      </span>
-                    )}
-                  </div>
                 </div>
 
                 {/* Thumbnails */}
