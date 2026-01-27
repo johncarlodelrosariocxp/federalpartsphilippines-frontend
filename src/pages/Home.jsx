@@ -1178,7 +1178,7 @@ const Home = () => {
       <section className="relative min-h-[50vh] sm:min-h-screen flex items-center justify-center overflow-hidden bg-black">
         <div className="absolute inset-0 z-0">
           <img
-            src="/banner/FRONT PAGE (1).jpg"
+            src="/banner/banner.jpg"
             alt="Federal Parts Banner"
             className="w-full h-full object-cover"
             onError={(e) => {
