@@ -210,7 +210,6 @@ const Header = () => {
   // Mobile bottom navigation items
   const mobileNavItems = [
     { name: "Home", path: "/", icon: Home },
-    { name: "Shop", path: "/shop", icon: ShoppingBag },
     { name: "Categories", path: "/categories", icon: Grid },
     { name: "About", path: "/about", icon: Info },
     { name: "Contact", path: "/contact", icon: Phone },
@@ -219,7 +218,6 @@ const Header = () => {
   // Desktop navigation items
   const desktopNavItems = [
     { name: "Home", path: "/" },
-    { name: "Shop", path: "/shop" },
     { name: "Categories", path: "/categories" },
     { name: "About", path: "/about" },
     { name: "Contact", path: "/contact" },
