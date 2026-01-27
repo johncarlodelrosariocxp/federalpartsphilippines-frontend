@@ -158,9 +158,17 @@ const Home = () => {
 
       console.log("✅ Processed categories data:", categoriesData);
 
-      // Process categories
+      // Process categories - FILTER OUT YAMAHA, SUZUKI, AND HONDA
       const processedCategories = categoriesData
         .filter(cat => cat && cat.name)
+        .filter(cat => {
+          const categoryName = cat.name || "";
+          const lowerName = categoryName.toLowerCase();
+          // Hide categories containing yamaha, suzuki, or honda
+          return !lowerName.includes("yamaha") && 
+                 !lowerName.includes("suzuki") && 
+                 !lowerName.includes("honda");
+        })
         .map((cat) => {
           const categoryName = cat.name || "Unnamed Category";
           const icon = getCategoryIcon(categoryName);
@@ -198,7 +206,7 @@ const Home = () => {
           };
         });
 
-      console.log("✅ Final processed categories:", processedCategories);
+      console.log("✅ Final processed categories (filtered):", processedCategories);
       setCategories(processedCategories);
       
       if (processedCategories.length > 0) {
@@ -1170,7 +1178,7 @@ const Home = () => {
       <section className="relative min-h-[50vh] sm:min-h-screen flex items-center justify-center overflow-hidden bg-black">
         <div className="absolute inset-0 z-0">
           <img
-            src="/banner/FRONT PAGE.jpg"
+            src="/banner/FRONT PAGE (1).jpg"
             alt="Federal Parts Banner"
             className="w-full h-full object-cover"
             onError={(e) => {
