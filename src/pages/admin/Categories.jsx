@@ -1,4 +1,4 @@
-// src/pages/admin/Categories.js - UPDATED FIXED VERSION
+// src/pages/admin/Categories.js - FIXED IMAGE DISPLAY VERSION
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
@@ -24,7 +24,6 @@ import {
   ChevronRight,
   ChevronLeft,
   ArrowLeft,
-  Package,
 } from "lucide-react";
 import { categoryAPI, getImageUrl } from "../../services/api";
 
@@ -56,8 +55,6 @@ const Categories = () => {
   const [expandedCategories, setExpandedCategories] = useState(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
-  const [deletingId, setDeletingId] = useState(null);
-  const [togglingId, setTogglingId] = useState(null);
 
   // Check for success message from navigation
   useEffect(() => {
@@ -126,20 +123,9 @@ const Categories = () => {
       console.log("Categories API response:", response);
 
       let categoriesData = [];
-      if (response) {
-        // Handle different response structures
-        if (Array.isArray(response)) {
-          categoriesData = response;
-        } else if (response.success && Array.isArray(response.data)) {
-          categoriesData = response.data;
-        } else if (Array.isArray(response.data)) {
-          categoriesData = response.data;
-        } else if (Array.isArray(response.categories)) {
-          categoriesData = response.categories;
-        } else if (Array.isArray(response.brands)) {
-          categoriesData = response.brands;
-        }
-
+      if (response?.success && response.categories) {
+        categoriesData = response.categories;
+        
         console.log("Processed categories data:", categoriesData);
         
         // Sort categories by name for better display
@@ -149,10 +135,10 @@ const Categories = () => {
           return nameA.localeCompare(nameB);
         });
 
-        setCategories(Array.isArray(categoriesData) ? categoriesData : []);
+        setCategories(categoriesData);
         calculateStats(categoriesData);
       } else {
-        console.warn("No response from categories API");
+        console.warn("No categories found in response");
         setCategories([]);
         calculateStats([]);
       }
@@ -258,7 +244,6 @@ const Categories = () => {
         parentId,
         hasChildren: category.children && category.children.length > 0,
         productCount: category.productCount || 0,
-        motorcycleCount: category.motorcycleCount || category.productCount || 0,
         name: category.name || "Unnamed Category",
         description: category.description || "",
         isActive: category.isActive !== false,
@@ -282,55 +267,49 @@ const Categories = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this category?")) {
-      return;
-    }
-
-    setDeletingId(id);
-    try {
-      console.log("Deleting category:", id);
-      const response = await categoryAPI.deleteCategory(id);
-      
-      if (response && response.success) {
-        // Remove category from state
-        setCategories(prevCategories => {
-          const removeCategory = (catList) => {
-            return catList.filter((category) => {
-              if (category._id === id || category.id === id) return false;
-              if (category.children) {
-                category.children = removeCategory(category.children);
-              }
-              return true;
-            });
-          };
-          return removeCategory([...prevCategories]);
-        });
+    if (window.confirm("Are you sure you want to delete this category?")) {
+      try {
+        console.log("Deleting category:", id);
+        const response = await categoryAPI.deleteCategory(id);
         
-        setSuccess("Category deleted successfully!");
-        setSelectedCategories(prev => prev.filter((catId) => catId !== id));
-        setTimeout(() => setSuccess(""), 3000);
-      } else {
-        setError(response?.message || "Failed to delete category");
+        if (response?.success) {
+          // Remove category from state
+          setCategories(prevCategories => {
+            const removeCategory = (catList) => {
+              return catList.filter((category) => {
+                if (category._id === id || category.id === id) return false;
+                if (category.children) {
+                  category.children = removeCategory(category.children);
+                }
+                return true;
+              });
+            };
+            return removeCategory([...prevCategories]);
+          });
+          
+          setSuccess("Category deleted successfully!");
+          setSelectedCategories(prev => prev.filter((catId) => catId !== id));
+          setTimeout(() => setSuccess(""), 3000);
+        } else {
+          setError(response?.message || "Failed to delete category");
+          setTimeout(() => setError(""), 3000);
+        }
+      } catch (err) {
+        console.error("Error deleting category:", err);
+        setError("Failed to delete category. Please try again.");
         setTimeout(() => setError(""), 3000);
       }
-    } catch (err) {
-      console.error("Error deleting category:", err);
-      setError("Failed to delete category. Please try again.");
-      setTimeout(() => setError(""), 3000);
-    } finally {
-      setDeletingId(null);
     }
   };
 
   const handleToggleActive = async (id, currentActive) => {
-    setTogglingId(id);
     try {
       console.log("Toggling category status:", id, "from", currentActive, "to", !currentActive);
       const response = await categoryAPI.updateCategory(id, {
         isActive: !currentActive,
       });
       
-      if (response && response.success) {
+      if (response?.success) {
         // Update category in state
         setCategories(prevCategories => {
           const updateCategoryInTree = (catList) => {
@@ -364,8 +343,6 @@ const Categories = () => {
       console.error("Error toggling category status:", err);
       setError("Failed to update category. Please try again.");
       setTimeout(() => setError(""), 3000);
-    } finally {
-      setTogglingId(null);
     }
   };
 
@@ -413,13 +390,14 @@ const Categories = () => {
           break;
 
         case "delete":
-          if (!window.confirm(`Delete ${selectedCategories.length} categories? This action cannot be undone.`)) {
+          if (window.confirm(`Delete ${selectedCategories.length} categories? This action cannot be undone.`)) {
+            await Promise.all(
+              selectedCategories.map((id) => categoryAPI.deleteCategory(id))
+            );
+            successMessage = `${selectedCategories.length} categories deleted`;
+          } else {
             return;
           }
-          await Promise.all(
-            selectedCategories.map((id) => categoryAPI.deleteCategory(id))
-          );
-          successMessage = `${selectedCategories.length} categories deleted`;
           break;
 
         case "export":
@@ -504,6 +482,15 @@ const Categories = () => {
     });
   };
 
+  // Get category image URL
+  const getCategoryImageUrl = (category) => {
+    if (!category?.image) {
+      return null;
+    }
+    
+    return getImageUrl(category.image, "categories");
+  };
+
   // Pagination calculations
   const totalPages = Math.ceil(filteredCategories.length / itemsPerPage);
   const paginatedCategories = useMemo(() => {
@@ -511,21 +498,6 @@ const Categories = () => {
     const endIndex = startIndex + itemsPerPage;
     return filteredCategories.slice(startIndex, endIndex);
   }, [filteredCategories, currentPage, itemsPerPage]);
-
-  // Enhanced image URL handler with better fallback
-  const getCategoryImageUrl = (category) => {
-    if (!category.image) return null;
-    
-    const url = getImageUrl(category.image, "categories");
-    if (!url) return null;
-    
-    // Check if URL is valid
-    if (url.includes('undefined') || url.includes('null')) {
-      return null;
-    }
-    
-    return url;
-  };
 
   const renderCategoryTree = (categoryList, level = 0) => {
     if (!Array.isArray(categoryList) || categoryList.length === 0) return null;
@@ -545,7 +517,6 @@ const Categories = () => {
                 <button
                   onClick={() => toggleExpandCategory(category._id)}
                   className="p-1 hover:bg-gray-100 rounded transition-colors flex-shrink-0"
-                  disabled={deletingId === category._id}
                 >
                   {expandedCategories.has(category._id) ? (
                     <ChevronDown className="w-4 h-4" />
@@ -559,7 +530,6 @@ const Categories = () => {
               <button
                 onClick={() => handleSelectCategory(category._id)}
                 className="p-1 hover:bg-gray-100 rounded transition-colors flex-shrink-0"
-                disabled={deletingId === category._id}
               >
                 {selectedCategories.includes(category._id) ? (
                   <CheckSquare className="w-4 h-4 text-blue-600" />
@@ -569,16 +539,44 @@ const Categories = () => {
               </button>
               
               {/* Category Image */}
-              <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
-                <CategoryImage category={category} />
+              <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
+                {getCategoryImageUrl(category) ? (
+                  <img
+                    src={getCategoryImageUrl(category)}
+                    alt={category.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.style.display = "none";
+                      const fallbackDiv = document.createElement("div");
+                      fallbackDiv.className = `w-full h-full rounded flex items-center justify-center ${
+                        category.isActive
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-gray-100 text-gray-600"
+                      }`;
+                      fallbackDiv.innerHTML = `
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
+                        </svg>
+                      `;
+                      e.target.parentNode.appendChild(fallbackDiv);
+                    }}
+                  />
+                ) : (
+                  <div
+                    className={`w-full h-full flex items-center justify-center ${
+                      category.isActive
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-gray-100 text-gray-600"
+                    }`}
+                  >
+                    <FolderTree className="w-4 h-4" />
+                  </div>
+                )}
               </div>
               
               <div className="flex flex-col min-w-0">
-                <span className="font-medium text-gray-900 truncate flex items-center gap-2">
+                <span className="font-medium text-gray-900 truncate">
                   {category.name}
-                  {togglingId === category._id && (
-                    <div className="animate-spin rounded-full h-3 w-3 border-t-2 border-b-2 border-blue-500"></div>
-                  )}
                 </span>
                 {category.description && (
                   <span className="text-sm text-gray-500 truncate">
@@ -598,7 +596,6 @@ const Categories = () => {
                 to={`/admin/categories/edit/${category._id}`}
                 className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                 title="Edit"
-                disabled={deletingId === category._id}
               >
                 <Edit className="w-4 h-4" />
               </Link>
@@ -612,11 +609,8 @@ const Categories = () => {
                     : "text-red-600 hover:bg-red-50"
                 }`}
                 title={category.isActive ? "Deactivate" : "Activate"}
-                disabled={deletingId === category._id || togglingId === category._id}
               >
-                {togglingId === category._id ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-current"></div>
-                ) : category.isActive ? (
+                {category.isActive ? (
                   <Eye className="w-4 h-4" />
                 ) : (
                   <EyeOff className="w-4 h-4" />
@@ -634,54 +628,10 @@ const Categories = () => {
     ));
   };
 
-  const CategoryImage = ({ category }) => {
-    const imageUrl = getCategoryImageUrl(category);
-    
-    if (!imageUrl) {
-      return (
-        <div
-          className={`w-full h-full flex items-center justify-center ${
-            category.isActive
-              ? "bg-blue-100 text-blue-700"
-              : "bg-gray-100 text-gray-600"
-          }`}
-        >
-          <FolderTree className="w-5 h-5" />
-        </div>
-      );
-    }
-
-    return (
-      <img
-        src={imageUrl}
-        alt={category.name}
-        className="w-full h-full object-cover"
-        onError={(e) => {
-          e.target.style.display = "none";
-          const fallbackDiv = e.target.parentNode;
-          fallbackDiv.innerHTML = `
-            <div class="w-full h-full flex items-center justify-center ${
-              category.isActive
-                ? "bg-blue-100 text-blue-700"
-                : "bg-gray-100 text-gray-600"
-            }">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
-              </svg>
-            </div>
-          `;
-        }}
-      />
-    );
-  };
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 pt-20 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading categories...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
   }
@@ -776,7 +726,7 @@ const Categories = () => {
                   {stats.withProducts}
                 </p>
               </div>
-              <Package className="w-8 h-8 text-purple-500" />
+              <Layers className="w-8 h-8 text-purple-500" />
             </div>
             <p className="text-xs text-gray-500 mt-2">
               {stats.total > 0 ? Math.round((stats.withProducts / stats.total) * 100) : 0}% have products
@@ -1066,7 +1016,6 @@ const Categories = () => {
                                 ? "Deselect"
                                 : "Select"
                             }
-                            disabled={deletingId === category._id}
                           >
                             {selectedCategories.includes(category._id) ? (
                               <CheckSquare className="w-5 h-5 text-blue-600" />
@@ -1075,8 +1024,29 @@ const Categories = () => {
                             )}
                           </button>
                           {/* Category Image */}
-                          <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
-                            <CategoryImage category={category} />
+                          <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
+                            {getCategoryImageUrl(category) ? (
+                              <img
+                                src={getCategoryImageUrl(category)}
+                                alt={category.name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.target.style.display = "none";
+                                  const fallbackDiv = document.createElement("div");
+                                  fallbackDiv.className = "w-full h-full bg-blue-100 flex items-center justify-center";
+                                  fallbackDiv.innerHTML = `
+                                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
+                                    </svg>
+                                  `;
+                                  e.target.parentNode.appendChild(fallbackDiv);
+                                }}
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-blue-100 flex items-center justify-center">
+                                <FolderTree className="w-6 h-6 text-blue-600" />
+                              </div>
+                            )}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
@@ -1103,11 +1073,8 @@ const Categories = () => {
                               ? "bg-green-100 text-green-800 hover:bg-green-200"
                               : "bg-red-100 text-red-800 hover:bg-red-200"
                           }`}
-                          disabled={deletingId === category._id || togglingId === category._id}
                         >
-                          {togglingId === category._id ? (
-                            <div className="animate-spin rounded-full h-3 w-3 border-t-2 border-b-2 border-current"></div>
-                          ) : category.isActive ? "Active" : "Inactive"}
+                          {category.isActive ? "Active" : "Inactive"}
                         </button>
                       </div>
 
@@ -1123,21 +1090,15 @@ const Categories = () => {
                             to={`/admin/categories/edit/${category._id}`}
                             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                             title="Edit"
-                            disabled={deletingId === category._id}
                           >
                             <Edit className="w-4 h-4" />
                           </Link>
                           <button
                             onClick={() => handleDelete(category._id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                             title="Delete"
-                            disabled={deletingId === category._id}
                           >
-                            {deletingId === category._id ? (
-                              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-current"></div>
-                            ) : (
-                              <Trash2 className="w-4 h-4" />
-                            )}
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                         <Link
@@ -1206,7 +1167,6 @@ const Categories = () => {
                             <button
                               onClick={() => handleSelectCategory(category._id)}
                               className="p-1 hover:bg-gray-100 rounded transition-colors"
-                              disabled={deletingId === category._id}
                             >
                               {selectedCategories.includes(category._id) ? (
                                 <CheckSquare className="w-5 h-5 text-blue-600" />
@@ -1218,8 +1178,27 @@ const Categories = () => {
                           <td className="px-3 py-4">
                             <div className="flex items-center gap-3">
                               {/* Category Image */}
-                              <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
-                                <CategoryImage category={category} />
+                              <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
+                                {getCategoryImageUrl(category) ? (
+                                  <img
+                                    src={getCategoryImageUrl(category)}
+                                    alt={category.name}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      e.target.style.display = "none";
+                                    }}
+                                  />
+                                ) : (
+                                  <div
+                                    className={`w-full h-full flex items-center justify-center ${
+                                      category.isActive
+                                        ? "bg-blue-100 text-blue-700"
+                                        : "bg-gray-100 text-gray-600"
+                                    }`}
+                                  >
+                                    <FolderTree className="w-4 h-4" />
+                                  </div>
+                                )}
                               </div>
                               <div>
                                 <div className="font-medium text-gray-900">
@@ -1251,11 +1230,8 @@ const Categories = () => {
                                   ? "bg-green-100 text-green-800 hover:bg-green-200"
                                   : "bg-red-100 text-red-800 hover:bg-red-200"
                               }`}
-                              disabled={deletingId === category._id || togglingId === category._id}
                             >
-                              {togglingId === category._id ? (
-                                <div className="animate-spin rounded-full h-3 w-3 border-t-2 border-b-2 border-current"></div>
-                              ) : category.isActive ? "Active" : "Inactive"}
+                              {category.isActive ? "Active" : "Inactive"}
                             </button>
                           </td>
                           <td className="px-3 py-4">
@@ -1269,21 +1245,15 @@ const Categories = () => {
                                 to={`/admin/categories/edit/${category._id}`}
                                 className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                 title="Edit"
-                                disabled={deletingId === category._id}
                               >
                                 <Edit className="w-4 h-4" />
                               </Link>
                               <button
                                 onClick={() => handleDelete(category._id)}
-                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                 title="Delete"
-                                disabled={deletingId === category._id}
                               >
-                                {deletingId === category._id ? (
-                                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-current"></div>
-                                ) : (
-                                  <Trash2 className="w-4 h-4" />
-                                )}
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
                           </td>

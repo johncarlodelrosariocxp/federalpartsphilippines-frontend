@@ -1,8 +1,9 @@
 // src/pages/SearchResults.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { Search, Filter, ChevronRight, Star, Truck, Shield, Clock, Package, Grid } from 'lucide-react';
 import apiService, { getImageUrl, formatPrice } from '../services/api';
+import debounce from 'lodash/debounce';
 
 const SearchResults = () => {
   const location = useLocation();
@@ -13,7 +14,7 @@ const SearchResults = () => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('all'); // 'all', 'products', 'categories'
+  const [activeTab, setActiveTab] = useState('all');
   const [filters, setFilters] = useState({
     category: 'all',
     priceRange: 'all',
@@ -21,6 +22,7 @@ const SearchResults = () => {
     inStock: false,
     sortBy: 'relevance'
   });
+  const [isSearching, setIsSearching] = useState(false);
 
   // Get unique categories and brands for filters
   const allCategories = [...new Set(products.map(p => p.category?.name).filter(Boolean))];
@@ -45,9 +47,10 @@ const SearchResults = () => {
     { value: 'popular', label: 'Most Popular' }
   ];
 
-  useEffect(() => {
-    const searchAll = async () => {
-      if (!searchQuery.trim()) {
+  // Debounced search function
+  const debouncedSearch = useCallback(
+    debounce(async (query) => {
+      if (!query.trim()) {
         setProducts([]);
         setCategories([]);
         setLoading(false);
@@ -55,13 +58,14 @@ const SearchResults = () => {
       }
 
       setLoading(true);
+      setIsSearching(true);
       setError(null);
       
       try {
-        console.log("🔍 Searching for:", searchQuery);
+        console.log("🔍 Searching for:", query);
         
         // Search products
-        const productResponse = await apiService.productAPI.searchProducts(searchQuery);
+        const productResponse = await apiService.productAPI.searchProducts(query);
         console.log("📦 Product search results:", productResponse);
         
         // Search categories
@@ -79,8 +83,8 @@ const SearchResults = () => {
           // Filter categories based on search query
           const filteredCategories = (categoryResponse.categories || []).filter(category => {
             if (!category || !category.name) return false;
-            return category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                   (category.description && category.description.toLowerCase().includes(searchQuery.toLowerCase()));
+            return category.name.toLowerCase().includes(query.toLowerCase()) ||
+                   (category.description && category.description.toLowerCase().includes(query.toLowerCase()));
           });
           setCategories(filteredCategories);
           console.log("📁 Filtered categories:", filteredCategories);
@@ -96,16 +100,19 @@ const SearchResults = () => {
         setCategories([]);
       } finally {
         setLoading(false);
+        setIsSearching(false);
       }
+    }, 500),
+    []
+  );
+
+  useEffect(() => {
+    debouncedSearch(searchQuery);
+    
+    return () => {
+      debouncedSearch.cancel();
     };
-
-    // Add a small delay to avoid too many requests
-    const timer = setTimeout(() => {
-      searchAll();
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, debouncedSearch]);
 
   // Apply filters to products
   const filteredProducts = React.useMemo(() => {
@@ -121,7 +128,7 @@ const SearchResults = () => {
       result = result.filter(product => product.brand === filters.brand);
     }
 
-
+ 
 
     // Filter by stock availability
     if (filters.inStock) {
@@ -180,7 +187,7 @@ const SearchResults = () => {
     try {
       const result = apiService.cartAPI.addToCart(product, 1);
       if (result.success) {
-        // Show success message (you can implement a toast notification here)
+        // Show success message
         console.log("✅ Added to cart:", product.name);
       }
     } catch (err) {
@@ -222,7 +229,7 @@ const SearchResults = () => {
     return stars;
   };
 
-  if (loading) {
+  if (loading && isSearching) {
     return (
       <div className="container mx-auto px-4 py-12 bg-black">
         <div className="text-center">
@@ -242,7 +249,7 @@ const SearchResults = () => {
           <h2 className="text-xl font-semibold text-gray-200 mb-2">Search Error</h2>
           <p className="text-gray-400 mb-4">{error}</p>
           <button
-            onClick={() => window.location.reload()}
+            onClick={() => debouncedSearch(searchQuery)}
             className="bg-[#cc0000] text-white px-6 py-2 rounded-lg hover:bg-[#aa0000] transition-colors"
           >
             Try Again
@@ -282,7 +289,7 @@ const SearchResults = () => {
               <select
                 value={filters.sortBy}
                 onChange={(e) => handleFilterChange('sortBy', e.target.value)}
-                className="appearance-none bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-[#cc0000] focus:border-transparent text-gray-200"
+                className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-[#cc0000] focus:border-transparent text-gray-800"
               >
                 {sortOptions.map(option => (
                   <option key={option.value} value={option.value}>
@@ -291,7 +298,7 @@ const SearchResults = () => {
                 ))}
               </select>
               <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </div>
@@ -344,7 +351,10 @@ const SearchResults = () => {
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
-       
+        {/* Filters Sidebar */}
+        <div className="lg:w-1/4">
+      
+        </div>
 
         {/* Results Grid */}
         <div className="lg:w-3/4">
@@ -450,11 +460,7 @@ const SearchResults = () => {
                                 -{discountPercent}%
                               </div>
                             )}
-                            {product.stock <= 0 && (
-                              <div className="absolute top-3 right-3 bg-gray-700 text-white text-xs font-bold px-2 py-1 rounded">
-                                Out of Stock
-                              </div>
-                            )}
+                            
                           </Link>
 
                           {/* Product Info */}
@@ -484,52 +490,12 @@ const SearchResults = () => {
                               </p>
                             )}
 
-                            {/* Rating */}
-                            {product.rating !== undefined && (
-                              <div className="flex items-center mb-3">
-                                <div className="flex items-center">
-                                  {renderStars(product.rating)}
-                                </div>
-                                {product.reviewCount > 0 && (
-                                  <span className="text-xs text-gray-500 ml-2">
-                                    ({product.reviewCount})
-                                  </span>
-                                )}
-                              </div>
-                            )}
+                         
 
-                            {/* Price */}
-                            <div className="flex items-center justify-between mb-4">
-                              <div>
-                                <div className="text-xl font-bold text-[#cc0000]">
-                                  {formatPrice(finalPrice)}
-                                </div>
-                                {originalPrice && (
-                                  <div className="text-sm text-gray-500 line-through">
-                                    {formatPrice(originalPrice)}
-                                  </div>
-                                )}
-                              </div>
-                              {product.stock > 0 && (
-                                <span className="text-xs text-green-400 bg-green-900/30 px-2 py-1 rounded">
-                                  In Stock
-                                </span>
-                              )}
-                            </div>
 
                             {/* Action Buttons */}
                             <div className="flex gap-2">
-                              <button
-                                onClick={() => handleAddToCart(product)}
-                                disabled={product.stock <= 0}
-                                className={`flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-colors ${
-                                  product.stock > 0
-                                    ? 'bg-[#cc0000] text-white hover:bg-[#aa0000]'
-                                    : 'bg-gray-800 text-gray-500 cursor-not-allowed'
-                                }`}
-                              >
-                                {product.stock > 0 ? 'Add to Cart' : 'Out of Stock'}
-                              </button>
+                           
                               <Link
                                 to={`/product/${product._id}`}
                                 className="py-2 px-4 border border-gray-700 text-gray-300 rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium"
@@ -590,23 +556,7 @@ const SearchResults = () => {
             </>
           )}
 
-          {/* Related Searches */}
-          {resultsCount.total > 0 && (
-            <div className="mt-8 pt-8 border-t border-gray-800">
-              <h4 className="font-semibold text-gray-100 mb-4">Related Searches</h4>
-              <div className="flex flex-wrap gap-2">
-                {['Brake Pads', 'Oil Filter', 'Spark Plugs', 'Battery', 'Tires', 'Air Filter'].map((term) => (
-                  <Link
-                    key={term}
-                    to={`/search?q=${encodeURIComponent(term)}`}
-                    className="px-4 py-2 bg-gray-800 text-gray-300 rounded-full hover:bg-gray-700 transition-colors text-sm"
-                  >
-                    {term}
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
+         
         </div>
       </div>
     </div>

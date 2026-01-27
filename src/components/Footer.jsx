@@ -108,7 +108,7 @@ const Footer = () => {
 
             <div className="mb-6">
               <a
-                href="https://facebook.com"
+                href="https://www.facebook.com/FederalPartsPhilippines"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-3 p-4 bg-red-800 rounded-lg hover:bg-red-900 transition-all duration-300 hover:scale-105 w-full justify-center group"
@@ -119,7 +119,9 @@ const Footer = () => {
               </a>
             </div>
 
-           
+            <p className="text-gray-200 text-sm text-center">
+              Stay updated with our latest products, promotions, and motorcycle tips.
+            </p>
           </div>
         </div>
 

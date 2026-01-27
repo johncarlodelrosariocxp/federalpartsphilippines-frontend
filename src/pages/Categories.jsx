@@ -161,45 +161,14 @@ const ProductCard = ({ product }) => {
       <div className="p-3 sm:p-4">
         <div className="flex items-start justify-between mb-2">
           <h3 className="font-semibold text-white text-xs sm:text-sm line-clamp-1">{product.name || "Unnamed Product"}</h3>
-          {product.featured && (
-            <span className="px-1.5 py-0.5 text-[9px] sm:text-[10px] bg-gradient-to-r from-amber-500/20 to-amber-600/20 text-amber-300 rounded-full">
-              <Award className="w-2.5 h-2.5 sm:w-3 sm:h-3 inline mr-0.5 sm:mr-1" />
-              Featured
-            </span>
-          )}
+        
         </div>
         
         <p className="text-[10px] sm:text-xs text-gray-400 line-clamp-2 mb-2 sm:mb-3">
           {product.shortDescription || product.description || 'No description available'}
         </p>
         
-        {/* Price */}
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col">
-            <span className="text-base sm:text-lg font-bold text-red-400">
-              ₱{product.discountedPrice || product.price || product.basePrice || "0.00"}
-            </span>
-            {product.discountedPrice && product.price && product.discountedPrice < product.price && (
-              <span className="text-[10px] sm:text-xs text-gray-500 line-through">
-                ₱{product.price}
-              </span>
-            )}
-          </div>
-          
-          {/* Stock status */}
-          <div className="flex items-center">
-            <span className={`text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full ${
-              (product.stock || product.quantity || 0) > 10 
-                ? 'bg-green-500/20 text-green-400' 
-                : (product.stock || product.quantity || 0) > 0
-                ? 'bg-yellow-500/20 text-yellow-400'
-                : 'bg-red-500/20 text-red-400'
-            }`}>
-              {(product.stock || product.quantity || 0) > 10 ? 'In Stock' : 
-               (product.stock || product.quantity || 0) > 0 ? 'Low Stock' : 'Out of Stock'}
-            </span>
-          </div>
-        </div>
+     
       </div>
     </div>
   );
@@ -282,15 +251,7 @@ const MainCategoryCard = ({
             </p>
           </div>
           
-          {/* Featured Badge */}
-          {category.featured && (
-            <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
-              <span className="px-1.5 py-0.5 sm:px-2 sm:py-1 bg-gradient-to-r from-amber-500/30 to-amber-600/30 text-amber-300 text-[10px] sm:text-xs font-semibold rounded-full backdrop-blur-sm">
-                <Award className="w-2.5 h-2.5 sm:w-3 sm:h-3 inline mr-0.5 sm:mr-1" />
-                Featured
-              </span>
-            </div>
-          )}
+      
         </div>
       </div>
     </div>

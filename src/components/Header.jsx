@@ -156,15 +156,18 @@ const Header = () => {
     }
   };
 
-  // Handle quick search click
+  // Handle quick search click - DIRECT NAVIGATION TO PRODUCT DETAIL
   const handleQuickSearch = (product) => {
     if (product._id) {
+      // Navigate directly to product detail page
       navigate(`/product/${product._id}`);
     } else {
       setSearchQuery(product.name);
       searchInputRef.current?.focus();
     }
+    setSearchQuery("");
     setShowSuggestions(false);
+    setIsMenuOpen(false);
   };
 
   // Handle view all search results
@@ -229,6 +232,20 @@ const Header = () => {
     }).format(price);
   };
 
+  // Enhanced search input handlers
+  const handleSearchFocus = () => {
+    if (searchQuery.length >= 2 && searchSuggestions.length > 0) {
+      setShowSuggestions(true);
+    }
+  };
+
+  const handleSearchBlur = (e) => {
+    // Delay hiding suggestions to allow click on suggestion items
+    if (!suggestionsRef.current?.contains(e.relatedTarget)) {
+      setTimeout(() => setShowSuggestions(false), 200);
+    }
+  };
+
   return (
     <>
       {/* Main Header - Hidden on mobile except for search */}
@@ -289,67 +306,71 @@ const Header = () => {
                     ref={searchInputRef}
                     value={searchQuery}
                     onChange={handleSearchChange}
-                    onFocus={() => searchQuery.length >= 2 && setShowSuggestions(true)}
+                    onFocus={handleSearchFocus}
+                    onBlur={handleSearchBlur}
                     placeholder="Search parts"
                     className="pl-10 pr-4 py-2 w-48 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-white/50 bg-white/20 border-white/30 text-white placeholder-white/60"
                   />
                   
+                  {/* Search Suggestions Dropdown */}
                   {showSuggestions && searchSuggestions.length > 0 && (
-                    <div className="absolute top-full mt-2 w-full bg-black rounded-lg shadow-lg overflow-hidden z-50 border border-gray-800">
+                    <div className="absolute top-full mt-2 w-full bg-white rounded-lg shadow-xl overflow-hidden z-50 border border-gray-200">
                       <div className="max-h-96 overflow-y-auto">
                         {searchSuggestions.map((product, index) => (
                           <button
                             key={product._id || index}
                             type="button"
                             onClick={() => handleQuickSearch(product)}
-                            className="w-full px-4 py-3 text-left hover:bg-gray-900 transition-colors border-b border-gray-800 last:border-b-0"
+                            className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0 flex items-center space-x-3 group"
                           >
-                            <div className="flex items-center space-x-3">
-                              {product.images?.[0] ? (
-                                <img
-                                  src={product.images[0]}
-                                  alt={product.name}
-                                  className="w-10 h-10 object-cover rounded"
-                                  loading="lazy"
-                                />
-                              ) : (
-                                <div className="w-10 h-10 bg-gray-800 rounded flex items-center justify-center">
-                                  <Search className="w-5 h-5 text-gray-400" />
-                                </div>
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-white truncate">
-                                  {product.name}
-                                </p>
-                                <div className="flex items-center space-x-2 mt-1">
-                                  {product.discountedPrice ? (
-                                    <>
-                                      <span className="text-sm font-semibold text-[#cc0000]">
-                                        {formatPrice(product.discountedPrice)}
-                                      </span>
-                                      <span className="text-xs text-gray-400 line-through">
-                                        {formatPrice(product.price)}
-                                      </span>
-                                    </>
-                                  ) : (
-                                    <span className="text-sm font-semibold text-white">
+                            {product.images?.[0] ? (
+                              <img
+                                src={product.images[0]}
+                                alt={product.name}
+                                className="w-10 h-10 object-cover rounded group-hover:scale-105 transition-transform"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center">
+                                <ShoppingBag className="w-5 h-5 text-gray-400" />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate group-hover:text-[#cc0000] transition-colors">
+                                {product.name}
+                              </p>
+                              <div className="flex items-center space-x-2 mt-1">
+                                {product.discountedPrice ? (
+                                  <>
+                                    <span className="text-sm font-semibold text-[#cc0000]">
+                                      {formatPrice(product.discountedPrice)}
+                                    </span>
+                                    <span className="text-xs text-gray-500 line-through">
                                       {formatPrice(product.price)}
                                     </span>
-                                  )}
-                                </div>
+                                  </>
+                                ) : (
+                                  <span className="text-sm font-semibold text-gray-900">
+                                    {formatPrice(product.price)}
+                                  </span>
+                                )}
                               </div>
+                            </div>
+                            <div className="text-xs text-gray-500 px-2 py-1 bg-gray-100 rounded">
+                              View Product
                             </div>
                           </button>
                         ))}
                         
                         {searchQuery.trim() && (
-                          <div className="border-t border-gray-800 px-4 py-3 bg-gray-900">
+                          <div className="border-t border-gray-200 px-4 py-3 bg-gray-50">
                             <button
                               type="button"
                               onClick={handleViewAllResults}
-                              className="text-sm font-semibold text-[#cc0000] hover:underline w-full text-left"
+                              className="text-sm font-semibold text-[#cc0000] hover:text-[#ff3333] w-full text-left flex items-center justify-between"
                             >
-                              View all results for "{searchQuery}"
+                              <span>View all results for "{searchQuery}"</span>
+                              <Search className="w-4 h-4" />
                             </button>
                           </div>
                         )}
@@ -384,42 +405,59 @@ const Header = () => {
                 ref={searchInputRef}
                 value={searchQuery}
                 onChange={handleSearchChange}
-                onFocus={() => searchQuery.length >= 2 && setShowSuggestions(true)}
+                onFocus={handleSearchFocus}
+                onBlur={handleSearchBlur}
                 placeholder="Search parts..."
                 className="w-full pl-10 pr-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-white/50 bg-white/20 border border-white/30 text-white placeholder-white/60"
               />
               
               {/* Search Suggestions Dropdown */}
               {showSuggestions && searchSuggestions.length > 0 && (
-                <div className="absolute top-full mt-2 left-0 right-0 bg-black rounded-lg shadow-lg overflow-hidden z-50 border border-gray-800">
+                <div className="absolute top-full mt-2 left-0 right-0 bg-white rounded-lg shadow-xl overflow-hidden z-50 border border-gray-200">
                   <div className="max-h-80 overflow-y-auto">
                     {searchSuggestions.slice(0, 4).map((product, index) => (
                       <button
                         key={product._id || index}
                         type="button"
                         onClick={() => handleQuickSearch(product)}
-                        className="w-full px-4 py-3 text-left hover:bg-gray-900 transition-colors border-b border-gray-800 last:border-b-0"
+                        className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0 flex items-center space-x-3 group"
                       >
-                        <div className="flex items-center space-x-3">
-                          {product.images?.[0] ? (
-                            <img
-                              src={product.images[0]}
-                              alt={product.name}
-                              className="w-10 h-10 object-cover rounded"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 bg-gray-800 rounded flex items-center justify-center">
-                              <Search className="w-5 h-5 text-gray-400" />
-                            </div>
-                          )}
-                         
+                        {product.images?.[0] ? (
+                          <img
+                            src={product.images[0]}
+                            alt={product.name}
+                            className="w-10 h-10 object-cover rounded group-hover:scale-105 transition-transform"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center">
+                            <ShoppingBag className="w-5 h-5 text-gray-400" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate group-hover:text-[#cc0000] transition-colors">
+                            {product.name}
+                          </p>
+                          <div className="flex items-center space-x-2 mt-1">
+                            {product.discountedPrice ? (
+                              <span className="text-sm font-semibold text-[#cc0000]">
+                                {formatPrice(product.discountedPrice)}
+                              </span>
+                            ) : (
+                              <span className="text-sm font-semibold text-gray-900">
+                                {formatPrice(product.price)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          View →
                         </div>
                       </button>
                     ))}
                     
                     {searchQuery.trim() && (
-                      <div className="border-t border-gray-800 px-4 py-3 bg-gray-900">
+                      <div className="border-t border-gray-200 px-4 py-3 bg-gray-50">
                         <button
                           type="button"
                           onClick={handleViewAllResults}
