@@ -1186,7 +1186,7 @@ const Home = () => {
       {/* Categories Section */}
       <section
         ref={(el) => (sectionRefs.current[0] = el)}
-        className="py-8 sm:py-16 bg-gradient-to-b from-black to-gray-900"
+        className="py-8 sm:py-16 bg-black "
       >
         <div className="container mx-auto px-3 sm:px-4 max-w-7xl">
           {/* Section Header */}
