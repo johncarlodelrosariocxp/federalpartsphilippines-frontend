@@ -1219,9 +1219,7 @@ const Home = () => {
                         <h3 className="text-xl sm:text-2xl font-bold text-white">
                           {selectedCategory.title}
                         </h3>
-                        <p className="text-gray-400 text-xs sm:text-sm mt-1">
-                          {getProductsForSelectedCategory().length} products • {selectedCategory.description}
-                        </p>
+                        
                       </div>
                     </div>
                     
@@ -1324,18 +1322,7 @@ const Home = () => {
                   </div>
                 )}
 
-                {/* View All Button */}
-                {!loadingProducts[selectedCategory._id] && getProductsForSelectedCategory().length > 0 && (
-                  <div className="text-center mt-8 sm:mt-12">
-                    <Link
-                      to={`/products?category=${selectedCategory.slug || selectedCategory._id}`}
-                      className="inline-flex items-center justify-center gap-2 sm:gap-3 bg-gradient-to-r from-gray-900 to-black hover:from-gray-800 hover:to-gray-900 text-white px-4 py-3 sm:px-8 sm:py-4 rounded-xl font-semibold transition-all duration-300 hover:scale-105 border border-gray-800 hover:border-red-500/30 shadow-lg text-sm sm:text-base w-full sm:w-auto"
-                    >
-                      <span>View All {selectedCategory.title} Products ({getProductsForSelectedCategory().length})</span>
-                      <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
-                    </Link>
-                  </div>
-                )}
+             
               </div>
             ) : (
               /* Categories Grid View */
@@ -1504,16 +1491,6 @@ const Home = () => {
                       </div>
                     )}
 
-                    {/* View All Categories Button */}
-                    <div className="mt-8 sm:mt-12 text-center">
-                      <Link
-                        to="/products"
-                        className="inline-flex items-center justify-center gap-2 sm:gap-3 bg-gradient-to-r from-gray-900 to-black hover:from-gray-800 hover:to-gray-900 text-white px-4 py-3 sm:px-8 sm:py-4 rounded-xl font-semibold transition-all duration-300 hover:scale-105 border border-gray-800 hover:border-red-500/30 shadow-lg text-sm sm:text-base w-full sm:w-auto"
-                      >
-                        <span>Browse All Categories & Products</span>
-                        <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
-                      </Link>
-                    </div>
 
                   </>
                 )}

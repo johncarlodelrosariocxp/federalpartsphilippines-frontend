@@ -134,20 +134,7 @@ const About = () => {
                 offer exceptional value, reliability, and performance.
               </p>
             </div>
-            <div className="mt-6 flex gap-4">
-              <Link
-                to="/contact"
-                className="inline-flex items-center gap-2 text-blue-400 font-semibold hover:text-blue-300 transition-colors duration-300"
-              >
-                Contact Our Team
-              </Link>
-              <Link
-                to="/products"
-                className="inline-flex items-center gap-2 text-green-400 font-semibold hover:text-green-300 transition-colors duration-300"
-              >
-                View Product Catalog
-              </Link>
-            </div>
+         
           </div>
         </div>
 
@@ -305,12 +292,7 @@ const About = () => {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              to="/products"
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-lg transition-colors duration-300 text-lg inline-flex items-center justify-center gap-2"
-            >
-              View Products
-            </Link>
+         
             <Link
               to="/contact"
               className="bg-gray-800 hover:bg-gray-700 text-white font-medium py-3 px-8 rounded-lg transition-colors duration-300 text-lg border border-gray-700"

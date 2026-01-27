@@ -247,9 +247,7 @@ const MainCategoryCard = ({
             }`}>
               {category.name || "Unnamed Category"}
             </h4>
-            <p className="text-xs sm:text-sm text-gray-300">
-              {category.productCount || category.totalProducts || 0} products
-            </p>
+           
           </div>
          
         </div>
