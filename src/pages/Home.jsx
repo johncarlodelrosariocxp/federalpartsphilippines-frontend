@@ -1170,306 +1170,680 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Categories Section */}
-      <section
-        ref={(el) => (sectionRefs.current[0] = el)}
-        className="py-8 sm:py-16 bg-black"
-         >
-        <div className="container mx-auto px-3 sm:px-4 max-w-7xl">
-          <div className="text-center mb-8 sm:mb-12 animate-fade-up animate-on-visible">
-           <h2 className="font-bebas text-3xl sm:text-4xl md:text-5xl text-[#cc0000] mb-2 sm:mb-3">
+            {/* Categories Section */}
+<section
+  ref={(el) => (sectionRefs.current[0] = el)}
+  className="py-8 sm:py-16 bg-black overflow-hidden relative"
+>
+  {/* Background subtle gradient animation */}
+  <div className="absolute inset-0 bg-gradient-to-b from-gray-900/20 via-black to-black pointer-events-none"></div>
+  
+  <div className="container mx-auto px-3 sm:px-4 max-w-7xl relative z-10">
+    <div 
+      className="text-center mb-8 sm:mb-12"
+      data-aos="fade-up"
+      data-aos-duration="800"
+      data-aos-easing="ease-out-cubic"
+      data-aos-once="true"
+      data-aos-offset="200"
+      data-aos-anchor-placement="top-bottom"
+    >
+      <h2 
+        className="font-bebas text-3xl sm:text-4xl md:text-5xl text-[#cc0000] mb-2 sm:mb-3 relative inline-block"
+        data-aos="fade-up"
+        data-aos-delay="100"
+        data-aos-duration="700"
+        data-aos-easing="ease-out-back"
+      >
         Product Categories
-          </h2>
-            <p className="text-gray-400 text-sm sm:text-lg max-w-2xl mx-auto px-2">
-              Browse our premium motorcycle parts organized by category
-            </p>
-          </div>
+        <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-red-500 group-hover:w-full transition-all duration-700" 
+              data-aos="width-expand"
+              data-aos-delay="400"
+              data-aos-duration="800"
+              data-aos-easing="ease-out-cubic"></span>
+      </h2>
+      <p 
+        className="text-gray-400 text-sm sm:text-lg max-w-2xl mx-auto px-2 relative"
+        data-aos="fade-up"
+        data-aos-delay="200"
+        data-aos-duration="700"
+        data-aos-easing="ease-out-cubic"
+      >
+        <span className="relative inline-block">
+          Browse our premium motorcycle parts organized by category
+          <span className="absolute -bottom-1 left-0 w-0 h-px bg-gradient-to-r from-red-500/50 to-transparent group-hover:w-full transition-all duration-500"
+                data-aos="width-expand"
+                data-aos-delay="500"
+                data-aos-duration="700"></span>
+        </span>
+      </p>
+    </div>
 
-          <div className="animate-fade-in">
-            {selectedCategory ? (
-              <div>
-                <div className="mb-6 sm:mb-8">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4 sm:mb-6">
-                    <div className="flex items-center gap-3 sm:gap-4">
-                      <button
-                        onClick={clearSelectedCategory}
-                        className="p-1.5 sm:p-2 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800 rounded-lg border border-gray-700 hover:border-red-500 transition-all"
-                        title="Back to Categories"
-                      >
-                        <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 rotate-180" />
-                      </button>
-                      <div>
-                        <h3 className="text-xl sm:text-2xl font-bold text-white">
-                          {selectedCategory.title}
-                        </h3>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-1 sm:gap-2 bg-gradient-to-r from-gray-900 to-black p-1 rounded-lg border border-gray-800 self-end sm:self-auto">
-                      <button
-                        onClick={() => setCategoryView("grid")}
-                        className={`p-1.5 sm:p-2 rounded-md transition-all ${categoryView === "grid" ? "bg-gray-800 text-white" : "text-gray-400 hover:text-white"}`}
-                        title="Grid View"
-                      >
-                        <Grid className="w-3 h-3 sm:w-4 sm:h-4" />
-                      </button>
-                      <button
-                        onClick={() => setCategoryView("list")}
-                        className={`p-1.5 sm:p-2 rounded-md transition-all ${categoryView === "list" ? "bg-gray-800 text-white" : "text-gray-400 hover:text-white"}`}
-                        title="List View"
-                      >
-                        <List className="w-3 h-3 sm:w-4 sm:h-4" />
-                      </button>
-                    </div>
-                  </div>
-                  
-                  {selectedCategory.subcategories && selectedCategory.subcategories.length > 0 && (
-                    <div className="mb-4 sm:mb-6">
-                      <h4 className="text-xs sm:text-sm font-medium text-gray-400 mb-2 sm:mb-3 uppercase tracking-wider">
-                        Popular Subcategories
-                      </h4>
-                      <div className="flex flex-wrap gap-1 sm:gap-2">
-                        {selectedCategory.subcategories.map((sub, idx) => (
-                          <button
-                            key={sub._id || idx}
-                            onClick={() => toast.success(`Filtering by ${sub.name}`)}
-                            className="px-2 py-1 sm:px-3 sm:py-1.5 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800 text-gray-300 hover:text-white text-xs sm:text-sm rounded-lg border border-gray-700 hover:border-red-500 transition-all"
-                          >
-                            {sub.name} ({sub.count || 0})
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+    <div 
+      data-aos="fade-in" 
+      data-aos-duration="1000"
+      data-aos-delay="300"
+      data-aos-easing="ease-out-cubic"
+      data-aos-offset="150"
+    >
+      {selectedCategory ? (
+        <div className="relative">
+          {/* Animated background elements */}
+          <div className="absolute -top-10 -left-10 w-20 h-20 bg-red-500/5 rounded-full blur-xl animate-pulse"></div>
+          <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-blue-500/5 rounded-full blur-xl animate-pulse delay-1000"></div>
+          
+          <div className="relative mb-6 sm:mb-8">
+            <div 
+              className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4 sm:mb-6 p-4 sm:p-6 bg-gradient-to-br from-gray-900/50 to-black/50 rounded-xl border border-gray-800/50 backdrop-blur-sm"
+              data-aos="slide-down"
+              data-aos-duration="600"
+              data-aos-easing="ease-out-back"
+              data-aos-offset="100"
+              data-aos-anchor-placement="top-bottom"
+            >
+              <div 
+                className="flex items-center gap-3 sm:gap-4"
+                data-aos="slide-right"
+                data-aos-delay="100"
+                data-aos-duration="500"
+                data-aos-easing="ease-out-back"
+              >
+                <button
+                  onClick={clearSelectedCategory}
+                  className="p-2 sm:p-3 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800 rounded-xl border border-gray-700 hover:border-red-500 transition-all duration-300 hover:scale-110 active:scale-95 hover:shadow-lg hover:shadow-red-500/20 group"
+                  title="Back to Categories"
+                  data-aos="zoom-in"
+                  data-aos-delay="50"
+                  data-aos-duration="400"
+                >
+                  <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 rotate-180 group-hover:text-white group-hover:translate-x-1 transition-all duration-300" />
+                </button>
+                <div 
+                  data-aos="slide-right" 
+                  data-aos-delay="150"
+                  data-aos-duration="500"
+                  data-aos-easing="ease-out-back"
+                  className="relative"
+                >
+                  <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-white bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+                    {selectedCategory.title}
+                  </h3>
+                  <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-red-500 to-orange-500 group-hover:w-full transition-all duration-700"
+                       data-aos="width-expand"
+                       data-aos-delay="300"
+                       data-aos-duration="800"></div>
                 </div>
-
-                {loadingProducts[selectedCategory._id] ? (
-                  <div className="text-center py-8 sm:py-12">
-                    <Loader className="w-6 h-6 sm:w-8 sm:h-8 animate-spin text-red-500 mx-auto mb-3 sm:mb-4" />
-                    <p className="text-gray-400 text-sm">Loading products...</p>
-                  </div>
-                ) : getProductsForSelectedCategory().length > 0 ? (
-                  categoryView === "grid" ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-                      {getProductsForSelectedCategory().map((product, index) => (
-                        <ProductCard key={product._id || product.id || `product-${index}`} product={product} />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="space-y-3 sm:space-y-4">
-                      {getProductsForSelectedCategory().map((product, index) => (
-                        <ListProductCard key={product._id || product.id || `product-${index}`} product={product} />
-                      ))}
-                    </div>
-                  )
-                ) : (
-                  <div className="text-center py-8 sm:py-12">
-                    <FolderTree className="w-12 h-12 sm:w-16 sm:h-16 text-gray-600 mx-auto mb-3 sm:mb-4" />
-                    <h4 className="text-lg sm:text-xl font-bold text-white mb-1 sm:mb-2">No Products Found</h4>
-                    <p className="text-gray-400 text-sm sm:text-base mb-4 sm:mb-6 max-w-md mx-auto px-2">
-                      There are no products available in this category yet. 
-                      Please check back later or browse other categories.
-                    </p>
-                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center">
-                      <button
-                        onClick={() => {
-                          fetchProductsForCategory(selectedCategory);
-                          toast.success("Refreshing products...");
-                        }}
-                        className="px-3 py-2 sm:px-4 sm:py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center justify-center gap-1 sm:gap-2 text-sm"
-                      >
-                        <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
-                        Refresh Products
-                      </button>
-                      <button
-                        onClick={clearSelectedCategory}
-                        className="px-3 py-2 sm:px-4 sm:py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors text-sm"
-                      >
-                        Browse Other Categories
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {!loadingProducts[selectedCategory._id] && getProductsForSelectedCategory().length > 0 && (
-                  <div className="mt-4 sm:mt-6 text-center">
-                    <p className="text-gray-400 text-xs sm:text-sm">
-                      Showing {getProductsForSelectedCategory().length} products in {selectedCategory.title}
-                    </p>
-                  </div>
-                )}
-
               </div>
-            ) : (
-              <div>
-                {categoriesLoading ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-                    {Array.from({ length: 8 }).map((_, index) => (
-                      <div
-                        key={index}
-                        className="category-skeleton h-56 sm:h-64 animate-fade-up animate-on-visible"
-                        style={{ animationDelay: `${index * 100 + 300}ms` }}
-                      />
-                    ))}
-                  </div>
-                ) : apiStatus === "error" ? (
-                  <div className="text-center py-8 sm:py-16">
-                    <AlertCircle className="w-16 h-16 sm:w-24 sm:h-24 text-red-500 mx-auto mb-4 sm:mb-6" />
-                    <h3 className="text-xl sm:text-2xl font-bold text-white mb-2 sm:mb-3">
-                      Connection Error
-                    </h3>
-                    <p className="text-gray-400 text-sm sm:text-base mb-6 sm:mb-8 max-w-md mx-auto px-2">
-                      Unable to connect to the server. Please check your backend connection.
-                    </p>
-                    
-                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 justify-center items-center">
-                      <button
-                        onClick={() => {
-                          setRetryCount(0);
-                          fetchCategories();
-                        }}
-                        className="px-4 py-2 sm:px-6 sm:py-3 bg-red-600 hover:bg-red-700 rounded-lg font-medium flex items-center justify-center gap-1 sm:gap-2 transition-all hover:scale-105 text-sm sm:text-base w-full sm:w-auto"
-                      >
-                        <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
-                        Reset & Retry
-                      </button>
-                      
-                      <button
-                        onClick={() => {
-                          const backendUrl = getApiBaseUrl();
-                          window.open(`${backendUrl}/api/categories`, '_blank');
-                          toast.info(`Opening categories endpoint in new tab`);
-                        }}
-                        className="px-4 py-2 sm:px-6 sm:py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-all hover:scale-105 text-sm sm:text-base w-full sm:w-auto"
-                      >
-                        Test Endpoint
-                      </button>
-                    </div>
-                    
-                    <div className="mt-6 sm:mt-8 p-3 sm:p-4 bg-gray-900/50 rounded-lg max-w-lg mx-auto text-left">
-                      <h4 className="text-white font-semibold mb-2 text-sm sm:text-base">Troubleshooting Tips:</h4>
-                      <ul className="text-xs sm:text-sm text-gray-400 space-y-1">
-                        <li>• Ensure your backend server is running on Render</li>
-                        <li>• Check the API endpoint: <code className="bg-gray-800 px-1 py-0.5 sm:px-2 sm:py-1 rounded text-xs">https://federalpartsphilippines-backend.onrender.com/api/categories</code></li>
-                        <li>• Verify CORS is enabled on the backend</li>
-                        <li>• Check browser console for detailed error messages</li>
-                      </ul>
-                      <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-yellow-500/10 border border-yellow-500/20 rounded">
-                        <p className="text-yellow-500 text-xs sm:text-sm">
-                          <strong>Backend URL:</strong> {getApiBaseUrl()}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ) : categories.length === 0 ? (
-                  <div className="text-center py-8 sm:py-16">
-                    <FolderTree className="w-16 h-16 sm:w-24 sm:h-24 text-gray-600 mx-auto mb-4 sm:mb-6" />
-                    <h3 className="text-xl sm:text-2xl font-bold text-white mb-2 sm:mb-3">
-                      No Categories Available
-                    </h3>
-                    <p className="text-gray-400 text-sm sm:text-base mb-6 sm:mb-8 max-w-md mx-auto px-2">
-                      No categories found in the database. Please add categories through the admin panel.
-                    </p>
-                    
-                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 justify-center items-center">
-                      <button
-                        onClick={() => {
-                          setRetryCount(0);
-                          fetchCategories();
-                        }}
-                        className="px-4 py-2 sm:px-6 sm:py-3 bg-red-600 hover:bg-red-700 rounded-lg font-medium flex items-center justify-center gap-1 sm:gap-2 transition-all hover:scale-105 text-sm sm:text-base w-full sm:w-auto"
-                      >
-                        <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
-                        Refresh
-                      </button>
-                      
-                      <Link
-                        to="/admin/categories"
-                        className="px-4 py-2 sm:px-6 sm:py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-all hover:scale-105 text-sm sm:text-base w-full sm:w-auto text-center"
-                      >
-                        Add Categories
-                      </Link>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-                      {visibleCategories.map((category, index) => (
-                        <CategoryCard key={category._id} category={category} index={index} />
-                      ))}
-                    </div>
-
-                    {categories.length > itemsPerPage && (
-                      <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
-                        <div className="text-gray-400 text-xs sm:text-sm order-2 sm:order-1">
-                          Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
-                          {Math.min(currentPage * itemsPerPage, categories.length)} of {categories.length} categories
-                        </div>
-                        
-                        <div className="flex items-center gap-1 sm:gap-2 order-1 sm:order-2">
-                          <button
-                            onClick={handlePrevPage}
-                            disabled={currentPage === 1}
-                            className={`p-1.5 sm:p-2 rounded-lg border transition-all ${
-                              currentPage === 1
-                                ? "border-gray-800 text-gray-600 cursor-not-allowed"
-                                : "border-gray-700 text-gray-300 hover:border-red-500 hover:text-white hover:bg-gray-800"
-                            }`}
-                          >
-                            <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-                          </button>
-                          
-                          <div className="flex items-center gap-1">
-                            {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
-                              let pageNum;
-                              if (totalPages <= 5) {
-                                pageNum = i + 1;
-                              } else if (currentPage <= 3) {
-                                pageNum = i + 1;
-                              } else if (currentPage >= totalPages - 2) {
-                                pageNum = totalPages - 4 + i;
-                              } else {
-                                pageNum = currentPage - 2 + i;
-                              }
-                              
-                              return (
-                                <button
-                                  key={pageNum}
-                                  onClick={() => goToPage(pageNum)}
-                                  className={`w-6 h-6 sm:w-8 sm:h-8 rounded-lg transition-all text-xs sm:text-sm ${
-                                    currentPage === pageNum
-                                      ? "bg-red-600 text-white"
-                                      : "text-gray-400 hover:text-white hover:bg-gray-800"
-                                  }`}
-                                >
-                                  {pageNum}
-                                </button>
-                              );
-                            })}
-                          </div>
-                          
-                          <button
-                            onClick={handleNextPage}
-                            disabled={currentPage === totalPages}
-                            className={`p-1.5 sm:p-2 rounded-lg border transition-all ${
-                              currentPage === totalPages
-                                ? "border-gray-800 text-gray-600 cursor-not-allowed"
-                                : "border-gray-700 text-gray-300 hover:border-red-500 hover:text-white hover:bg-gray-800"
-                            }`}
-                          >
-                            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                  </>
-                )}
+              
+           
+            </div>
+            
+            {selectedCategory.subcategories && selectedCategory.subcategories.length > 0 && (
+              <div 
+                className="mb-4 sm:mb-6 p-4 bg-gray-900/30 rounded-xl border border-gray-800/30 backdrop-blur-sm"
+                data-aos="fade-up"
+                data-aos-delay="250"
+                data-aos-duration="600"
+                data-aos-offset="50"
+                data-aos-anchor-placement="top-bottom"
+              >
+                <h4 
+                  className="text-xs sm:text-sm font-medium text-gray-400 mb-3 sm:mb-4 uppercase tracking-wider flex items-center gap-2"
+                  data-aos="fade-down"
+                  data-aos-delay="200"
+                  data-aos-duration="500"
+                >
+                  <span className="w-1 h-4 bg-gradient-to-b from-red-500 to-orange-500 rounded-full"></span>
+                  Popular Subcategories
+                </h4>
+                <div className="flex flex-wrap gap-2 sm:gap-3">
+                  {selectedCategory.subcategories.map((sub, idx) => (
+                    <button
+                      key={sub._id || idx}
+                      onClick={() => toast.success(`Filtering by ${sub.name}`)}
+                      className="px-3 py-1.5 sm:px-4 sm:py-2 bg-gradient-to-r from-gray-800/80 to-gray-900/80 hover:from-gray-700/80 hover:to-gray-800/80 text-gray-300 hover:text-white text-xs sm:text-sm rounded-lg border border-gray-700/50 hover:border-red-500 transition-all duration-300 hover:scale-105 active:scale-95 hover:shadow-md hover:shadow-red-500/10 group"
+                      data-aos="zoom-in"
+                      data-aos-delay={250 + idx * 60}
+                      data-aos-duration="400"
+                      data-aos-easing="ease-out-back"
+                    >
+                      <span className="relative z-10">
+                        {sub.name} 
+                        <span className="ml-1.5 px-1.5 py-0.5 bg-gray-900/50 rounded text-xs">
+                          {sub.count || 0}
+                        </span>
+                      </span>
+                      <span className="absolute inset-0 bg-gradient-to-r from-red-500/0 via-red-500/10 to-red-500/0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
+
+          {loadingProducts[selectedCategory._id] ? (
+            <div 
+              className="text-center py-12 sm:py-16 relative"
+              data-aos="fade-up"
+              data-aos-duration="600"
+              data-aos-offset="100"
+              data-aos-anchor-placement="top-bottom"
+            >
+              {/* Animated dots background */}
+              <div className="absolute inset-0 overflow-hidden">
+                {Array.from({ length: 15 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="absolute w-1 h-1 bg-red-500/20 rounded-full animate-pulse"
+                    style={{
+                      left: `${Math.random() * 100}%`,
+                      top: `${Math.random() * 100}%`,
+                      animationDelay: `${i * 0.2}s`
+                    }}
+                  ></div>
+                ))}
+              </div>
+              
+              <div 
+                data-aos="zoom-in" 
+                data-aos-duration="800"
+                data-aos-easing="ease-out-back"
+                className="relative"
+              >
+                <div className="relative inline-block">
+                  <Loader className="w-12 h-12 sm:w-16 sm:h-16 animate-spin text-red-500 mx-auto mb-4 sm:mb-6" />
+                  <div className="absolute inset-0 animate-ping opacity-20">
+                    <Loader className="w-12 h-12 sm:w-16 sm:h-16 text-red-500 mx-auto" />
+                  </div>
+                </div>
+                <p 
+                  className="text-gray-400 text-sm sm:text-base relative"
+                  data-aos="fade-up"
+                  data-aos-delay="300"
+                  data-aos-duration="500"
+                >
+                  <span className="inline-block animate-pulse">
+                    Loading products<span className="animate-pulse">.</span><span className="animate-pulse delay-100">.</span><span className="animate-pulse delay-200">.</span>
+                  </span>
+                </p>
+              </div>
+            </div>
+          ) : getProductsForSelectedCategory().length > 0 ? (
+            categoryView === "grid" ? (
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+                {getProductsForSelectedCategory().map((product, index) => (
+                  <div
+                    key={product._id || product.id || `product-${index}`}
+                    data-aos="fade-up"
+                    data-aos-delay={Math.floor(index / 4) * 100 + (index % 4) * 50}
+                    data-aos-duration="600"
+                    data-aos-easing="ease-out-cubic"
+                    data-aos-once="true"
+                    data-aos-offset="100"
+                    data-aos-anchor-placement="top-bottom"
+                    className="transform transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl hover:shadow-red-500/10"
+                  >
+                    <div className="relative overflow-hidden rounded-xl group">
+                      <div className="absolute inset-0 bg-gradient-to-r from-red-500/0 via-red-500/5 to-red-500/0 transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                      <ProductCard product={product} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-3 sm:space-y-4">
+                {getProductsForSelectedCategory().map((product, index) => (
+                  <div
+                    key={product._id || product.id || `product-${index}`}
+                    data-aos="slide-right"
+                    data-aos-delay={index * 80}
+                    data-aos-duration="500"
+                    data-aos-easing="ease-out-cubic"
+                    data-aos-once="true"
+                    data-aos-offset="100"
+                    data-aos-anchor-placement="top-bottom"
+                    className="transform transition-all duration-500 hover:-translate-x-2 hover:shadow-xl hover:shadow-red-500/10 rounded-xl overflow-hidden"
+                  >
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-gradient-to-r from-red-500/0 via-red-500/5 to-red-500/0 transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                      <ListProductCard product={product} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
+          ) : (
+            <div 
+              className="text-center py-12 sm:py-16 relative overflow-hidden"
+              data-aos="fade-up"
+              data-aos-duration="700"
+              data-aos-offset="100"
+              data-aos-anchor-placement="top-bottom"
+            >
+              {/* Animated background */}
+              <div className="absolute inset-0 bg-gradient-to-b from-red-500/5 via-transparent to-blue-500/5 opacity-50"></div>
+              
+              <div 
+                data-aos="zoom-in" 
+                data-aos-duration="800"
+                data-aos-easing="ease-out-back"
+                className="relative"
+              >
+                <FolderTree className="w-16 h-16 sm:w-20 sm:h-20 text-gray-400 mx-auto mb-4 sm:mb-6 animate-pulse" />
+              </div>
+              <h4 
+                className="text-xl sm:text-2xl font-bold text-white mb-2 sm:mb-3 relative"
+                data-aos="fade-up"
+                data-aos-delay="200"
+                data-aos-duration="600"
+              >
+                No Products Found
+              </h4>
+              <p 
+                className="text-gray-400 text-sm sm:text-base mb-6 sm:mb-8 max-w-md mx-auto px-4 relative"
+                data-aos="fade-up"
+                data-aos-delay="300"
+                data-aos-duration="600"
+              >
+                There are no products available in this category yet. 
+                Please check back later or browse other categories.
+              </p>
+              <div 
+                className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center relative"
+                data-aos="fade-up"
+                data-aos-delay="400"
+                data-aos-duration="600"
+              >
+                <button
+                  onClick={() => {
+                    fetchProductsForCategory(selectedCategory);
+                    toast.success("Refreshing products...");
+                  }}
+                  className="px-4 py-2.5 sm:px-5 sm:py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 hover:shadow-lg hover:shadow-red-500/30 flex items-center justify-center gap-2 sm:gap-3 text-sm sm:text-base group"
+                  data-aos="zoom-in"
+                  data-aos-delay="450"
+                  data-aos-duration="400"
+                >
+                  <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 animate-spin group-hover:animate-spin" />
+                  Refresh Products
+                </button>
+                <button
+                  onClick={clearSelectedCategory}
+                  className="px-4 py-2.5 sm:px-5 sm:py-3 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800 text-white rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 hover:shadow-lg hover:shadow-gray-500/20 text-sm sm:text-base"
+                  data-aos="zoom-in"
+                  data-aos-delay="500"
+                  data-aos-duration="400"
+                >
+                  Browse Other Categories
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!loadingProducts[selectedCategory._id] && getProductsForSelectedCategory().length > 0 && (
+            <div 
+              className="mt-6 sm:mt-8 text-center relative"
+              data-aos="fade-up"
+              data-aos-delay="500"
+              data-aos-duration="600"
+              data-aos-offset="50"
+            >
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-gray-900/50 to-black/50 rounded-full border border-gray-800/50 backdrop-blur-sm">
+                <p className="text-gray-400 text-xs sm:text-sm">
+                  Showing <span className="text-white font-semibold">{getProductsForSelectedCategory().length}</span> products in <span className="text-red-400 font-semibold">{selectedCategory.title}</span>
+                </p>
+              </div>
+            </div>
+          )}
         </div>
-      </section>
+      ) : (
+        <div className="relative">
+          {/* Animated background grid */}
+          <div className="absolute inset-0 opacity-5">
+            <div className="grid grid-cols-8 gap-4 h-full">
+              {Array.from({ length: 48 }).map((_, i) => (
+                <div 
+                  key={i} 
+                  className="bg-gradient-to-br from-gray-800 to-transparent rounded-lg animate-pulse"
+                  style={{ animationDelay: `${i * 0.1}s` }}
+                ></div>
+              ))}
+            </div>
+          </div>
+          
+          {categoriesLoading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 relative">
+              {Array.from({ length: 8 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="category-skeleton h-56 sm:h-64 bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl relative overflow-hidden"
+                  data-aos="fade-up"
+                  data-aos-delay={index * 100}
+                  data-aos-duration="500"
+                  data-aos-once="true"
+                  data-aos-offset="100"
+                  data-aos-anchor-placement="top-bottom"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-800/50 to-transparent -translate-x-full animate-shimmer"></div>
+                </div>
+              ))}
+            </div>
+          ) : apiStatus === "error" ? (
+            <div 
+              className="text-center py-12 sm:py-16 relative overflow-hidden"
+              data-aos="fade-up"
+              data-aos-duration="700"
+              data-aos-offset="100"
+              data-aos-anchor-placement="top-bottom"
+            >
+              {/* Error animation background */}
+              <div className="absolute inset-0 bg-gradient-to-b from-red-500/10 via-transparent to-red-500/5"></div>
+              
+              <div 
+                data-aos="zoom-in" 
+                data-aos-duration="800"
+                data-aos-easing="ease-out-back"
+                className="relative"
+              >
+                <AlertCircle className="w-20 h-20 sm:w-24 sm:h-24 text-red-500 mx-auto mb-4 sm:mb-6 animate-bounce" />
+              </div>
+              <h3 
+                className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-2 sm:mb-3 relative"
+                data-aos="fade-up"
+                data-aos-delay="200"
+                data-aos-duration="600"
+              >
+                Connection Error
+              </h3>
+              <p 
+                className="text-gray-400 text-sm sm:text-base mb-6 sm:mb-8 max-w-md mx-auto px-4 relative"
+                data-aos="fade-up"
+                data-aos-delay="300"
+                data-aos-duration="600"
+              >
+                Unable to connect to the server. Please check your backend connection.
+              </p>
+              
+              <div 
+                className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center relative"
+                data-aos="fade-up"
+                data-aos-delay="400"
+                data-aos-duration="600"
+              >
+                <button
+                  onClick={() => {
+                    setRetryCount(0);
+                    fetchCategories();
+                  }}
+                  className="px-4 py-2.5 sm:px-6 sm:py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 rounded-xl font-medium flex items-center justify-center gap-2 sm:gap-3 transition-all duration-300 hover:scale-105 active:scale-95 hover:shadow-lg hover:shadow-red-500/30 text-sm sm:text-base w-full sm:w-auto group"
+                  data-aos="zoom-in"
+                  data-aos-delay="450"
+                  data-aos-duration="400"
+                >
+                  <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 animate-spin group-hover:animate-spin" />
+                  Reset & Retry
+                </button>
+                
+                <button
+                  onClick={() => {
+                    const backendUrl = getApiBaseUrl();
+                    window.open(`${backendUrl}/api/categories`, '_blank');
+                    toast.info(`Opening categories endpoint in new tab`);
+                  }}
+                  className="px-4 py-2.5 sm:px-6 sm:py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 rounded-xl font-medium transition-all duration-300 hover:scale-105 active:scale-95 hover:shadow-lg hover:shadow-blue-500/30 text-sm sm:text-base w-full sm:w-auto"
+                  data-aos="zoom-in"
+                  data-aos-delay="500"
+                  data-aos-duration="400"
+                >
+                  Test Endpoint
+                </button>
+              </div>
+              
+              <div 
+                className="mt-8 sm:mt-10 p-4 sm:p-6 bg-gradient-to-br from-gray-900/50 to-black/50 rounded-xl border border-gray-800/50 backdrop-blur-sm max-w-lg mx-auto text-left relative overflow-hidden"
+                data-aos="fade-up"
+                data-aos-delay="550"
+                data-aos-duration="600"
+              >
+                {/* Background animation */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-3xl"></div>
+                <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl"></div>
+                
+                <h4 
+                  className="text-white font-semibold mb-3 text-sm sm:text-base relative flex items-center gap-2"
+                  data-aos="fade-right"
+                  data-aos-delay="600"
+                >
+                  <span className="w-1.5 h-5 bg-gradient-to-b from-yellow-500 to-orange-500 rounded-full"></span>
+                  Troubleshooting Tips:
+                </h4>
+                <ul className="text-xs sm:text-sm text-gray-400 space-y-2 relative">
+                  {[
+                    "• Ensure your backend server is running on Render",
+                    "• Check the API endpoint: https://federalpartsphilippines-backend.onrender.com/api/categories",
+                    "• Verify CORS is enabled on the backend",
+                    "• Check browser console for detailed error messages"
+                  ].map((tip, idx) => (
+                    <li 
+                      key={idx}
+                      data-aos="fade-right"
+                      data-aos-delay={650 + idx * 50}
+                      data-aos-duration="500"
+                      className="flex items-start gap-2 group hover:text-gray-300 transition-colors duration-300"
+                    >
+                      <span className="w-1 h-1 bg-gray-600 rounded-full mt-2 group-hover:bg-red-500 transition-colors duration-300"></span>
+                      {tip}
+                    </li>
+                  ))}
+                </ul>
+                <div 
+                  className="mt-4 p-3 bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/20 rounded-lg backdrop-blur-sm"
+                  data-aos="fade-up"
+                  data-aos-delay="850"
+                  data-aos-duration="500"
+                >
+                  <p className="text-yellow-500 text-xs sm:text-sm flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse"></span>
+                    <strong>Backend URL:</strong> {getApiBaseUrl()}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : categories.length === 0 ? (
+            <div 
+              className="text-center py-12 sm:py-16 relative overflow-hidden"
+              data-aos="fade-up"
+              data-aos-duration="700"
+              data-aos-offset="100"
+              data-aos-anchor-placement="top-bottom"
+            >
+              {/* Background pattern */}
+              <div className="absolute inset-0 opacity-10">
+                <div className="grid grid-cols-4 gap-8 h-full">
+                  {Array.from({ length: 12 }).map((_, i) => (
+                    <FolderTree 
+                      key={i} 
+                      className="w-8 h-8 text-gray-600"
+                      style={{ animationDelay: `${i * 0.2}s` }}
+                    />
+                  ))}
+                </div>
+              </div>
+              
+              <div 
+                data-aos="zoom-in" 
+                data-aos-duration="800"
+                data-aos-easing="ease-out-back"
+                className="relative"
+              >
+                <FolderTree className="w-20 h-20 sm:w-24 sm:h-24 text-gray-500 mx-auto mb-4 sm:mb-6 animate-pulse" />
+              </div>
+              <h3 
+                className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-2 sm:mb-3 relative"
+                data-aos="fade-up"
+                data-aos-delay="200"
+                data-aos-duration="600"
+              >
+                No Categories Available
+              </h3>
+              <p 
+                className="text-gray-400 text-sm sm:text-base mb-6 sm:mb-8 max-w-md mx-auto px-4 relative"
+                data-aos="fade-up"
+                data-aos-delay="300"
+                data-aos-duration="600"
+              >
+                No categories found in the database. Please add categories through the admin panel.
+              </p>
+              
+              <div 
+                className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center relative"
+                data-aos="fade-up"
+                data-aos-delay="400"
+                data-aos-duration="600"
+              >
+                <button
+                  onClick={() => {
+                    setRetryCount(0);
+                    fetchCategories();
+                  }}
+                  className="px-4 py-2.5 sm:px-6 sm:py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 rounded-xl font-medium flex items-center justify-center gap-2 sm:gap-3 transition-all duration-300 hover:scale-105 active:scale-95 hover:shadow-lg hover:shadow-red-500/30 text-sm sm:text-base w-full sm:w-auto group"
+                  data-aos="zoom-in"
+                  data-aos-delay="450"
+                  data-aos-duration="400"
+                >
+                  <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 animate-spin group-hover:animate-spin" />
+                  Refresh
+                </button>
+                
+                <Link
+                  to="/admin/categories"
+                  className="px-4 py-2.5 sm:px-6 sm:py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 rounded-xl font-medium transition-all duration-300 hover:scale-105 active:scale-95 hover:shadow-lg hover:shadow-blue-500/30 text-sm sm:text-base w-full sm:w-auto text-center group"
+                  data-aos="zoom-in"
+                  data-aos-delay="500"
+                  data-aos-duration="400"
+                >
+                  <span className="group-hover:translate-x-1 transition-transform duration-300">Add Categories</span>
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 relative">
+                {visibleCategories.map((category, index) => (
+                  <div
+                    key={category._id}
+                    data-aos="fade-up"
+                    data-aos-delay={Math.floor(index / 4) * 100 + (index % 4) * 50}
+                    data-aos-duration="600"
+                    data-aos-easing="ease-out-cubic"
+                    data-aos-once="true"
+                    data-aos-offset="100"
+                    data-aos-anchor-placement="top-bottom"
+                    className="transform transition-all duration-500 hover:-translate-y-2"
+                  >
+                    <div className="relative overflow-hidden rounded-xl group">
+                      <div className="absolute inset-0 bg-gradient-to-br from-red-500/0 via-red-500/5 to-blue-500/0 transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                      <CategoryCard category={category} index={index} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {categories.length > itemsPerPage && (
+                <div 
+                  className="mt-8 sm:mt-10 flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6 p-4 sm:p-6 bg-gradient-to-r from-gray-900/50 to-black/50 rounded-xl border border-gray-800/50 backdrop-blur-sm"
+                  data-aos="fade-up"
+                  data-aos-delay="300"
+                  data-aos-duration="600"
+                  data-aos-offset="50"
+                  data-aos-anchor-placement="top-bottom"
+                >
+                  <div 
+                    className="text-gray-400 text-xs sm:text-sm order-2 sm:order-1"
+                    data-aos="fade-right"
+                    data-aos-delay="350"
+                    data-aos-duration="500"
+                  >
+                    Showing <span className="text-white font-semibold">{(currentPage - 1) * itemsPerPage + 1}</span> to{" "}
+                    <span className="text-white font-semibold">{Math.min(currentPage * itemsPerPage, categories.length)}</span> of{" "}
+                    <span className="text-red-400 font-semibold">{categories.length}</span> categories
+                  </div>
+                  
+                  <div className="flex items-center gap-2 sm:gap-3 order-1 sm:order-2">
+                    <button
+                      onClick={handlePrevPage}
+                      disabled={currentPage === 1}
+                      className={`p-2 sm:p-3 rounded-xl border transition-all duration-300 hover:scale-110 active:scale-95 ${
+                        currentPage === 1
+                          ? "border-gray-800 text-gray-600 cursor-not-allowed"
+                          : "border-gray-700 text-gray-300 hover:border-red-500 hover:text-white hover:bg-gray-800/50 hover:shadow-lg hover:shadow-red-500/20"
+                      }`}
+                      data-aos="flip-left"
+                      data-aos-delay="400"
+                      data-aos-duration="500"
+                      data-aos-easing="ease-out-back"
+                    >
+                      <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+                    </button>
+                    
+                    <div className="flex items-center gap-1 sm:gap-2">
+                      {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
+                        let pageNum;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          pageNum = currentPage - 2 + i;
+                        }
+                        
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => goToPage(pageNum)}
+                            className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg transition-all duration-300 hover:scale-110 active:scale-95 text-xs sm:text-sm font-medium ${
+                              currentPage === pageNum
+                                ? "bg-gradient-to-r from-red-600 to-red-700 text-white scale-105 shadow-lg shadow-red-500/30"
+                                : "text-gray-400 hover:text-white hover:bg-gray-800/50"
+                            }`}
+                            data-aos="flip-up"
+                            data-aos-delay={450 + i * 50}
+                            data-aos-duration="400"
+                            data-aos-easing="ease-out-back"
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    
+                    <button
+                      onClick={handleNextPage}
+                      disabled={currentPage === totalPages}
+                      className={`p-2 sm:p-3 rounded-xl border transition-all duration-300 hover:scale-110 active:scale-95 ${
+                        currentPage === totalPages
+                          ? "border-gray-800 text-gray-600 cursor-not-allowed"
+                          : "border-gray-700 text-gray-300 hover:border-red-500 hover:text-white hover:bg-gray-800/50 hover:shadow-lg hover:shadow-red-500/20"
+                      }`}
+                      data-aos="flip-right"
+                      data-aos-delay="550"
+                      data-aos-duration="500"
+                      data-aos-easing="ease-out-back"
+                    >
+                      <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  </div>
+</section>
 
       {/* About Section with scroll-dependent animations */}
       <section

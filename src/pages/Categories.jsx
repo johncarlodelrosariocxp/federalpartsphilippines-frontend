@@ -28,7 +28,9 @@ import {
   CheckCircle,
   Star,
   Menu,
-  ChevronLeft
+  ChevronLeft,
+  Bike,
+  Tag
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { categoryAPI, productAPI } from "../services/api";
@@ -167,15 +169,138 @@ const ProductCard = ({ product, categoryId }) => {
       <div className="p-3 sm:p-4">
         <div className="flex items-start justify-between mb-2">
           <h3 className="font-semibold text-white text-xs sm:text-sm line-clamp-1">{product.name || "Unnamed Product"}</h3>
-         
         </div>
         
         <p className="text-[10px] sm:text-xs text-gray-400 line-clamp-2 mb-2 sm:mb-3">
           {product.shortDescription || product.description || 'No description available'}
         </p>
-        
+      </div>
+    </div>
+  );
+};
+
+// Search Result Brand Card Component
+const SearchBrandCard = ({ brand, onClick }) => {
+  const [imageError, setImageError] = useState(false);
   
-       
+  const getBrandImageUrl = () => {
+    const imagePath = brand.image || brand.imageUrl || brand.thumbnail;
+    const url = getImageUrl(imagePath, "categories");
+    
+    if (!url) {
+      // Use brand-specific Unsplash fallback
+      const brandName = (brand.name || "").toLowerCase();
+      if (brandName.includes("engine")) return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w-400&h-250&fit=crop&auto=format";
+      if (brandName.includes("brake")) return "https://images.unsplash.com/photo-1558981806-ec527fa0b4c9?w=400&h=250&fit=crop&auto=format";
+      if (brandName.includes("tire") || brandName.includes("wheel")) return "https://images.unsplash.com/photo-1603584173870-7f23fdae1b7a?w=400&h=250&fit=crop&auto=format";
+      return "https://images.unsplash.com/photo-1580261450035-4d4f04b7b4c5?w=400&h=250&fit=crop&auto=format";
+    }
+    
+    return url;
+  };
+
+  const imageUrl = getBrandImageUrl();
+
+  const handleImageError = (e) => {
+    setImageError(true);
+    e.target.src = "https://images.unsplash.com/photo-1580261450035-4d4f04b7b4c5?w=400&h=250&fit=crop&auto=format";
+  };
+
+  return (
+    <div 
+      className="group cursor-pointer"
+      onClick={() => onClick(brand._id)}
+    >
+      <div className="relative overflow-hidden rounded-xl border border-gray-800 group-hover:border-blue-500/50 transition-all duration-300 bg-gradient-to-b from-gray-900 to-black shadow-lg group-hover:shadow-xl group-hover:shadow-blue-500/10 h-full">
+        {/* Image Container */}
+        <div className="aspect-square overflow-hidden">
+          <img
+            src={imageUrl}
+            alt={brand.name || "Brand Image"}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            onError={handleImageError}
+            loading="lazy"
+            crossOrigin="anonymous"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+          
+          {/* Brand Info */}
+          <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Crown className="w-3 h-3 sm:w-4 sm:h-4 text-blue-400" />
+              <h4 className="font-bold text-white text-xs sm:text-sm line-clamp-1">{brand.name || "Unnamed Brand"}</h4>
+            </div>
+            <p className="text-[10px] sm:text-xs text-gray-300">
+              {brand.productCount || brand.totalProducts || 0} products
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Search Result Motorcycle Card Component
+const SearchMotorcycleCard = ({ motorcycle, onViewProducts }) => {
+  const [imageError, setImageError] = useState(false);
+  
+  const getMotorcycleImageUrl = () => {
+    const imagePath = motorcycle.image || motorcycle.imageUrl || motorcycle.thumbnail;
+    const url = getImageUrl(imagePath, "categories");
+    
+    if (!url) {
+      // Use motorcycle-specific Unsplash fallback
+      const bikeName = (motorcycle.name || "").toLowerCase();
+      if (bikeName.includes("engine")) return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=250&fit=crop&auto=format";
+      if (bikeName.includes("brake")) return "https://images.unsplash.com/photo-1558981806-ec527fa0b4c9?w=400&h=250&fit=crop&auto=format";
+      if (bikeName.includes("sport")) return "https://images.unsplash.com/photo-1566473359723-7e3e4d6c8c1b?w=400&h=250&fit=crop&auto=format";
+      return "https://images.unsplash.com/photo-1520295187453-cd239786490c?w=400&h=250&fit=crop&auto=format";
+    }
+    
+    return url;
+  };
+
+  const imageUrl = getMotorcycleImageUrl();
+
+  const handleImageError = (e) => {
+    setImageError(true);
+    e.target.src = "https://images.unsplash.com/photo-1520295187453-cd239786490c?w=400&h=250&fit=crop&auto=format";
+  };
+
+  return (
+    <div 
+      className="group cursor-pointer"
+      onClick={() => onViewProducts(motorcycle._id)}
+    >
+      <div className="relative overflow-hidden rounded-xl border border-gray-800 group-hover:border-green-500/50 transition-all duration-300 bg-gradient-to-b from-gray-900 to-black shadow-lg group-hover:shadow-xl group-hover:shadow-green-500/10 h-full">
+        {/* Image Container */}
+        <div className="aspect-square overflow-hidden">
+          <img
+            src={imageUrl}
+            alt={motorcycle.name || "Motorcycle Image"}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            onError={handleImageError}
+            loading="lazy"
+            crossOrigin="anonymous"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+          
+          {/* Motorcycle Info */}
+          <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Bike className="w-3 h-3 sm:w-4 sm:h-4 text-green-400" />
+              <h4 className="font-bold text-white text-xs sm:text-sm line-clamp-1">{motorcycle.name || "Unnamed Motorcycle"}</h4>
+            </div>
+            <p className="text-[10px] sm:text-xs text-gray-300">
+              {motorcycle.productCount || motorcycle.totalProducts || 0} products
+            </p>
+            {motorcycle.parentName && (
+              <p className="text-[9px] sm:text-[10px] text-gray-400 mt-1">
+                Brand: {motorcycle.parentName}
+              </p>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -253,9 +378,7 @@ const MainCategoryCard = ({
             }`}>
               {category.name || "Unnamed Category"}
             </h4>
-           
           </div>
-         
         </div>
       </div>
     </div>
@@ -472,14 +595,15 @@ const ProductsSection = ({
   );
 };
 
-// Search Result Section Component
+// Search Result Section Component - UPDATED: Show brands, motorcycles, and products
 const SearchResultSection = ({ 
   results, 
-  onCategoryClick, 
-  onViewProducts,
+  onBrandClick, 
+  onMotorcycleClick,
   onProductClick,
   searchTerm 
 }) => {
+  // Calculate total results
   const totalResults = results.brands.length + results.motorcycles.length + results.products.length;
 
   if (!searchTerm || searchTerm.trim() === "" || totalResults === 0) {
@@ -516,31 +640,13 @@ const SearchResultSection = ({
         {results.brands.length > 0 && (
           <div className="mb-8">
             <div className="flex items-center gap-2 mb-4">
-              <Crown className="w-5 h-5 text-yellow-400" />
+              <Crown className="w-5 h-5 text-blue-400" />
               <h4 className="text-base font-bold text-white">Brands ({results.brands.length})</h4>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3 md:gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
               {results.brands.map(brand => (
-                <div 
-                  key={brand._id}
-                  className="group cursor-pointer"
-                  onClick={() => onCategoryClick(brand._id)}
-                >
-                  <div className="relative overflow-hidden rounded-xl border border-gray-800 group-hover:border-blue-500/50 transition-all duration-300 bg-gradient-to-b from-gray-900 to-black shadow-lg group-hover:shadow-xl group-hover:shadow-blue-500/10">
-                    <div className="aspect-square overflow-hidden">
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-900/20 to-black">
-                        <Grid3x3 className="w-8 h-8 sm:w-10 sm:h-10 text-blue-400" />
-                      </div>
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-                      
-                      <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-3">
-                        <h4 className="font-semibold text-white text-xs sm:text-sm line-clamp-1 text-center">{brand.name}</h4>
-                        <p className="text-[10px] sm:text-xs text-gray-300 mt-0.5 sm:mt-1 text-center">
-                          {brand.productCount || 0} products
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+                <div key={brand._id} onClick={() => onBrandClick(brand._id)}>
+                  <SearchBrandCard brand={brand} />
                 </div>
               ))}
             </div>
@@ -551,31 +657,13 @@ const SearchResultSection = ({
         {results.motorcycles.length > 0 && (
           <div className="mb-8">
             <div className="flex items-center gap-2 mb-4">
-              <Layers className="w-5 h-5 text-purple-400" />
+              <Bike className="w-5 h-5 text-green-400" />
               <h4 className="text-base font-bold text-white">Motorcycles ({results.motorcycles.length})</h4>
             </div>
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-2 sm:gap-3 md:gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
               {results.motorcycles.map(motorcycle => (
-                <div 
-                  key={motorcycle._id}
-                  className="group cursor-pointer"
-                  onClick={() => onViewProducts(motorcycle._id)}
-                >
-                  <div className="relative overflow-hidden rounded-xl border border-gray-800 group-hover:border-purple-500/50 transition-all duration-300 bg-gradient-to-b from-gray-900 to-black shadow-lg group-hover:shadow-xl group-hover:shadow-purple-500/10">
-                    <div className="aspect-square overflow-hidden">
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-900/20 to-black">
-                        <Package className="w-6 h-6 sm:w-8 sm:h-8 text-purple-400" />
-                      </div>
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-                      
-                      <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-3">
-                        <h4 className="font-semibold text-white text-xs sm:text-sm line-clamp-1 text-center">{motorcycle.name}</h4>
-                        <p className="text-[10px] sm:text-xs text-gray-300 mt-0.5 sm:mt-1 text-center">
-                          {motorcycle.productCount || 0} products
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+                <div key={motorcycle._id} onClick={() => onMotorcycleClick(motorcycle._id)}>
+                  <SearchMotorcycleCard motorcycle={motorcycle} />
                 </div>
               ))}
             </div>
@@ -1136,18 +1224,30 @@ const Categories = () => {
     const searchTerm = term.toLowerCase().trim();
     
     // Search in brands (main categories)
-    const brandsResults = mainCategories.filter(category =>
-      category.name.toLowerCase().includes(searchTerm) ||
-      (category.description && category.description.toLowerCase().includes(searchTerm))
-    );
+    const brandsResults = mainCategories.filter(brand =>
+      brand.name.toLowerCase().includes(searchTerm) ||
+      (brand.description && brand.description.toLowerCase().includes(searchTerm))
+    ).map(brand => ({
+      ...brand,
+      parentName: null
+    }));
 
     // Search in motorcycles (sub-categories)
-    const motorcyclesResults = allCategories.filter(category => 
-      category.parentCategory && (
-        category.name.toLowerCase().includes(searchTerm) ||
-        (category.description && category.description.toLowerCase().includes(searchTerm))
-      )
-    );
+    const motorcyclesResults = [];
+    allCategories.forEach(category => {
+      if (category.children && category.children.length > 0) {
+        category.children.forEach(subCat => {
+          if (subCat.name.toLowerCase().includes(searchTerm) ||
+              (subCat.description && subCat.description.toLowerCase().includes(searchTerm))) {
+            motorcyclesResults.push({
+              ...subCat,
+              parentName: category.name,
+              parentId: category._id
+            });
+          }
+        });
+      }
+    });
 
     // Search in products
     const productsResults = allProducts.filter(product =>
@@ -1170,6 +1270,31 @@ const Categories = () => {
     const value = e.target.value;
     setSearchTerm(value);
     handleFilterChange("search", value);
+  };
+
+  // Handle brand click from search results
+  const handleBrandClick = (brandId) => {
+    setActiveMainCategory(brandId);
+    setViewingProducts(null);
+    setProducts([]);
+    setIsSearching(false);
+    
+    // Scroll to subcategories
+    setTimeout(() => {
+      const element = document.querySelector('[data-subcategories]');
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
+  };
+
+  // Handle motorcycle click from search results
+  const handleMotorcycleClick = async (motorcycleId) => {
+    setViewingProducts(motorcycleId);
+    setIsSearching(false);
+    await fetchCategoryProducts(motorcycleId);
+    // Scroll to top on mobile
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Handle viewing products
@@ -1344,7 +1469,7 @@ const Categories = () => {
           <p className="text-sm sm:text-base md:text-xl text-gray-200 max-w-3xl mx-auto mb-6 sm:mb-8 px-4">
             {viewingProducts 
               ? "Discover our premium motorcycle parts and accessories"
-              : "Explore our comprehensive collection of motorcycle parts organized by category"}
+              : "Search brands, motorcycles, and products - All in one place"}
           </p>
           
           {/* Search Bar */}
@@ -1372,6 +1497,9 @@ const Categories = () => {
                 </button>
               )}
             </div>
+            <p className="text-xs text-gray-400 mt-2 text-center">
+              Type to search across brands, motorcycles, and products
+            </p>
           </div>
         </div>
       </div>
@@ -1398,7 +1526,7 @@ const Categories = () => {
             </div>
             
             <div className="space-y-6">
-             
+              
               
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -1493,8 +1621,6 @@ const Categories = () => {
               <p className="text-xs sm:text-sm text-gray-400">Select a brands to view its motorcycle</p>
             </div>
           </div>
-          
-       
         </div>
 
         {/* Main Categories Grid */}
@@ -1585,7 +1711,6 @@ const Categories = () => {
         </div>
         
         <div className="hidden md:flex items-center gap-4">
-      
         </div>
         
         <div className="flex items-center gap-3">
@@ -1613,9 +1738,7 @@ const Categories = () => {
   const renderSearchResults = () => {
     if (!isSearching || searchLoading) return null;
 
-    const totalResults = searchResults.brands.length + 
-                        searchResults.motorcycles.length + 
-                        searchResults.products.length;
+    const totalResults = searchResults.brands.length + searchResults.motorcycles.length + searchResults.products.length;
 
     if (totalResults === 0 && searchTerm.trim() !== "") {
       return (
@@ -1642,8 +1765,8 @@ const Categories = () => {
     return (
       <SearchResultSection
         results={searchResults}
-        onCategoryClick={handleMainCategoryClick}
-        onViewProducts={handleViewProducts}
+        onBrandClick={handleBrandClick}
+        onMotorcycleClick={handleMotorcycleClick}
         onProductClick={handleProductClick}
         searchTerm={searchTerm}
       />
