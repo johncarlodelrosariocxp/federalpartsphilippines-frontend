@@ -1,50 +1,27 @@
-// src/services/api.js - ULTIMATE FIXED VERSION FOR ALL DEPLOYMENTS
+// src/services/api.js - ULTIMATE FIXED VERSION FOR IMAGE ISSUES
 import axios from "axios";
 import authService from "./auth.js";
 
 // ========== ENVIRONMENT CONFIGURATION ==========
-// FIXED: Fallback to proper Render URL if env vars not set
-const getEnvVariable = (key, defaultValue) => {
-  // Check for Vercel environment variables
-  if (typeof process !== 'undefined' && process.env && process.env[key]) {
-    return process.env[key];
-  }
-  // Check for import.meta.env (Vite)
-  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
-    return import.meta.env[key];
-  }
-  // Check for global window variable
-  if (typeof window !== 'undefined' && window.__ENV__ && window.__ENV__[key]) {
-    return window.__ENV__[key];
-  }
-  return defaultValue;
-};
-
-const DEFAULT_API_URL = "https://federalpartsphilippines-backend.onrender.com/api";
-const DEFAULT_IMAGE_URL = "https://federalpartsphilippines-backend.onrender.com";
-
-const API_BASE_URL = getEnvVariable('VITE_API_URL', DEFAULT_API_URL);
-const IMAGE_BASE_URL = getEnvVariable('VITE_IMAGE_URL', DEFAULT_IMAGE_URL);
+const API_BASE_URL = import.meta.env.VITE_API_URL || "https://federalpartsphilippines-backend.onrender.com/api";
+const IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_URL || "https://federalpartsphilippines-backend.onrender.com";
 
 console.log("🌐 Environment Configuration:");
 console.log("API_BASE_URL:", API_BASE_URL);
 console.log("IMAGE_BASE_URL:", IMAGE_BASE_URL);
-console.log("Environment:", typeof window !== 'undefined' ? window.location.hostname : 'Server');
 
 const isBrowser = typeof window !== "undefined";
 
 // ========== URL VALIDATION ==========
 const validateAndFixUrl = (url) => {
   if (!url || url.trim() === "") {
-    return DEFAULT_API_URL;
+    return "https://federalpartsphilippines-backend.onrender.com/api";
   }
   
-  // Remove duplicate /api
   if (url.includes('/api/api')) {
     url = url.replace('/api/api', '/api');
   }
   
-  // Ensure it ends with /api
   if (!url.endsWith('/api')) {
     url = url.endsWith('/') ? `${url}api` : `${url}/api`;
   }
@@ -79,7 +56,6 @@ API.interceptors.request.use(
         console.warn("❌ Error getting auth token:", error);
       }
 
-      // Add cache busting for GET requests
       if (config.method === "get") {
         config.headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
         config.headers["Pragma"] = "no-cache";
@@ -92,7 +68,6 @@ API.interceptors.request.use(
         }
       }
 
-      // Don't set Content-Type for FormData
       if (config.data instanceof FormData) {
         delete config.headers["Content-Type"];
       }
@@ -117,7 +92,6 @@ API.interceptors.response.use(
     console.log(`✅ ${response.status} ${response.config.url}`);
     
     if (response && response.data) {
-      // Standardize response format
       if (response.data.success !== undefined || response.data.data || response.data.error) {
         return response.data;
       }
@@ -139,7 +113,6 @@ API.interceptors.response.use(
       data: error.response?.data
     });
 
-    // Handle timeout
     if (error.code === "ECONNABORTED") {
       return Promise.reject({
         success: false,
@@ -148,7 +121,6 @@ API.interceptors.response.use(
       });
     }
 
-    // Handle network errors
     if (error.code === "ERR_NETWORK" || error.message === "Network Error") {
       console.error("🌐 Network error detected!");
       console.error("Backend URL:", validatedApiUrl);
@@ -161,7 +133,6 @@ API.interceptors.response.use(
       });
     }
 
-    // Handle CORS errors
     if (error.message && error.message.includes("CORS")) {
       return Promise.reject({
         success: false,
@@ -171,11 +142,9 @@ API.interceptors.response.use(
       });
     }
 
-    // Handle HTTP errors
     if (error.response) {
       const { status, data } = error.response;
 
-      // Handle 401 - Unauthorized
       if (status === 401 && isBrowser) {
         try {
           authService?.logout?.();
@@ -188,67 +157,66 @@ API.interceptors.response.use(
         }
       }
 
-      // Handle other status codes
-      switch (status) {
-        case 403:
-          return Promise.reject({
-            success: false,
-            message: "You don't have permission to perform this action.",
-            status: 403,
-          });
-          
-        case 404:
-          return Promise.reject({
-            success: false,
-            message: data?.message || "Resource not found",
-            status: 404,
-          });
-          
-        case 400:
-          let errorMessage = data?.message || "Bad request";
-          if (data?.errors) {
-            if (Array.isArray(data.errors)) {
-              errorMessage = data.errors.map(err => err.msg || err.message).join(", ");
-            } else if (typeof data.errors === 'object') {
-              errorMessage = Object.values(data.errors).map(err => err.message || err).join(", ");
-            }
-          } else if (data?.error) {
-            errorMessage = data.error;
-          }
-          
-          return Promise.reject({
-            success: false,
-            message: errorMessage,
-            data: data,
-            status: 400,
-          });
-          
-        case 429:
-          return Promise.reject({
-            success: false,
-            message: "Too many requests. Please try again later.",
-            status: 429,
-          });
-          
-        default:
-          if (status >= 500) {
-            return Promise.reject({
-              success: false,
-              message: "Server error. Please try again later.",
-              status: status,
-            });
-          }
-          
-          return Promise.reject({
-            success: false,
-            message: data?.message || `Error ${status}`,
-            data: data,
-            status: status,
-          });
+      if (status === 403) {
+        return Promise.reject({
+          success: false,
+          message: "You don't have permission to perform this action.",
+          status: 403,
+        });
       }
+
+      if (status === 404) {
+        return Promise.reject({
+          success: false,
+          message: data?.message || "Resource not found",
+          status: 404,
+        });
+      }
+
+      if (status === 400) {
+        let errorMessage = data?.message || "Bad request";
+        if (data?.errors) {
+          if (Array.isArray(data.errors)) {
+            errorMessage = data.errors.map(err => err.msg || err.message).join(", ");
+          } else if (typeof data.errors === 'object') {
+            errorMessage = Object.values(data.errors).map(err => err.message || err).join(", ");
+          }
+        } else if (data?.error) {
+          errorMessage = data.error;
+        }
+        
+        return Promise.reject({
+          success: false,
+          message: errorMessage,
+          data: data,
+          status: 400,
+        });
+      }
+
+      if (status === 429) {
+        return Promise.reject({
+          success: false,
+          message: "Too many requests. Please try again later.",
+          status: 429,
+        });
+      }
+
+      if (status >= 500) {
+        return Promise.reject({
+          success: false,
+          message: "Server error. Please try again later.",
+          status: status,
+        });
+      }
+
+      return Promise.reject({
+        success: false,
+        message: data?.message || `Error ${status}`,
+        data: data,
+        status: status,
+      });
     }
 
-    // Handle unknown errors
     return Promise.reject({
       success: false,
       message: error.message || "An unexpected error occurred",
@@ -283,20 +251,9 @@ export const getImageUrl = (imagePath, type = "products") => {
     return imagePath;
   }
 
-  // FIXED: Get the correct base URL
-  // Try multiple sources for base URL
-  let baseUrl = "";
-  
-  // 1. Use IMAGE_BASE_URL if available
-  if (IMAGE_BASE_URL && IMAGE_BASE_URL.trim() !== "") {
-    baseUrl = IMAGE_BASE_URL;
-  } 
-  // 2. Fall back to API URL without /api
-  else {
-    baseUrl = validatedApiUrl.replace("/api", "");
-  }
-  
-  // Clean up base URL
+  // GET BASE URL
+  const API_BASE_URL = import.meta.env.VITE_API_URL || "https://federalpartsphilippines-backend.onrender.com/api";
+  let baseUrl = API_BASE_URL.replace("/api", "");
   baseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash
   
   console.log(`📍 Base URL: ${baseUrl}`);
@@ -304,7 +261,7 @@ export const getImageUrl = (imagePath, type = "products") => {
   // CLEAN THE FILENAME
   let filename = imagePath;
   
-  // Remove query parameters
+  // Remove query parameters (CRITICAL!)
   if (filename.includes('?')) {
     filename = filename.split('?')[0];
     console.log(`🔪 Removed query params, filename: ${filename}`);
@@ -312,27 +269,13 @@ export const getImageUrl = (imagePath, type = "products") => {
   
   // Extract just the filename from path
   if (filename.includes("/")) {
-    // Check if it's already a full path like /uploads/products/filename.jpg
-    if (filename.includes('/uploads/')) {
-      // Extract just the filename from the uploads path
-      const parts = filename.split('/');
-      const uploadsIndex = parts.findIndex(part => part === 'uploads');
-      if (uploadsIndex !== -1 && parts.length > uploadsIndex + 2) {
-        filename = parts[parts.length - 1]; // Get last part
-      }
-    } else {
-      filename = filename.substring(filename.lastIndexOf("/") + 1);
-    }
+    filename = filename.substring(filename.lastIndexOf("/") + 1);
     console.log(`🔪 Extracted filename from path: ${filename}`);
   }
   
   // Decode URL encoding
-  try {
-    filename = decodeURIComponent(filename);
-    console.log(`🔍 Decoded filename: ${filename}`);
-  } catch (e) {
-    console.warn(`⚠️ Could not decode filename: ${filename}`);
-  }
+  filename = decodeURIComponent(filename);
+  console.log(`🔍 Decoded filename: ${filename}`);
 
   // Handle empty filename after cleaning
   if (!filename || filename.trim() === "") {
@@ -346,7 +289,7 @@ export const getImageUrl = (imagePath, type = "products") => {
     return null;
   }
 
-  // FIXED: Construct final URL with consistent path
+  // FINAL URL
   const finalUrl = `${baseUrl}/uploads/${type}/${filename}`;
   console.log(`🎯 Final image URL: ${finalUrl}`);
   
@@ -358,7 +301,7 @@ export const getSafeImageUrl = (imagePath, type = "products", fallback = null) =
   
   if (!url) {
     console.warn(`⚠️ No URL, using fallback for: ${imagePath}`);
-    return fallback || `/placeholder-${type}.jpg`;
+    return fallback;
   }
   
   return url;
@@ -384,18 +327,7 @@ const processProductImages = (product) => {
   // Process each image
   productObj.images = productObj.images
     .filter(img => img && img.trim() !== "")
-    .map(img => {
-      // FIXED: Check if image is already a full URL or needs processing
-      if (img && (img.startsWith('http') || img.startsWith('https') || img.startsWith('/uploads/'))) {
-        // If it's already a full path starting with /uploads/, construct URL
-        if (img.startsWith('/uploads/')) {
-          const baseUrl = IMAGE_BASE_URL || validatedApiUrl.replace("/api", "");
-          return `${baseUrl.replace(/\/$/, '')}${img}`;
-        }
-        return img;
-      }
-      return getImageUrl(img, "products");
-    })
+    .map(img => getImageUrl(img, "products"))
     .filter(img => img !== null && img !== undefined);
   
   // Set main image if available
@@ -417,31 +349,14 @@ const processCategoryImage = (category) => {
   
   const categoryObj = { ...category };
   
-  // Process main image - FIXED: Check for full URLs
+  // Process main image
   if (categoryObj.image && categoryObj.image.trim() !== "") {
-    if (categoryObj.image.startsWith('http') || categoryObj.image.startsWith('https')) {
-      // Already a full URL
-      categoryObj.image = categoryObj.image;
-    } else if (categoryObj.image.startsWith('/uploads/')) {
-      // Path starting with /uploads/
-      const baseUrl = IMAGE_BASE_URL || validatedApiUrl.replace("/api", "");
-      categoryObj.image = `${baseUrl.replace(/\/$/, '')}${categoryObj.image}`;
-    } else {
-      // Filename only
-      categoryObj.image = getImageUrl(categoryObj.image, "categories");
-    }
+    categoryObj.image = getImageUrl(categoryObj.image, "categories");
   }
   
   // Process imageUrl if exists
   if (categoryObj.imageUrl && categoryObj.imageUrl.trim() !== "") {
-    if (categoryObj.imageUrl.startsWith('http') || categoryObj.imageUrl.startsWith('https')) {
-      categoryObj.imageUrl = categoryObj.imageUrl;
-    } else if (categoryObj.imageUrl.startsWith('/uploads/')) {
-      const baseUrl = IMAGE_BASE_URL || validatedApiUrl.replace("/api", "");
-      categoryObj.imageUrl = `${baseUrl.replace(/\/$/, '')}${categoryObj.imageUrl}`;
-    } else {
-      categoryObj.imageUrl = getImageUrl(categoryObj.imageUrl, "categories");
-    }
+    categoryObj.imageUrl = getImageUrl(categoryObj.imageUrl, "categories");
   }
   
   console.log(`📁 Processed category ${categoryObj.name || categoryObj._id}:`, {
@@ -473,15 +388,6 @@ export const uploadImage = async (file, type = "category") => {
 
     console.log("📤 Upload response:", response);
     
-    // FIXED: Ensure the response has proper URL
-    if (response.success && response.image) {
-      // If server returns relative path, convert to absolute URL
-      if (response.image.url && !response.image.url.startsWith('http')) {
-        const baseUrl = IMAGE_BASE_URL || validatedApiUrl.replace("/api", "");
-        response.image.fullUrl = `${baseUrl}${response.image.url.startsWith('/') ? '' : '/'}${response.image.url}`;
-      }
-    }
-    
     return response;
   } catch (error) {
     console.error("❌ Error uploading image:", error);
@@ -508,14 +414,6 @@ export const uploadBase64Image = async (base64Data, type = "product") => {
       image: base64Data,
       type: type
     });
-
-    // FIXED: Ensure proper URL in response
-    if (response.success && response.image) {
-      if (response.image.url && !response.image.url.startsWith('http')) {
-        const baseUrl = IMAGE_BASE_URL || validatedApiUrl.replace("/api", "");
-        response.image.fullUrl = `${baseUrl}${response.image.url.startsWith('/') ? '' : '/'}${response.image.url}`;
-      }
-    }
 
     return response;
   } catch (error) {
@@ -604,7 +502,7 @@ export const categoryAPI = {
       } else if (categoryData.image && categoryData.image.startsWith('data:image/')) {
         const uploadResponse = await uploadBase64Image(categoryData.image, 'category');
         if (uploadResponse.success) {
-          formData.append('imageUrl', uploadResponse.image?.fullUrl || uploadResponse.image?.url || '');
+          formData.append('imageUrl', uploadResponse.image?.url || '');
         }
       }
       
@@ -655,7 +553,7 @@ export const categoryAPI = {
       } else if (categoryData.image && categoryData.image.startsWith('data:image/')) {
         const uploadResponse = await uploadBase64Image(categoryData.image, 'category');
         if (uploadResponse.success) {
-          formData.append('imageUrl', uploadResponse.image?.fullUrl || uploadResponse.image?.url || '');
+          formData.append('imageUrl', uploadResponse.image?.url || '');
         }
       }
       
@@ -764,6 +662,7 @@ export const productAPI = {
     }
   },
 
+  // FIXED: createProduct method to properly handle specifications
   createProduct: async (productData) => {
     try {
       console.log("➕ Creating product:", productData);
@@ -779,6 +678,7 @@ export const productAPI = {
         dimensions: productData.dimensions || '',
         featured: productData.featured || false,
         isActive: productData.isActive !== undefined ? productData.isActive : true,
+        // Ensure specifications is sent as an object, not string
         specifications: productData.specifications || {},
       };
 
@@ -812,6 +712,7 @@ export const productAPI = {
     }
   },
 
+  // FIXED: updateProduct method to properly handle specifications
   updateProduct: async (id, productData) => {
     try {
       console.log(`✏️ Updating product ${id}:`, productData);
@@ -827,6 +728,7 @@ export const productAPI = {
         dimensions: productData.dimensions || '',
         featured: productData.featured || false,
         isActive: productData.isActive !== undefined ? productData.isActive : true,
+        // Ensure specifications is sent as an object, not string
         specifications: productData.specifications || {},
       };
 
@@ -953,7 +855,7 @@ export const productAPI = {
   },
 };
 
-// ========== AUTH API ==========
+// ========== OTHER API MODULES ==========
 export const authAPI = {
   login: (credentials) => API.post("/auth/login", credentials),
   register: (userData) => API.post("/auth/register", userData),
@@ -970,7 +872,6 @@ export const authAPI = {
     API.post("/auth/resend-verification", { email }),
 };
 
-// ========== CART API ==========
 export const cartAPI = {
   getCart: () => {
     if (isBrowser) {
@@ -1102,7 +1003,6 @@ export const cartAPI = {
   }
 };
 
-// ========== DASHBOARD API ==========
 export const dashboardAPI = {
   getOverviewStats: async () => {
     try {
@@ -1301,67 +1201,49 @@ export const testImageUrls = () => {
 
 // ========== MAIN API SERVICE OBJECT ==========
 const apiService = {
-  // Core
   API,
-  
-  // API modules
   productAPI,
   categoryAPI,
   authAPI,
   cartAPI,
   dashboardAPI,
-  
-  // Image utilities
   getImageUrl,
   getSafeImageUrl,
   getFullImageUrl: getImageUrl,
   uploadImage,
   uploadBase64Image,
-  
-  // Price utilities
   formatPrice,
   calculateDiscountPercentage,
   getFinalPrice,
-  
-  // Testing & debugging
   testApiConnection,
   debugImage,
   testImageUrls,
-  
-  // Configuration
   API_BASE_URL: validatedApiUrl,
-  IMAGE_BASE_URL: IMAGE_BASE_URL || DEFAULT_IMAGE_URL,
-  
-  // Convenience methods
+  IMAGE_BASE_URL: IMAGE_BASE_URL || "https://federalpartsphilippines-backend.onrender.com",
   getProducts: productAPI.getAllProducts,
   getProduct: productAPI.getProductById,
   createProduct: productAPI.createProduct,
   updateProduct: productAPI.updateProduct,
   deleteProduct: productAPI.deleteProduct,
   searchProducts: productAPI.searchProducts,
-  
   getCategories: categoryAPI.getAllCategories,
   getCategory: categoryAPI.getCategoryById,
   createCategory: categoryAPI.createCategory,
   updateCategory: categoryAPI.updateCategory,
   deleteCategory: categoryAPI.deleteCategory,
   updateCategoryProductCounts: categoryAPI.updateCategoryProductCounts,
-  
   login: authAPI.login,
   register: authAPI.register,
   logout: authAPI.logout,
   getCurrentUser: authAPI.getCurrentUser,
-  
   getCart: cartAPI.getCart,
   addToCart: cartAPI.addToCart,
   updateCartItem: cartAPI.updateCartItem,
   removeFromCart: cartAPI.removeFromCart,
   clearCart: cartAPI.clearCart,
   getCartCount: cartAPI.getCartCount,
-  
   getDashboardStats: dashboardAPI.getOverviewStats,
   
-  // Connection check
   checkConnection: async () => {
     try {
       const response = await API.get("/");
@@ -1382,7 +1264,6 @@ const apiService = {
     }
   },
   
-  // Health check
   healthCheck: async () => {
     try {
       const response = await API.get("/health");
@@ -1396,7 +1277,6 @@ const apiService = {
     }
   },
   
-  // File upload
   uploadFile: async (file, endpoint = "/upload", fieldName = "image") => {
     try {
       if (!file) {
@@ -1422,12 +1302,10 @@ const apiService = {
     }
   },
   
-  // Initialization
   initialize: async () => {
     console.log("🚀 Initializing API Service...");
     console.log("📡 API URL:", validatedApiUrl);
-    console.log("🖼️ Image URL:", IMAGE_BASE_URL || DEFAULT_IMAGE_URL);
-    console.log("🌍 Environment:", isBrowser ? 'Browser' : 'Server');
+    console.log("🖼️ Image URL:", IMAGE_BASE_URL || "Using API URL");
     
     const connection = await testApiConnection();
     console.log("🔌 Connection Status:", connection.success ? "✅ Connected" : "❌ Failed");
@@ -1439,13 +1317,11 @@ const apiService = {
       console.error("1. Backend server is running");
       console.error("2. CORS is properly configured");
       console.error("3. Network connectivity");
-      console.error(`4. Backend URL: ${DEFAULT_API_URL}`);
     }
     
     return connection;
   },
   
-  // Image utilities
   checkImageExists: async (imageUrl) => {
     try {
       const response = await axios.head(imageUrl, { timeout: 5000 });
@@ -1510,7 +1386,7 @@ const apiService = {
     }
   },
   
-  // Image debug
+  // NEW: Comprehensive image debug function
   debugProductImages: (product) => {
     console.log("🔍 DEBUGGING PRODUCT IMAGES:");
     console.log("Product ID:", product._id);
@@ -1526,18 +1402,6 @@ const apiService = {
         });
       });
     }
-  },
-  
-  // NEW: Environment detection helper
-  getEnvironmentInfo: () => {
-    return {
-      isBrowser: isBrowser,
-      isLocalhost: isBrowser && window.location.hostname.includes('localhost'),
-      isVercel: isBrowser && window.location.hostname.includes('vercel'),
-      apiUrl: validatedApiUrl,
-      imageUrl: IMAGE_BASE_URL || DEFAULT_IMAGE_URL,
-      hostname: isBrowser ? window.location.hostname : 'Server'
-    };
   }
 };
 
