@@ -49,14 +49,13 @@ const Contact = () => {
     {
       icon: Mail,
       title: "Email",
-      detail: "ph.office@federalparts.com",
+      detail: "cxpmotozone@gmail.com",
       description: "Response within 24 hours",
-      additional: "inquiries@federalparts.ph",
     },
     {
       icon: MapPin,
       title: "Location",
-      detail: "Fochun Warehouse",
+      detail: "CXP WAREHOUSE",
       description: "Balagtas, Bulacan, Philippines",
     },
     {
