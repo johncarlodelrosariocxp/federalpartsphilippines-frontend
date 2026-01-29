@@ -11,6 +11,7 @@ console.log("API_BASE_URL:", API_BASE_URL);
 console.log("IMAGE_BASE_URL:", IMAGE_BASE_URL);
 
 const isBrowser = typeof window !== "undefined";
+const isLocalhost = isBrowser && window.location.hostname === 'localhost';
 
 // ========== URL VALIDATION ==========
 const validateAndFixUrl = (url) => {
@@ -251,12 +252,16 @@ export const getImageUrl = (imagePath, type = "products") => {
     return imagePath;
   }
 
-  // GET BASE URL
+  // Handle Vercel deployment - try different URL patterns
+  const isVercel = isBrowser && window.location.hostname.includes('vercel.app');
+  
+  // GET BASE URL from environment or fallbacks
   const API_BASE_URL = import.meta.env.VITE_API_URL || "https://federalpartsphilippines-backend.onrender.com/api";
   let baseUrl = API_BASE_URL.replace("/api", "");
   baseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash
   
   console.log(`📍 Base URL: ${baseUrl}`);
+  console.log(`📍 Environment: ${isLocalhost ? 'Localhost' : isVercel ? 'Vercel' : 'Production'}`);
 
   // CLEAN THE FILENAME
   let filename = imagePath;
@@ -289,9 +294,29 @@ export const getImageUrl = (imagePath, type = "products") => {
     return null;
   }
 
-  // FINAL URL
-  const finalUrl = `${baseUrl}/uploads/${type}/${filename}`;
-  console.log(`🎯 Final image URL: ${finalUrl}`);
+  // Generate multiple possible URLs to try
+  const possibleUrls = [];
+  
+  // Try with current base URL
+  possibleUrls.push(`${baseUrl}/uploads/${type}/${filename}`);
+  
+  // Try with direct backend URL (for Vercel)
+  possibleUrls.push(`https://federalpartsphilippines-backend.onrender.com/uploads/${type}/${filename}`);
+  
+  // Try without type directory (for backward compatibility)
+  possibleUrls.push(`${baseUrl}/uploads/${filename}`);
+  possibleUrls.push(`https://federalpartsphilippines-backend.onrender.com/uploads/${filename}`);
+  
+  // For localhost, try local server
+  if (isLocalhost) {
+    possibleUrls.push(`http://localhost:5000/uploads/${type}/${filename}`);
+    possibleUrls.push(`http://localhost:5000/uploads/${filename}`);
+  }
+  
+  // Return the first URL - the app will try to load it
+  const finalUrl = possibleUrls[0];
+  console.log(`🎯 Using image URL: ${finalUrl}`);
+  console.log(`🔀 Alternatives available: ${possibleUrls.length}`);
   
   return finalUrl;
 };
@@ -301,10 +326,87 @@ export const getSafeImageUrl = (imagePath, type = "products", fallback = null) =
   
   if (!url) {
     console.warn(`⚠️ No URL, using fallback for: ${imagePath}`);
-    return fallback;
+    return fallback || "/placeholder-image.jpg";
   }
   
   return url;
+};
+
+// ========== SMART IMAGE LOADING WITH FALLBACK ==========
+export const loadImageWithFallback = (imagePath, type = "products", fallbacks = []) => {
+  return new Promise((resolve) => {
+    if (!imagePath) {
+      resolve(fallbacks[0] || "/placeholder-image.jpg");
+      return;
+    }
+
+    const imgUrl = getImageUrl(imagePath, type);
+    if (!imgUrl) {
+      resolve(fallbacks[0] || "/placeholder-image.jpg");
+      return;
+    }
+
+    const img = new Image();
+    
+    // Try the primary URL first
+    img.src = imgUrl;
+    
+    img.onload = () => {
+      console.log(`✅ Image loaded successfully: ${imgUrl}`);
+      resolve(imgUrl);
+    };
+    
+    img.onerror = () => {
+      console.warn(`❌ Failed to load image: ${imgUrl}`);
+      
+      // Try fallback URLs
+      const tryFallback = (index) => {
+        if (index >= fallbacks.length) {
+          console.warn(`❌ All image URLs failed, using placeholder`);
+          resolve("/placeholder-image.jpg");
+          return;
+        }
+        
+        const fallbackUrl = fallbacks[index];
+        console.log(`🔄 Trying fallback ${index + 1}: ${fallbackUrl}`);
+        
+        const fallbackImg = new Image();
+        fallbackImg.src = fallbackUrl;
+        
+        fallbackImg.onload = () => {
+          console.log(`✅ Fallback image loaded: ${fallbackUrl}`);
+          resolve(fallbackUrl);
+        };
+        
+        fallbackImg.onerror = () => {
+          console.warn(`❌ Fallback failed: ${fallbackUrl}`);
+          tryFallback(index + 1);
+        };
+      };
+      
+      // Generate alternative URLs for the same image
+      const alternativeUrls = [
+        // Try with different base URLs
+        `https://federalpartsphilippines-backend.onrender.com/uploads/${type}/${extractFilename(imagePath)}`,
+        // Try without type directory
+        `https://federalpartsphilippines-backend.onrender.com/uploads/${extractFilename(imagePath)}`,
+        // Add more alternatives as needed
+      ];
+      
+      // Combine user fallbacks with automatic alternatives
+      const allFallbacks = [...fallbacks, ...alternativeUrls];
+      tryFallback(0);
+    };
+  });
+};
+
+// Helper function to extract filename
+const extractFilename = (path) => {
+  if (!path) return '';
+  if (path.includes('/')) {
+    return path.substring(path.lastIndexOf('/') + 1);
+  }
+  return path;
 };
 
 // ========== PROCESSING HELPERS ==========
@@ -324,7 +426,7 @@ const processProductImages = (product) => {
     }
   }
   
-  // Process each image
+  // Process each image - generate URLs
   productObj.images = productObj.images
     .filter(img => img && img.trim() !== "")
     .map(img => getImageUrl(img, "products"))
@@ -662,7 +764,6 @@ export const productAPI = {
     }
   },
 
-  // FIXED: createProduct method to properly handle specifications
   createProduct: async (productData) => {
     try {
       console.log("➕ Creating product:", productData);
@@ -678,7 +779,6 @@ export const productAPI = {
         dimensions: productData.dimensions || '',
         featured: productData.featured || false,
         isActive: productData.isActive !== undefined ? productData.isActive : true,
-        // Ensure specifications is sent as an object, not string
         specifications: productData.specifications || {},
       };
 
@@ -712,7 +812,6 @@ export const productAPI = {
     }
   },
 
-  // FIXED: updateProduct method to properly handle specifications
   updateProduct: async (id, productData) => {
     try {
       console.log(`✏️ Updating product ${id}:`, productData);
@@ -728,7 +827,6 @@ export const productAPI = {
         dimensions: productData.dimensions || '',
         featured: productData.featured || false,
         isActive: productData.isActive !== undefined ? productData.isActive : true,
-        // Ensure specifications is sent as an object, not string
         specifications: productData.specifications || {},
       };
 
@@ -1108,78 +1206,7 @@ export const getFinalPrice = (price, discountedPrice) => {
   return discountedPrice && discountedPrice < price ? discountedPrice : price;
 };
 
-// ========== CONNECTION TESTING ==========
-export const testApiConnection = async () => {
-  console.log("🔍 Testing API connection...");
-  
-  const endpointsToTest = [
-    validatedApiUrl.replace('/api', ''),
-    validatedApiUrl,
-    `${validatedApiUrl.replace('/api', '')}/health`,
-  ];
-
-  const results = [];
-
-  for (const endpoint of endpointsToTest) {
-    try {
-      console.log(`🔄 Testing: ${endpoint}`);
-      const response = await axios.get(endpoint, {
-        timeout: 10000,
-        headers: {
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache'
-        }
-      });
-      
-      console.log(`✅ Connected to: ${endpoint}`);
-      results.push({
-        endpoint,
-        success: true,
-        status: response.status,
-        data: response.data
-      });
-      
-      return {
-        success: true,
-        connected: true,
-        message: `Connected to ${endpoint}`,
-        endpoint,
-        data: response.data,
-        allResults: results
-      };
-    } catch (error) {
-      console.log(`❌ Failed: ${endpoint} - ${error.message}`);
-      results.push({
-        endpoint,
-        success: false,
-        error: error.message
-      });
-    }
-  }
-
-  return {
-    success: false,
-    connected: false,
-    message: "Cannot connect to any API endpoint",
-    allResults: results,
-    suggestions: [
-      "1. Check if backend server is running on Render",
-      "2. Verify CORS is configured on backend",
-      "3. Check network connectivity",
-      `4. Backend URL should be: https://federalpartsphilippines-backend.onrender.com`
-    ]
-  };
-};
-
-// ========== DEBUGGING UTILITIES ==========
-export const debugImage = (imagePath, type = "products") => {
-  console.log("🔍 DEBUG IMAGE:");
-  console.log("Input:", imagePath);
-  console.log("Type:", type);
-  console.log("Result:", getImageUrl(imagePath, type));
-  return getImageUrl(imagePath, type);
-};
-
+// ========== IMAGE TESTING AND DEBUGGING ==========
 export const testImageUrls = () => {
   const testCases = [
     { input: "engine.jpg", type: "products" },
@@ -1199,6 +1226,14 @@ export const testImageUrls = () => {
   });
 };
 
+export const debugImage = (imagePath, type = "products") => {
+  console.log("🔍 DEBUG IMAGE:");
+  console.log("Input:", imagePath);
+  console.log("Type:", type);
+  console.log("Result:", getImageUrl(imagePath, type));
+  return getImageUrl(imagePath, type);
+};
+
 // ========== MAIN API SERVICE OBJECT ==========
 const apiService = {
   API,
@@ -1209,17 +1244,18 @@ const apiService = {
   dashboardAPI,
   getImageUrl,
   getSafeImageUrl,
-  getFullImageUrl: getImageUrl,
+  loadImageWithFallback,
   uploadImage,
   uploadBase64Image,
   formatPrice,
   calculateDiscountPercentage,
   getFinalPrice,
-  testApiConnection,
-  debugImage,
   testImageUrls,
+  debugImage,
   API_BASE_URL: validatedApiUrl,
   IMAGE_BASE_URL: IMAGE_BASE_URL || "https://federalpartsphilippines-backend.onrender.com",
+  
+  // Convenience methods
   getProducts: productAPI.getAllProducts,
   getProduct: productAPI.getProductById,
   createProduct: productAPI.createProduct,
@@ -1244,6 +1280,39 @@ const apiService = {
   getCartCount: cartAPI.getCartCount,
   getDashboardStats: dashboardAPI.getOverviewStats,
   
+  // Image utilities
+  testImageConnection: async (imageUrl) => {
+    try {
+      const response = await axios.head(imageUrl, { timeout: 5000 });
+      return {
+        success: true,
+        status: response.status,
+        message: "Image is accessible"
+      };
+    } catch (error) {
+      return {
+        success: false,
+        status: error.response?.status,
+        message: error.message
+      };
+    }
+  },
+  
+  // Health check
+  healthCheck: async () => {
+    try {
+      const response = await API.get("/health");
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        message: "API health check failed",
+        error: error.message
+      };
+    }
+  },
+  
+  // Connection test
   checkConnection: async () => {
     try {
       const response = await API.get("/");
@@ -1264,54 +1333,17 @@ const apiService = {
     }
   },
   
-  healthCheck: async () => {
-    try {
-      const response = await API.get("/health");
-      return response;
-    } catch (error) {
-      return {
-        success: false,
-        message: "API health check failed",
-        error: error.message
-      };
-    }
-  },
-  
-  uploadFile: async (file, endpoint = "/upload", fieldName = "image") => {
-    try {
-      if (!file) {
-        return {
-          success: false,
-          message: "No file provided"
-        };
-      }
-      
-      const formData = new FormData();
-      formData.append(fieldName, file);
-      
-      const response = await API.post(endpoint, formData);
-      
-      return response;
-    } catch (error) {
-      console.error("❌ Error uploading file:", error);
-      return {
-        success: false,
-        message: error.message || "Failed to upload file",
-        error: error
-      };
-    }
-  },
-  
+  // Initialize with connection test
   initialize: async () => {
     console.log("🚀 Initializing API Service...");
     console.log("📡 API URL:", validatedApiUrl);
     console.log("🖼️ Image URL:", IMAGE_BASE_URL || "Using API URL");
     
-    const connection = await testApiConnection();
+    const connection = await apiService.checkConnection();
     console.log("🔌 Connection Status:", connection.success ? "✅ Connected" : "❌ Failed");
     
     if (connection.success) {
-      console.log("🌐 Connected to:", connection.endpoint);
+      console.log("🌐 Connected to API successfully");
     } else {
       console.error("⚠️ Connection failed. Please check:");
       console.error("1. Backend server is running");
@@ -1322,71 +1354,7 @@ const apiService = {
     return connection;
   },
   
-  checkImageExists: async (imageUrl) => {
-    try {
-      const response = await axios.head(imageUrl, { timeout: 5000 });
-      return response.status === 200;
-    } catch (error) {
-      console.log(`Image not found: ${imageUrl}`, error.message);
-      return false;
-    }
-  },
-  
-  getAllImageUrls: async () => {
-    try {
-      const [productsRes, categoriesRes] = await Promise.all([
-        productAPI.getAllProducts({ limit: 100 }),
-        categoryAPI.getAllCategories()
-      ]);
-      
-      const allUrls = [];
-      
-      if (productsRes.success && productsRes.products) {
-        productsRes.products.forEach(product => {
-          if (product.images && Array.isArray(product.images)) {
-            product.images.forEach(img => {
-              allUrls.push({
-                type: 'product',
-                productId: product._id,
-                productName: product.name,
-                url: getImageUrl(img, 'products'),
-                original: img
-              });
-            });
-          }
-        });
-      }
-      
-      if (categoriesRes.success && categoriesRes.categories) {
-        categoriesRes.categories.forEach(category => {
-          if (category.image) {
-            allUrls.push({
-              type: 'category',
-              categoryId: category._id,
-              categoryName: category.name,
-              url: getImageUrl(category.image, 'categories'),
-              original: category.image
-            });
-          }
-        });
-      }
-      
-      return {
-        success: true,
-        total: allUrls.length,
-        urls: allUrls
-      };
-    } catch (error) {
-      console.error("Error getting all image URLs:", error);
-      return {
-        success: false,
-        message: error.message,
-        urls: []
-      };
-    }
-  },
-  
-  // NEW: Comprehensive image debug function
+  // Debug product images
   debugProductImages: (product) => {
     console.log("🔍 DEBUGGING PRODUCT IMAGES:");
     console.log("Product ID:", product._id);
