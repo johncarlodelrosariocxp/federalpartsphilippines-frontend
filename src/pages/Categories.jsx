@@ -543,16 +543,7 @@ const ProductsSection = ({
               </div>
             </div>
             
-            {/* Desktop View All Button */}
-            <div className="hidden sm:flex items-center justify-end">
-              <Link
-                to={`/products?category=${category?.slug || category?._id}`}
-                className="px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white rounded-lg transition-all duration-300 flex items-center gap-2"
-              >
-                View All Products
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
+          
           </div>
         </div>
         
@@ -580,14 +571,7 @@ const ProductsSection = ({
               <span className="text-sm font-medium">Back to Categories</span>
             </button>
             
-            {/* Mobile View All Button */}
-            <Link
-              to={`/products?category=${category?.slug || category?._id}`}
-              className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white rounded-lg transition-all duration-300 flex items-center justify-center gap-2"
-            >
-              View All Products
-              <ArrowRight className="w-4 h-4" />
-            </Link>
+            
           </div>
         </div>
       </div>
