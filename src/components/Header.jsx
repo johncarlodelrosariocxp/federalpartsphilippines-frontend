@@ -475,7 +475,7 @@ const Header = () => {
 
       {/* Mobile Bottom Navigation Bar - Fixed at bottom with red color */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#cc0000] border-t border-[#b30000] shadow-[0_-2px_10px_rgba(0,0,0,0.2)]">
-        <div className="flex items-center justify-around px-2 py-3">
+        <div className="flex items-center justify-around px-2 py-0.5">
           {mobileNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeNav === item.path;

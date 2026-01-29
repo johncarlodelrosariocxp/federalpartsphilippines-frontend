@@ -190,7 +190,7 @@ const SearchBrandCard = ({ brand, onClick }) => {
     if (!url) {
       // Use brand-specific Unsplash fallback
       const brandName = (brand.name || "").toLowerCase();
-      if (brandName.includes("engine")) return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w-400&h-250&fit=crop&auto=format";
+      if (brandName.includes("engine")) return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=250&fit=crop&auto=format";
       if (brandName.includes("brake")) return "https://images.unsplash.com/photo-1558981806-ec527fa0b4c9?w=400&h=250&fit=crop&auto=format";
       if (brandName.includes("tire") || brandName.includes("wheel")) return "https://images.unsplash.com/photo-1603584173870-7f23fdae1b7a?w=400&h=250&fit=crop&auto=format";
       return "https://images.unsplash.com/photo-1580261450035-4d4f04b7b4c5?w=400&h=250&fit=crop&auto=format";
@@ -629,10 +629,15 @@ const SearchResultSection = ({
             </div>
           </div>
           
+          {/* Clear Search Button - Only shown when searching */}
           <div className="flex items-center gap-2">
-            <span className="text-xs sm:text-sm text-gray-400">
-              {totalResults} total results
-            </span>
+            <button
+              onClick={() => window.location.href = '/categories'}
+              className="px-3 py-1.5 bg-black hover:bg-gray-900 text-gray-300 rounded-lg border border-gray-700 transition-all duration-300 hover:border-gray-600 flex items-center gap-1.5 text-xs sm:text-sm"
+            >
+              <X className="w-3 h-3" />
+              Clear Search
+            </button>
           </div>
         </div>
 
@@ -1359,12 +1364,6 @@ const Categories = () => {
     setShowMobileFilters(false);
   };
 
-  const handleRefresh = () => {
-    fetchCategories();
-    fetchAllProducts();
-    toast.success("Categories and products refreshed!");
-  };
-
   // Get filtered categories
   const getFilteredCategories = () => {
     let filtered = filters.type === "main" 
@@ -1711,24 +1710,29 @@ const Categories = () => {
         </div>
         
         <div className="hidden md:flex items-center gap-4">
+          {/* Clear Filters Button - Only shown when filters are applied */}
+          {(filters.search || filters.type !== "main" || filters.featured !== "all" || filters.sort !== "popular") && (
+            <button
+              onClick={clearFilters}
+              className="px-4 py-2 bg-black hover:bg-gray-900 text-gray-300 rounded-lg border border-gray-700 transition-all duration-300 hover:border-gray-600 flex items-center gap-2 text-sm"
+            >
+              <X className="w-4 h-4" />
+              Clear Filters
+            </button>
+          )}
         </div>
         
         <div className="flex items-center gap-3">
-          <button
-            onClick={clearFilters}
-            className="hidden sm:flex px-4 py-2 bg-black hover:bg-gray-900 text-gray-300 rounded-lg border border-gray-700 transition-all duration-300 hover:border-gray-600 flex items-center gap-2"
-          >
-            <X className="w-4 h-4" />
-            Clear Filters
-          </button>
-          
-          <button
-            onClick={handleRefresh}
-            className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-red-500/25 flex items-center justify-center gap-2"
-          >
-            <RefreshCw className="w-4 h-4" />
-            <span>Refresh</span>
-          </button>
+          {/* Clear Search Button - Only shown when searching on mobile */}
+          {isSearching && (
+            <button
+              onClick={clearFilters}
+              className="w-full sm:w-auto px-4 py-2.5 bg-black hover:bg-gray-900 text-gray-300 rounded-lg border border-gray-800 transition-all duration-300 hover:border-gray-700 flex items-center justify-center gap-2"
+            >
+              <X className="w-4 h-4" />
+              <span>Clear Search</span>
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -1914,13 +1918,6 @@ const Categories = () => {
               >
                 <Users className="w-4 h-4" />
                 Contact Support
-              </button>
-              <button
-                onClick={handleRefresh}
-                className="w-full sm:w-auto px-4 py-2.5 sm:px-6 sm:py-3 bg-black hover:bg-gray-900 text-gray-300 rounded-lg border border-gray-800 transition-all duration-300 hover:border-gray-700 flex items-center justify-center gap-2 text-sm sm:text-base"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Refresh Data
               </button>
             </div>
           </div>
