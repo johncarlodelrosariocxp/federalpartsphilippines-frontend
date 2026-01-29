@@ -312,19 +312,7 @@ const SearchResults = () => {
             />
           </Link>
           
-          {/* Badges */}
-          <div className="absolute top-3 left-3 flex flex-col gap-1">
-            {discountPercent > 0 && (
-              <div className="bg-[#cc0000] text-white text-xs font-bold px-2 py-1 rounded">
-                -{discountPercent}%
-              </div>
-            )}
-            {isOutOfStock && (
-              <div className="bg-gray-700 text-gray-300 text-xs font-bold px-2 py-1 rounded">
-                Out of Stock
-              </div>
-            )}
-          </div>
+      
         </div>
 
         {/* Product Info */}
@@ -348,36 +336,8 @@ const SearchResults = () => {
             </div>
           )}
 
-          {/* Rating */}
-          {product.rating && (
-            <div className="flex items-center gap-1 mb-3">
-              {renderStars(product.rating)}
-              <span className="text-sm text-gray-400 ml-1">
-                ({product.rating?.toFixed(1) || '0.0'})
-              </span>
-              {product.reviewCount > 0 && (
-                <span className="text-sm text-gray-500">
-                  ({product.reviewCount})
-                </span>
-              )}
-            </div>
-          )}
 
-          {/* Price */}
-          <div className="mb-4">
-            <div className="flex items-center gap-2">
-              <span className="text-xl font-bold text-white">
-                ₱{formatPrice(finalPrice)}
-              </span>
-              {originalPrice && (
-                <>
-                  <span className="text-gray-400 line-through">
-                    ₱{formatPrice(originalPrice)}
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
+         
 
           {/* Description */}
           {product.description && (
@@ -386,46 +346,9 @@ const SearchResults = () => {
             </p>
           )}
 
-          {/* Action Buttons */}
-          <div className="flex gap-2">
-            {!isOutOfStock ? (
-              <button
-                onClick={() => handleAddToCart(product)}
-                className="flex-1 bg-[#cc0000] text-white py-2 px-4 rounded-lg hover:bg-[#aa0000] transition-colors text-sm font-medium"
-              >
-                Add to Cart
-              </button>
-            ) : (
-              <button
-                disabled
-                className="flex-1 bg-gray-700 text-gray-400 py-2 px-4 rounded-lg cursor-not-allowed text-sm font-medium"
-              >
-                Out of Stock
-              </button>
-            )}
-            <Link
-              to={`/product/${product._id}`}
-              className="py-2 px-4 border border-gray-700 text-gray-300 rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium"
-            >
-              View Details
-            </Link>
-          </div>
+          
 
-          {/* Features */}
-          <div className="mt-4 pt-4 border-t border-gray-800 grid grid-cols-3 gap-2">
-            <div className="flex items-center text-xs text-gray-500">
-              <Truck className="w-3 h-3 mr-1" />
-              <span>Delivery</span>
-            </div>
-            <div className="flex items-center text-xs text-gray-500">
-              <Shield className="w-3 h-3 mr-1" />
-              <span>Warranty</span>
-            </div>
-            <div className="flex items-center text-xs text-gray-500">
-              <Clock className="w-3 h-3 mr-1" />
-              <span>Support</span>
-            </div>
-          </div>
+        
         </div>
       </div>
     );
