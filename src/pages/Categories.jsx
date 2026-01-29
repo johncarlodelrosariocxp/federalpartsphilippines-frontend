@@ -472,6 +472,154 @@ const ProductsSection = ({
   );
 };
 
+// Search Result Section Component
+const SearchResultSection = ({ 
+  results, 
+  onCategoryClick, 
+  onViewProducts,
+  onProductClick,
+  searchTerm 
+}) => {
+  const totalResults = results.brands.length + results.motorcycles.length + results.products.length;
+
+  if (!searchTerm || searchTerm.trim() === "" || totalResults === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mt-6 sm:mt-8">
+      <div className="bg-gradient-to-b from-gray-900 to-black rounded-xl sm:rounded-2xl border border-gray-800 p-4 sm:p-6 shadow-xl">
+        {/* Search Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-6">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-r from-blue-500/20 to-blue-600/20 flex items-center justify-center">
+              <Search className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
+            </div>
+            <div>
+              <h3 className="text-base sm:text-lg font-bold text-white">
+                Search Results for "{searchTerm}"
+              </h3>
+              <p className="text-xs sm:text-sm text-gray-400">
+                Found {totalResults} results across brands, motorcycles, and products
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <span className="text-xs sm:text-sm text-gray-400">
+              {totalResults} total results
+            </span>
+          </div>
+        </div>
+
+        {/* Brands Results */}
+        {results.brands.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <Crown className="w-5 h-5 text-yellow-400" />
+              <h4 className="text-base font-bold text-white">Brands ({results.brands.length})</h4>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3 md:gap-4">
+              {results.brands.map(brand => (
+                <div 
+                  key={brand._id}
+                  className="group cursor-pointer"
+                  onClick={() => onCategoryClick(brand._id)}
+                >
+                  <div className="relative overflow-hidden rounded-xl border border-gray-800 group-hover:border-blue-500/50 transition-all duration-300 bg-gradient-to-b from-gray-900 to-black shadow-lg group-hover:shadow-xl group-hover:shadow-blue-500/10">
+                    <div className="aspect-square overflow-hidden">
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-900/20 to-black">
+                        <Grid3x3 className="w-8 h-8 sm:w-10 sm:h-10 text-blue-400" />
+                      </div>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+                      
+                      <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-3">
+                        <h4 className="font-semibold text-white text-xs sm:text-sm line-clamp-1 text-center">{brand.name}</h4>
+                        <p className="text-[10px] sm:text-xs text-gray-300 mt-0.5 sm:mt-1 text-center">
+                          {brand.productCount || 0} products
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Motorcycles Results */}
+        {results.motorcycles.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <Layers className="w-5 h-5 text-purple-400" />
+              <h4 className="text-base font-bold text-white">Motorcycles ({results.motorcycles.length})</h4>
+            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-2 sm:gap-3 md:gap-4">
+              {results.motorcycles.map(motorcycle => (
+                <div 
+                  key={motorcycle._id}
+                  className="group cursor-pointer"
+                  onClick={() => onViewProducts(motorcycle._id)}
+                >
+                  <div className="relative overflow-hidden rounded-xl border border-gray-800 group-hover:border-purple-500/50 transition-all duration-300 bg-gradient-to-b from-gray-900 to-black shadow-lg group-hover:shadow-xl group-hover:shadow-purple-500/10">
+                    <div className="aspect-square overflow-hidden">
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-900/20 to-black">
+                        <Package className="w-6 h-6 sm:w-8 sm:h-8 text-purple-400" />
+                      </div>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+                      
+                      <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-3">
+                        <h4 className="font-semibold text-white text-xs sm:text-sm line-clamp-1 text-center">{motorcycle.name}</h4>
+                        <p className="text-[10px] sm:text-xs text-gray-300 mt-0.5 sm:mt-1 text-center">
+                          {motorcycle.productCount || 0} products
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Products Results */}
+        {results.products.length > 0 && (
+          <div>
+            <div className="flex items-center gap-2 mb-4">
+              <ShoppingBag className="w-5 h-5 text-red-400" />
+              <h4 className="text-base font-bold text-white">Products ({results.products.length})</h4>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+              {results.products.slice(0, 12).map(product => (
+                <div 
+                  key={product._id}
+                  onClick={() => onProductClick(product._id)}
+                >
+                  <ProductCard 
+                    product={product}
+                    categoryId={product.category?._id}
+                  />
+                </div>
+              ))}
+            </div>
+            {results.products.length > 12 && (
+              <div className="text-center mt-6">
+                <Link
+                  to={`/products?search=${encodeURIComponent(searchTerm)}`}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white rounded-lg transition-all duration-300"
+                >
+                  View all {results.products.length} products
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const Categories = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -496,8 +644,8 @@ const Categories = () => {
     motorcycles: [],
     products: []
   });
-  const [showSearchResults, setShowSearchResults] = useState(false);
   const [searchTerm, setSearchTerm] = useState(searchParams.get("search") || "");
+  const [isSearching, setIsSearching] = useState(false);
   
   // Filters
   const [filters, setFilters] = useState({
@@ -572,6 +720,16 @@ const Categories = () => {
       setActiveMainCategory(mainCategories[0]?._id);
     }
   }, [mainCategories, activeMainCategory]);
+
+  // Perform search when search term changes
+  useEffect(() => {
+    if (searchTerm && searchTerm.trim() !== "") {
+      performSearch(searchTerm);
+    } else {
+      setSearchResults({ brands: [], motorcycles: [], products: [] });
+      setIsSearching(false);
+    }
+  }, [searchTerm]);
 
   // Fetch all products for search functionality
   const fetchAllProducts = async () => {
@@ -967,13 +1125,13 @@ const Categories = () => {
   // Perform search across brands, motorcycles, and products
   const performSearch = async (term) => {
     if (!term || term.trim() === "") {
-      setShowSearchResults(false);
       setSearchResults({ brands: [], motorcycles: [], products: [] });
+      setIsSearching(false);
       return;
     }
 
+    setIsSearching(true);
     setSearchLoading(true);
-    setShowSearchResults(true);
 
     const searchTerm = term.toLowerCase().trim();
     
@@ -1012,20 +1170,12 @@ const Categories = () => {
     const value = e.target.value;
     setSearchTerm(value);
     handleFilterChange("search", value);
-    
-    // Perform search if there's a term
-    if (value.trim() !== "") {
-      performSearch(value);
-    } else {
-      setShowSearchResults(false);
-      setSearchResults({ brands: [], motorcycles: [], products: [] });
-    }
   };
 
   // Handle viewing products
   const handleViewProducts = async (categoryId) => {
     setViewingProducts(categoryId);
-    setShowSearchResults(false);
+    setIsSearching(false);
     await fetchCategoryProducts(categoryId);
     // Scroll to top on mobile
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1036,7 +1186,7 @@ const Categories = () => {
     setActiveMainCategory(categoryId);
     setViewingProducts(null);
     setProducts([]);
-    setShowSearchResults(false);
+    setIsSearching(false);
     // Scroll to subcategories on mobile
     if (window.innerWidth < 768) {
       setTimeout(() => {
@@ -1046,6 +1196,16 @@ const Categories = () => {
         }
       }, 100);
     }
+  };
+
+  // Handle product click from search results
+  const handleProductClick = (productId) => {
+    navigate(`/product/${productId}`, {
+      state: {
+        returnTo: `/categories?search=${encodeURIComponent(searchTerm)}`,
+        searchTerm: searchTerm
+      }
+    });
   };
 
   const handleFilterChange = (key, value) => {
@@ -1066,7 +1226,7 @@ const Categories = () => {
       limit: 12,
     });
     setSearchTerm("");
-    setShowSearchResults(false);
+    setIsSearching(false);
     setSearchResults({ brands: [], motorcycles: [], products: [] });
     setActiveMainCategory(mainCategories[0]?._id);
     setViewingProducts(null);
@@ -1089,7 +1249,7 @@ const Categories = () => {
       : allCategories;
 
     // Search filter
-    if (filters.search) {
+    if (filters.search && filters.search.trim() !== "" && !isSearching) {
       const term = filters.search.toLowerCase();
       filtered = filtered.filter(cat => 
         cat.name?.toLowerCase().includes(term) ||
@@ -1130,176 +1290,6 @@ const Categories = () => {
     ? allCategories.find(cat => cat._id === viewingProducts)
     : null;
 
-  // Render Search Results
-  const renderSearchResults = () => {
-    if (!showSearchResults || (!searchTerm || searchTerm.trim() === "")) {
-      return null;
-    }
-
-    const totalResults = searchResults.brands.length + 
-                        searchResults.motorcycles.length + 
-                        searchResults.products.length;
-
-    if (totalResults === 0) {
-      return (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-gradient-to-b from-gray-900 to-black rounded-xl sm:rounded-2xl border border-gray-800 shadow-2xl z-50 max-h-96 overflow-y-auto">
-          <div className="p-4 text-center">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gray-900 to-black flex items-center justify-center mx-auto mb-3">
-              <Search className="w-6 h-6 text-gray-600" />
-            </div>
-            <p className="text-gray-400 text-sm">
-              No results found for "{searchTerm}"
-            </p>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="absolute top-full left-0 right-0 mt-2 bg-gradient-to-b from-gray-900 to-black rounded-xl sm:rounded-2xl border border-gray-800 shadow-2xl z-50 max-h-96 overflow-y-auto">
-        {searchLoading ? (
-          <div className="p-4 text-center">
-            <div className="w-6 h-6 border-2 border-gray-700 border-t-red-500 animate-spin rounded-full mx-auto mb-2"></div>
-            <p className="text-gray-400 text-sm">Searching...</p>
-          </div>
-        ) : (
-          <div className="p-4">
-            {/* Summary */}
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-sm text-gray-400">
-                Found {totalResults} results for "{searchTerm}"
-              </p>
-              <button
-                onClick={() => setShowSearchResults(false)}
-                className="text-xs text-red-400 hover:text-red-300"
-              >
-                Close
-              </button>
-            </div>
-
-            {/* Brands Results */}
-            {searchResults.brands.length > 0 && (
-              <div className="mb-4">
-                <h4 className="text-xs uppercase text-gray-500 font-semibold mb-2 flex items-center gap-2">
-                  <Crown className="w-3 h-3" />
-                  Brands ({searchResults.brands.length})
-                </h4>
-                <div className="space-y-2">
-                  {searchResults.brands.map(brand => (
-                    <div
-                      key={brand._id}
-                      className="flex items-center gap-3 p-2 rounded-lg bg-gray-900/50 hover:bg-gray-800/50 cursor-pointer transition-colors"
-                      onClick={() => handleMainCategoryClick(brand._id)}
-                    >
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-500/20 to-red-600/20 flex items-center justify-center">
-                        <Grid3x3 className="w-3 h-3 text-red-400" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm text-white">{brand.name}</p>
-                        <p className="text-xs text-gray-400">{brand.productCount || 0} products</p>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-gray-500" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Motorcycles Results */}
-            {searchResults.motorcycles.length > 0 && (
-              <div className="mb-4">
-                <h4 className="text-xs uppercase text-gray-500 font-semibold mb-2 flex items-center gap-2">
-                  <Layers className="w-3 h-3" />
-                  Motorcycles ({searchResults.motorcycles.length})
-                </h4>
-                <div className="space-y-2">
-                  {searchResults.motorcycles.map(motorcycle => (
-                    <div
-                      key={motorcycle._id}
-                      className="flex items-center gap-3 p-2 rounded-lg bg-gray-900/50 hover:bg-gray-800/50 cursor-pointer transition-colors"
-                      onClick={() => handleViewProducts(motorcycle._id)}
-                    >
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500/20 to-purple-600/20 flex items-center justify-center">
-                        <Package className="w-3 h-3 text-purple-400" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm text-white">{motorcycle.name}</p>
-                        <p className="text-xs text-gray-400">{motorcycle.productCount || 0} products</p>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-gray-500" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Products Results */}
-            {searchResults.products.length > 0 && (
-              <div>
-                <h4 className="text-xs uppercase text-gray-500 font-semibold mb-2 flex items-center gap-2">
-                  <ShoppingBag className="w-3 h-3" />
-                  Products ({searchResults.products.length})
-                </h4>
-                <div className="space-y-2">
-                  {searchResults.products.slice(0, 5).map(product => (
-                    <div
-                      key={product._id}
-                      className="flex items-center gap-3 p-2 rounded-lg bg-gray-900/50 hover:bg-gray-800/50 cursor-pointer transition-colors"
-                      onClick={() => {
-                        navigate(`/product/${product._id}`, {
-                          state: {
-                            returnTo: `/categories`,
-                            searchTerm: searchTerm
-                          }
-                        });
-                        setShowSearchResults(false);
-                      }}
-                    >
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-900 to-black overflow-hidden">
-                        {product.image ? (
-                          <img 
-                            src={getImageUrl(product.image, "products")} 
-                            alt={product.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-gray-800">
-                            <Package className="w-3 h-3 text-gray-400" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm text-white line-clamp-1">{product.name}</p>
-                        <p className="text-xs text-gray-400 line-clamp-1">
-                          {product.shortDescription || product.description || 'No description'}
-                        </p>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-gray-500" />
-                    </div>
-                  ))}
-                  {searchResults.products.length > 5 && (
-                    <div className="text-center pt-2">
-                      <button
-                        onClick={() => {
-                          // Navigate to products page with search term
-                          navigate(`/products?search=${encodeURIComponent(searchTerm)}`);
-                          setShowSearchResults(false);
-                        }}
-                        className="text-xs text-red-400 hover:text-red-300"
-                      >
-                        View all {searchResults.products.length} products →
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  };
-
   // Render Hero Banner
   const renderHeroBanner = () => (
     <div className="relative pt-16 sm:pt-20 pb-12 sm:pb-16 overflow-hidden bg-black">
@@ -1314,7 +1304,7 @@ const Categories = () => {
             e.target.src = "https://images.unsplash.com/photo-1597701466590-b7c887e4a4a3?w=1920&h=600&fit=crop&auto=format";
           }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent"></div>
+        <div className="absolute inset-0 "></div>
       </div>
       
       {/* Pattern Overlay */}
@@ -1345,7 +1335,7 @@ const Categories = () => {
         </nav>
 
         <div className="text-center mt-10 sm:mt-13 mb-8 sm:mb-12">
-          <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 text-white">
+          <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 text-[#cc0000]">
             {viewingProducts 
               ? `Products in ${currentCategoryWithProducts?.name || 'Category'}`
               : "Browse Categories"}
@@ -1369,18 +1359,12 @@ const Categories = () => {
                 onChange={handleSearchChange}
                 placeholder="Search brands, motorcycles, or products..."
                 className="w-full pl-10 sm:pl-12 pr-4 py-3 sm:py-4 rounded-xl bg-black/60 backdrop-blur-sm border border-gray-700 focus:ring-2 focus:ring-red-500 focus:border-transparent text-white placeholder-gray-400 shadow-xl text-sm sm:text-base"
-                onFocus={() => {
-                  if (searchTerm && searchTerm.trim() !== "") {
-                    setShowSearchResults(true);
-                  }
-                }}
               />
               {searchTerm && (
                 <button
                   onClick={() => {
                     setSearchTerm("");
                     handleFilterChange("search", "");
-                    setShowSearchResults(false);
                   }}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
                 >
@@ -1388,9 +1372,6 @@ const Categories = () => {
                 </button>
               )}
             </div>
-            
-            {/* Search Results Dropdown */}
-            {renderSearchResults()}
           </div>
         </div>
       </div>
@@ -1404,7 +1385,7 @@ const Categories = () => {
     return (
       <div className="fixed inset-0 z-50 md:hidden">
         <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowMobileFilters(false)} />
-        <div className="absolute right的无0 top-0 bottom-0 w-4/5 max-w-sm bg-gradient-to-b from-gray-900 to-black border-l border-gray-800 shadow-2xl overflow-y-auto">
+        <div className="absolute right-0 top-0 bottom-0 w-4/5 max-w-sm bg-gradient-to-b from-gray-900 to-black border-l border-gray-800 shadow-2xl overflow-y-auto">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-bold text-white">Filters</h3>
@@ -1496,7 +1477,7 @@ const Categories = () => {
 
   // Render Main Categories Navigation
   const renderMainCategoriesNav = () => {
-    if (viewingProducts || loading) return null;
+    if (viewingProducts || loading || isSearching) return null;
 
     const mainCategoriesToShow = filteredCategories.filter(cat => !cat.parentCategory);
 
@@ -1550,7 +1531,7 @@ const Categories = () => {
 
   // Render Sub-categories Section
   const renderSubCategories = () => {
-    if (viewingProducts || !activeCategory || !activeCategory.children || activeCategory.children.length === 0) {
+    if (viewingProducts || !activeCategory || !activeCategory.children || activeCategory.children.length === 0 || isSearching) {
       return null;
     }
 
@@ -1628,6 +1609,47 @@ const Categories = () => {
     </div>
   );
 
+  // Render Search Results
+  const renderSearchResults = () => {
+    if (!isSearching || searchLoading) return null;
+
+    const totalResults = searchResults.brands.length + 
+                        searchResults.motorcycles.length + 
+                        searchResults.products.length;
+
+    if (totalResults === 0 && searchTerm.trim() !== "") {
+      return (
+        <div className="bg-gradient-to-b from-gray-900 to-black rounded-xl sm:rounded-2xl border border-gray-800 p-6 sm:p-8 md:p-12 text-center shadow-xl">
+          <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-br from-gray-900 to-black mb-4 sm:mb-6 shadow-lg">
+            <Search className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-gray-600" />
+          </div>
+          <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-white mb-2 sm:mb-3">
+            No results found
+          </h3>
+          <p className="text-gray-400 mb-6 sm:mb-8 max-w-md mx-auto leading-relaxed text-sm sm:text-base">
+            No brands, motorcycles, or products match your search for "{searchTerm}". Try different keywords.
+          </p>
+          <button
+            onClick={clearFilters}
+            className="inline-flex items-center gap-2 px-4 py-2.5 sm:px-6 sm:py-3 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white rounded-lg transition-all duration-300 shadow-lg hover:shadow-red-500/25 text-sm sm:text-base"
+          >
+            Clear Search
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <SearchResultSection
+        results={searchResults}
+        onCategoryClick={handleMainCategoryClick}
+        onViewProducts={handleViewProducts}
+        onProductClick={handleProductClick}
+        searchTerm={searchTerm}
+      />
+    );
+  };
+
   // Render Categories or Products
   const renderContent = () => {
     if (loading) {
@@ -1668,7 +1690,7 @@ const Categories = () => {
       );
     }
 
-    if (filteredCategories.length === 0 && !viewingProducts) {
+    if (filteredCategories.length === 0 && !viewingProducts && !isSearching) {
       return (
         <div className="bg-gradient-to-b from-gray-900 to-black p-6 sm:p-8 md:p-12 text-center border border-gray-700 rounded-xl sm:rounded-2xl shadow-lg">
           <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-br from-gray-900 to-black mb-4 sm:mb-6 shadow-lg">
@@ -1700,10 +1722,32 @@ const Categories = () => {
           onClose={() => {
             setViewingProducts(null);
             setProducts([]);
-            setShowSearchResults(false);
+            setIsSearching(false);
           }}
           loading={productsLoading}
         />
+      );
+    }
+
+    if (isSearching) {
+      return (
+        <div>
+          {searchLoading ? (
+            <div className="flex justify-center items-center h-64 sm:h-96">
+              <div className="text-center">
+                <div className="relative">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-4 border-gray-700 border-t-blue-500 animate-spin mx-auto mb-3 sm:mb-4"></div>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Search className="w-6 h-6 sm:w-8 sm:h-8 text-blue-400 animate-pulse" />
+                  </div>
+                </div>
+                <p className="text-gray-400 mt-3 sm:mt-4 text-sm sm:text-base">Searching for "{searchTerm}"...</p>
+              </div>
+            </div>
+          ) : (
+            renderSearchResults()
+          )}
+        </div>
       );
     }
 

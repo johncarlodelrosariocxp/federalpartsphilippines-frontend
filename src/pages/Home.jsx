@@ -987,7 +987,7 @@ const Home = () => {
       >
         <button
           onClick={() => handleCategoryClick(category)}
-          className="w-full bg-gradient-to-b from-gray-900 to-gray-950 rounded-xl overflow-hidden shadow-lg border border-gray-800 hover:border-red-500 transition-all duration-300 hover:shadow-xl group cursor-pointer h-56 sm:h-64 flex flex-col"
+          className="w-full rounded-xl overflow-hidden shadow-lg  hover:border-red-500 transition-all duration-300 hover:shadow-xl group cursor-pointer h-56 sm:h-64 flex flex-col"
         >
           <div className="relative h-40 sm:h-48 overflow-hidden flex-1">
             <img
@@ -999,11 +999,11 @@ const Home = () => {
             />
           </div>
           
-          <div className="bg-gray-900 px-2 sm:px-3 py-2 flex items-center justify-center border-t border-gray-800">
-            <span className="text-xs text-gray-300 truncate px-1">
-              {category.title}
-            </span>
-          </div>
+          <div className="bg-[#cc0000] px-2 sm:px-3 py-2 flex items-center justify-center border-t border-gray-800">
+  <span className="text-xs text-gray-300 truncate px-1">
+    {category.title}
+  </span>
+</div>
         </button>
       </div>
     );
@@ -1174,12 +1174,12 @@ const Home = () => {
       <section
         ref={(el) => (sectionRefs.current[0] = el)}
         className="py-8 sm:py-16 bg-black"
-      >
+         >
         <div className="container mx-auto px-3 sm:px-4 max-w-7xl">
           <div className="text-center mb-8 sm:mb-12 animate-fade-up animate-on-visible">
-            <h2 className="font-bebas text-3xl sm:text-4xl md:text-5xl text-white mb-2 sm:mb-3">
-              Product Categories
-            </h2>
+           <h2 className="font-bebas text-3xl sm:text-4xl md:text-5xl text-[#cc0000] mb-2 sm:mb-3">
+        Product Categories
+          </h2>
             <p className="text-gray-400 text-sm sm:text-lg max-w-2xl mx-auto px-2">
               Browse our premium motorcycle parts organized by category
             </p>
@@ -1481,7 +1481,7 @@ const Home = () => {
       >
         <div className="container mx-auto px-3 sm:px-4 max-w-7xl">
           <div className="text-center mb-8 sm:mb-12">
-            <h2 className="font-bebas text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-white mb-3 sm:mb-4 px-2 opacity-0 translate-y-8 transition-all duration-700 ease-out" 
+            <h2 className="font-bebas text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-[#cc0000] mb-3 sm:mb-4 px-2 opacity-0 translate-y-8 transition-all duration-700 ease-out" 
                 data-animate="fade-up">
               Quality you can Trust. Price You Can Afford.
             </h2>
@@ -1493,7 +1493,7 @@ const Home = () => {
 
           <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 items-center">
             <div>
-              <h2 className="font-bebas text-2xl sm:text-3xl md:text-4xl text-white mb-4 sm:mb-6 opacity-0 translate-y-8 transition-all duration-700 ease-out delay-200" 
+            <h2 className="font-bebas text-2xl sm:text-3xl md:text-4xl text-[#cc0000] mb-4 sm:mb-6 opacity-0 translate-y-8 transition-all duration-700 ease-out delay-200" 
                   data-animate="slide-down">
                 About Federal Parts
               </h2>

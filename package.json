@@ -17,6 +17,7 @@
     "vercel-build": "npm run build"
   },
   "dependencies": {
+    "aos": "^2.3.4",
     "axios": "^1.13.2",
     "cors": "^2.8.5",
     "express": "^5.2.1",
