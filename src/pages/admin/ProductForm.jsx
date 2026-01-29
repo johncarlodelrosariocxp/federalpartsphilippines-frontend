@@ -1,1241 +1,1461 @@
-// src/pages/admin/ProductForm.jsx - COMPLETE FIXED VERSION
-import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { productAPI, categoryAPI } from "../../services/api";
-import {
-  Save,
-  Upload,
-  Package,
-  Tag,
-  Hash,
-  Weight,
-  Ruler,
-  Star,
-  AlertCircle,
-  CheckCircle,
-  Trash2,
-  Image as ImageIcon,
-  ChevronUp,
-  ChevronDown,
-  X,
-  Loader2,
-  Eye,
-  Plus,
-  Folder,
-} from "lucide-react";
-
-const ProductForm = () => {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const isEditMode = !!id;
-
-  const [loading, setLoading] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(false);
-  const [categories, setCategories] = useState([]);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [formErrors, setFormErrors] = useState({});
-  const [imageUploading, setImageUploading] = useState(false);
-  const [selectedImagePreview, setSelectedImagePreview] = useState(null);
-
-  const [product, setProduct] = useState({
-    name: "",
-    description: "",
-    price: "",
-    category: "",
-    categories: [],
-    images: [],
-    stock: 0,
-    sku: "",
-    weight: "",
-    dimensions: "",
-    specifications: [],
-    featured: false,
-    isActive: true,
-  });
-
-  const [newSpec, setNewSpec] = useState({ key: "", value: "" });
-
-  // Fallback image
-  const fallbackImage = `data:image/svg+xml,${encodeURIComponent(`
-    <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="200" height="200" fill="#F3F4F6"/>
-      <rect x="50" y="50" width="100" height="70" rx="8" fill="#E5E7EB"/>
-      <rect x="75" y="85" width="50" height="4" rx="2" fill="#9CA3AF"/>
-      <rect x="85" y="95" width="30" height="3" rx="1.5" fill="#9CA3AF"/>
-      <circle cx="100" cy="140" r="15" fill="#D1D5DB"/>
-      <text x="100" y="145" font-family="Arial, sans-serif" font-size="12" fill="#6B7280" text-anchor="middle" alignment-baseline="middle">No Image</text>
-    </svg>
-  `)}`;
-
-  useEffect(() => {
-    fetchCategories();
-    if (isEditMode) {
-      fetchProduct();
-    }
-  }, [id]);
-
-  const fetchCategories = async () => {
-    try {
-      console.log("Fetching categories...");
-      const response = await categoryAPI.getAllCategories({ active: true });
-      
-      console.log("Categories response:", response);
-      
-      if (response?.success && Array.isArray(response.categories)) {
-        setCategories(response.categories);
-      } else if (Array.isArray(response)) {
-        setCategories(response);
-      } else if (response?.data && Array.isArray(response.data)) {
-        setCategories(response.data);
-      } else {
-        console.warn("No categories found or unexpected format:", response);
-        setCategories([]);
-      }
-    } catch (err) {
-      console.error("Error fetching categories:", err);
-      setCategories([]);
-    }
-  };
-
-  const fetchProduct = async () => {
-    try {
-      setInitialLoading(true);
-      setError("");
-
-      console.log(`Fetching product with ID: ${id}`);
-      const response = await productAPI.getProductById(id);
-      
-      console.log("Product API response:", response);
-
-      let productData = null;
-
-      // Handle different response formats
-      if (response?.success && response.product) {
-        productData = response.product;
-      } else if (response?.data?.product) {
-        productData = response.data.product;
-      } else if (response?.data && !response.product) {
-        productData = response.data;
-      } else if (response?.product) {
-        productData = response.product;
-      } else if (response?._id) {
-        productData = response;
-      } else {
-        console.error("Unexpected response format:", response);
-        throw new Error("Unexpected response format from server");
-      }
-
-      if (!productData) {
-        throw new Error("Product data not found in response");
-      }
-
-      console.log("Product data to process:", productData);
-
-      // Handle specifications - always ensure it's an array
-      let specificationsArray = [];
-      if (productData.specifications) {
-        if (typeof productData.specifications === 'object' && !Array.isArray(productData.specifications)) {
-          specificationsArray = Object.entries(productData.specifications).map(([key, value]) => ({
-            key,
-            value: String(value)
-          }));
-        } else if (Array.isArray(productData.specifications)) {
-          specificationsArray = productData.specifications;
-        }
-      }
-
-      // Handle category - support both single category and multiple categories
-      let categoryId = "";
-      let categoriesArray = [];
-      
-      if (productData.category) {
-        if (typeof productData.category === "string") {
-          categoryId = productData.category;
-          categoriesArray = [productData.category];
-        } else if (productData.category._id) {
-          categoryId = productData.category._id;
-          categoriesArray = [productData.category._id];
-        }
-      }
-      
-      // Handle multiple categories
-      if (productData.categories && Array.isArray(productData.categories)) {
-        categoriesArray = productData.categories.map(cat => {
-          if (typeof cat === "string") return cat;
-          if (cat._id) return cat._id;
-          if (cat.id) return cat.id;
-          return null;
-        }).filter(Boolean);
-        
-        if (categoriesArray.length > 0 && !categoryId) {
-          categoryId = categoriesArray[0];
-        }
-      }
-
-      // Handle images - ensure array format
-      let productImages = [];
-      if (productData.images && Array.isArray(productData.images)) {
-        productImages = productData.images.filter(img => img && img.trim() !== "");
-      } else if (productData.image) {
-        if (typeof productData.image === "string" && productData.image.trim()) {
-          productImages = [productData.image];
-        }
-      }
-
-      const productState = {
-        name: productData.name || "",
-        description: productData.description || "",
-        price: productData.price?.toString() || "0",
-        category: categoryId,
-        categories: categoriesArray,
-        images: productImages,
-        stock: productData.stock || 0,
-        sku: productData.sku || "",
-        weight: productData.weight || "",
-        dimensions: productData.dimensions || "",
-        specifications: specificationsArray,
-        featured: productData.featured || false,
-        isActive: productData.isActive !== undefined ? productData.isActive : true,
-      };
-
-      console.log("Setting product state:", productState);
-      setProduct(productState);
-
-    } catch (err) {
-      console.error("Error fetching product:", err);
-      setError(`Failed to load product: ${err.message}`);
-    } finally {
-      setInitialLoading(false);
-    }
-  };
-
-  const validateForm = () => {
-    const errors = {};
-    
-    if (!product.name.trim()) {
-      errors.name = "Product name is required";
-    }
-    
-    if (!product.description.trim()) {
-      errors.description = "Description is required";
-    }
-    
-    const price = parseFloat(product.price);
-    if (isNaN(price) || price <= 0) {
-      errors.price = "Valid price is required (must be greater than 0)";
-    }
-    
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setProduct({
-      ...product,
-      [name]: type === "checkbox" ? checked : value,
-    });
-    
-    if (formErrors[name]) {
-      setFormErrors({
-        ...formErrors,
-        [name]: "",
-      });
-    }
-  };
-
-  const handleNumberChange = (e) => {
-    const { name, value } = e.target;
-    setProduct({
-      ...product,
-      [name]: value === "" ? (name === "stock" ? 0 : "") : value,
-    });
-  };
-
-  // Category selection
-  const handleCategoryChange = (e) => {
-    const categoryId = e.target.value;
-    setProduct({
-      ...product,
-      category: categoryId,
-    });
-  };
-
-  // Add multiple categories
-  const addCategory = () => {
-    if (product.category && !product.categories.includes(product.category)) {
-      setProduct({
-        ...product,
-        categories: [...product.categories, product.category],
-        category: "", // Clear selection after adding
-      });
-    }
-  };
-
-  // Remove category from the list - FIXED
-  const removeCategory = (categoryIdToRemove) => {
-    console.log("Removing category:", categoryIdToRemove);
-    console.log("Current categories:", product.categories);
-    
-    const updatedCategories = product.categories.filter(
-      categoryId => categoryId !== categoryIdToRemove
-    );
-    
-    console.log("Updated categories:", updatedCategories);
-    
-    setProduct({
-      ...product,
-      categories: updatedCategories
-    });
-  };
-
-  // Clear all categories
-  const clearAllCategories = () => {
-    setProduct({
-      ...product,
-      categories: []
-    });
-  };
-
-  // Specifications functions
-  const addSpecification = () => {
-    if (newSpec.key.trim() && newSpec.value.trim()) {
-      setProduct({
-        ...product,
-        specifications: [...product.specifications, { ...newSpec }]
-      });
-      setNewSpec({ key: "", value: "" });
-    }
-  };
-
-  const removeSpecification = (index) => {
-    const newSpecs = [...product.specifications];
-    newSpecs.splice(index, 1);
-    setProduct({
-      ...product,
-      specifications: newSpecs
-    });
-  };
-
-  const updateSpecification = (index, field, value) => {
-    const newSpecs = [...product.specifications];
-    newSpecs[index][field] = value;
-    setProduct({
-      ...product,
-      specifications: newSpecs
-    });
-  };
-
-  const handleImageUpload = async (e) => {
-    const files = Array.from(e.target.files);
-    if (!files.length) return;
-
-    setError("");
-    setSuccess("");
-
-    const validFiles = files.filter((file) => {
-      if (!file.type.startsWith("image/")) {
-        return false;
-      }
-      if (file.size > 5 * 1024 * 1024) {
-        return false;
-      }
-      return true;
-    });
-
-    if (validFiles.length === 0) {
-      setError("Please select valid image files (max 5MB each)");
-      e.target.value = "";
-      return;
-    }
-
-    const totalImages = product.images.length + validFiles.length;
-    if (totalImages > 10) {
-      setError(
-        `You can only upload up to 10 images. You already have ${product.images.length} images.`
-      );
-      e.target.value = "";
-      return;
-    }
-
-    try {
-      setImageUploading(true);
-
-      const base64Images = await Promise.all(
-        validFiles.map(async (file) => {
-          try {
-            const base64 = await convertFileToBase64(file);
-            return {
-              name: file.name,
-              type: file.type,
-              size: file.size,
-              base64: base64,
-              preview: URL.createObjectURL(file),
-              isLocal: true,
-            };
-          } catch (err) {
-            console.error("Error converting file to base64:", err);
-            return null;
-          }
-        })
-      );
-
-      const validBase64Images = base64Images.filter(img => img !== null);
-
-      setProduct((prev) => ({
-        ...prev,
-        images: [...prev.images, ...validBase64Images],
-      }));
-
-      setSuccess(
-        `Added ${validBase64Images.length} image${
-          validBase64Images.length > 1 ? "s" : ""
-        } for preview`
-      );
-
-      setTimeout(() => setSuccess(""), 3000);
-    } catch (err) {
-      console.error("Error adding images:", err);
-      setError(err.message || "Failed to add images. Please try again.");
-    } finally {
-      setImageUploading(false);
-      e.target.value = "";
-    }
-  };
-
-  const convertFileToBase64 = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = (error) => reject(error);
-    });
-  };
-
-  const removeImage = (index) => {
-    const image = product.images[index];
-
-    if (image && image.isLocal && image.preview) {
-      URL.revokeObjectURL(image.preview);
-    }
-
-    const newImages = [...product.images];
-    newImages.splice(index, 1);
-    setProduct({
-      ...product,
-      images: newImages,
-    });
-  };
-
-  const reorderImages = (fromIndex, toIndex) => {
-    const newImages = [...product.images];
-    const [removed] = newImages.splice(fromIndex, 1);
-    newImages.splice(toIndex, 0, removed);
-    setProduct({
-      ...product,
-      images: newImages,
-    });
-  };
-
-  const getImageDisplayUrl = (image) => {
-    if (!image) {
-      return fallbackImage;
-    }
-
-    if (typeof image === "string") {
-      if (
-        image.startsWith("http://") ||
-        image.startsWith("https://") ||
-        image.startsWith("blob:") ||
-        image.startsWith("data:")
-      ) {
-        return image;
-      }
-      return image;
-    }
-
-    if (image && typeof image === "object") {
-      if (image.preview) {
-        return image.preview;
-      }
-      if (image.base64) {
-        return image.base64;
-      }
-      if (image.url) {
-        return image.url;
-      }
-    }
-
-    return fallbackImage;
-  };
-
-  const isLocalImage = (image) => {
-    if (!image) return false;
-
-    if (typeof image === "string") {
-      return image.startsWith("blob:") || image.startsWith("data:");
-    }
-
-    if (image && typeof image === "object") {
-      return image.isLocal === true;
-    }
-
-    return false;
-  };
-
-  const showImagePreview = (image, index) => {
-    const url = getImageDisplayUrl(image);
-    setSelectedImagePreview({
-      url,
-      isLocal: isLocalImage(image),
-      name: typeof image === 'object' ? image.name : `Image ${index + 1}`,
-      index
-    });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    setSuccess("");
-    setFormErrors({});
-    
-    if (!validateForm()) {
-      setError("Please fix the errors in the form");
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      // Convert specifications array to object
-      const specificationsObj = {};
-      product.specifications.forEach((spec) => {
-        if (spec.key && spec.key.trim() && spec.value && spec.value.trim()) {
-          specificationsObj[spec.key.trim()] = spec.value.trim();
-        }
-      });
-
-      // Prepare images
-      const localImages = product.images.filter(img => isLocalImage(img));
-      const existingImages = product.images.filter(img => !isLocalImage(img));
-
-      // Prepare image data
-      const allImages = [
-        ...existingImages.map(img => {
-          if (typeof img === 'string') {
-            if (img.includes('/uploads/products/')) {
-              return img.split('/').pop();
-            }
-            return img;
-          }
-          return img;
-        }).filter(img => img),
-        ...localImages.map(img => img.base64).filter(base64 => base64)
-      ];
-
-      // Prepare product data - send both single category and multiple categories
-      const productData = {
-        name: product.name.trim(),
-        description: product.description.trim(),
-        price: parseFloat(product.price),
-        stock: parseInt(product.stock, 10) || 0,
-        sku: product.sku.trim() || "",
-        weight: product.weight.trim() || "",
-        dimensions: product.dimensions.trim() || "",
-        featured: Boolean(product.featured),
-        isActive: Boolean(product.isActive),
-        specifications: Object.keys(specificationsObj).length > 0 ? specificationsObj : {},
-      };
-
-      // Add category (single) for backward compatibility
-      if (product.category && product.category.trim() !== '') {
-        productData.category = product.category;
-      }
-
-      // Add multiple categories if available (prefer this over single category)
-      if (product.categories.length > 0) {
-        productData.categories = product.categories;
-      }
-
-      // Add images if any
-      if (allImages.length > 0) {
-        productData.images = allImages;
-      }
-
-      console.log("Submitting product data:", productData);
-
-      let response;
-      if (isEditMode) {
-        response = await productAPI.updateProduct(id, productData);
-      } else {
-        response = await productAPI.createProduct(productData);
-      }
-
-      console.log("API Response:", response);
-
-      if (response?.success) {
-        const message = isEditMode
-          ? "Product updated successfully!"
-          : "Product created successfully!";
-        setSuccess(message);
-
-        setTimeout(() => {
-          navigate("/admin/products");
-        }, 1500);
-      } else {
-        throw new Error(response?.message || "Failed to save product");
-      }
-    } catch (err) {
-      console.error("Error saving product:", err);
-      setError(err.message || "Failed to save product. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Get category name by ID
-  const getCategoryName = (categoryId) => {
-    const category = categories.find(c => c._id === categoryId || c.id === categoryId);
-    return category ? category.name : "Unknown Category";
-  };
-
-  if (initialLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
-        <p className="text-gray-600">Loading product data...</p>
-      </div>
-    );
+// src/services/api.js - ULTIMATE FIXED VERSION FOR VERCEL IMAGE ISSUES
+import axios from "axios";
+import authService from "./auth.js";
+
+// ========== ENVIRONMENT CONFIGURATION ==========
+const API_BASE_URL = import.meta.env.VITE_API_URL || "https://federalpartsphilippines-backend.onrender.com/api";
+const IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_URL || "https://federalpartsphilippines-backend.onrender.com";
+
+console.log("🌐 Environment Configuration:");
+console.log("API_BASE_URL:", API_BASE_URL);
+console.log("IMAGE_BASE_URL:", IMAGE_BASE_URL);
+
+const isBrowser = typeof window !== "undefined";
+// Detect environment
+const isLocalhost = isBrowser && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+const isVercel = isBrowser && (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('federalpartsphilippines'));
+
+console.log("📍 Environment detected:", {
+  isBrowser,
+  isLocalhost,
+  isVercel,
+  hostname: isBrowser ? window.location.hostname : 'server'
+});
+
+// ========== URL VALIDATION ==========
+const validateAndFixUrl = (url) => {
+  if (!url || url.trim() === "") {
+    return "https://federalpartsphilippines-backend.onrender.com/api";
   }
-
-  return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              {isEditMode ? "Edit Product" : "Create New Product"}
-            </h1>
-            <p className="text-gray-600 mt-2">
-              {isEditMode
-                ? "Update product details below"
-                : "Fill in the details to create a new product"}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => navigate("/admin/products")}
-            className="flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            <X className="h-5 w-5 mr-2" />
-            Cancel
-          </button>
-        </div>
-      </div>
-
-      {/* Image Preview Modal */}
-      {selectedImagePreview && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg max-w-4xl max-h-[90vh] overflow-hidden">
-            <div className="p-4 border-b flex justify-between items-center">
-              <div>
-                <h3 className="font-semibold">{selectedImagePreview.name}</h3>
-                <p className="text-sm text-gray-500">
-                  {selectedImagePreview.isLocal ? 'Local Preview' : 'Server Image'} • Image {selectedImagePreview.index + 1}
-                </p>
-              </div>
-              <button
-                onClick={() => setSelectedImagePreview(null)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-            <div className="p-4 flex items-center justify-center bg-gray-100">
-              <img
-                src={selectedImagePreview.url}
-                alt="Preview"
-                className="max-w-full max-h-[70vh] object-contain"
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = fallbackImage;
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Success and Error Messages */}
-      {success && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center">
-          <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
-          <span className="text-green-700">{success}</span>
-        </div>
-      )}
-
-      {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center">
-          <AlertCircle className="h-5 w-5 text-red-500 mr-2 flex-shrink-0" />
-          <span className="text-red-700">{error}</span>
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} className="space-y-8">
-        {/* Images Section */}
-        <div className="bg-white shadow rounded-lg p-6">
-          <div className="flex items-center mb-6">
-            <ImageIcon className="h-6 w-6 text-gray-500 mr-2" />
-            <h2 className="text-xl font-semibold text-gray-800">
-              Product Images
-            </h2>
-          </div>
-
-          <div className="text-sm text-gray-500 mb-4">
-            {product.images.length}/10 images • {product.images.filter(img => isLocalImage(img)).length} new
-          </div>
-
-          {/* Images Grid */}
-          {product.images.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-6">
-              {product.images.map((img, index) => {
-                const imageUrl = getImageDisplayUrl(img);
-                const isLocal = isLocalImage(img);
-
-                return (
-                  <div key={index} className="relative group">
-                    <div 
-                      className="aspect-square w-full overflow-hidden rounded-lg border border-gray-200 bg-gray-50 cursor-pointer"
-                      onClick={() => showImagePreview(img, index)}
-                    >
-                      <img
-                        src={imageUrl}
-                        alt={`Product ${index + 1}`}
-                        className="h-full w-full object-cover"
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = fallbackImage;
-                        }}
-                      />
-                    </div>
-                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-200 rounded-lg flex items-center justify-center space-x-2 opacity-0 group-hover:opacity-100">
-                      <button
-                        type="button"
-                        onClick={() => showImagePreview(img, index)}
-                        className="p-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors"
-                        title="Preview image"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeImage(index)}
-                        className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-                        title="Remove image"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                      {index > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => reorderImages(index, index - 1)}
-                          className="p-2 bg-gray-700 text-white rounded-full hover:bg-gray-800 transition-colors"
-                          title="Move up"
-                        >
-                          <ChevronUp className="h-4 w-4" />
-                        </button>
-                      )}
-                      {index < product.images.length - 1 && (
-                        <button
-                          type="button"
-                          onClick={() => reorderImages(index, index + 1)}
-                          className="p-2 bg-gray-700 text-white rounded-full hover:bg-gray-800 transition-colors"
-                          title="Move down"
-                        >
-                          <ChevronDown className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
-                    {isLocal && (
-                      <div className="absolute top-2 left-2">
-                        <span className="px-2 py-1 text-xs bg-green-500 text-white rounded-full">
-                          New
-                        </span>
-                      </div>
-                    )}
-                    <div className="absolute bottom-2 left-2 right-2">
-                      <div className="text-xs text-white bg-black bg-opacity-50 px-2 py-1 rounded truncate text-center">
-                        {index + 1}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-
-              {/* Upload Button */}
-              {product.images.length < 10 && (
-                <label className="cursor-pointer">
-                  <div className="aspect-square w-full border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center hover:border-blue-500 hover:bg-blue-50 transition-colors">
-                    {imageUploading ? (
-                      <Loader2 className="h-8 w-8 text-blue-500 mb-2 animate-spin" />
-                    ) : (
-                      <Upload className="h-8 w-8 text-gray-400 mb-2" />
-                    )}
-                    <span className="text-sm text-gray-600">
-                      {imageUploading ? "Uploading..." : "Add Image"}
-                    </span>
-                    <span className="text-xs text-gray-500 mt-1">Max 5MB</span>
-                  </div>
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                    disabled={imageUploading || loading}
-                  />
-                </label>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-12 border-2 border-dashed border-gray-300 rounded-lg mb-6">
-              <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No images uploaded</h3>
-              <p className="text-gray-500 mb-4">
-                Add product images to help customers see what they're buying
-              </p>
-              <label className="cursor-pointer">
-                <div className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload Images
-                </div>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                  disabled={imageUploading || loading}
-                />
-              </label>
-              <p className="text-xs text-gray-500 mt-3">Up to 10 images • Max 5MB each</p>
-            </div>
-          )}
-        </div>
-
-        {/* Basic Information Section */}
-        <div className="bg-white shadow rounded-lg p-6">
-          <div className="flex items-center mb-6">
-            <Package className="h-6 w-6 text-gray-500 mr-2" />
-            <h2 className="text-xl font-semibold text-gray-800">
-              Basic Information
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Product Name *
-              </label>
-              <input
-                type="text"
-                name="name"
-                value={product.name}
-                onChange={handleChange}
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  formErrors.name ? "border-red-500" : "border-gray-300"
-                }`}
-                placeholder="Enter product name"
-              />
-              {formErrors.name && (
-                <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>
-              )}
-            </div>
-
-            {/* Single Category Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Primary Category
-              </label>
-              <select
-                name="category"
-                value={product.category}
-                onChange={handleCategoryChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select a category</option>
-                {categories.map((category) => (
-                  <option key={category._id || category.id} value={category._id || category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-              
-              {/* Add to multiple categories button */}
-              {product.category && !product.categories.includes(product.category) && (
-                <button
-                  type="button"
-                  onClick={addCategory}
-                  className="mt-2 inline-flex items-center gap-1 px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                >
-                  <Plus className="h-3 w-3" />
-                  Add to categories list
-                </button>
-              )}
-            </div>
-
-            {/* Selected Categories Display */}
-            {product.categories.length > 0 && (
-              <div className="md:col-span-2">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Selected Categories ({product.categories.length})
-                  </label>
-                  {product.categories.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={clearAllCategories}
-                      className="text-xs text-red-600 hover:text-red-800"
-                    >
-                      Clear all
-                    </button>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg">
-                  {product.categories.map((categoryId) => {
-                    const categoryName = getCategoryName(categoryId);
-                    return (
-                      <div
-                        key={categoryId}
-                        className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm"
-                      >
-                        <Folder className="h-3 w-3" />
-                        <span>{categoryName}</span>
-                        <button
-                          type="button"
-                          onClick={() => removeCategory(categoryId)}
-                          className="ml-1 text-blue-700 hover:text-red-700 transition-colors"
-                          title={`Remove ${categoryName}`}
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  These categories will be assigned to the product
-                </p>
-              </div>
-            )}
-
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Description *
-              </label>
-              <textarea
-                name="description"
-                value={product.description}
-                onChange={handleChange}
-                rows={4}
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  formErrors.description
-                    ? "border-red-500"
-                    : "border-gray-300"
-                }`}
-                placeholder="Enter product description"
-              />
-              {formErrors.description && (
-                <p className="mt-1 text-sm text-red-600">
-                  {formErrors.description}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Pricing & Inventory Section */}
-        <div className="bg-white shadow rounded-lg p-6">
-          <div className="flex items-center mb-6">
-            <Tag className="h-6 w-6 text-gray-500 mr-2" />
-            <h2 className="text-xl font-semibold text-gray-800">
-              Pricing & Inventory
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Price (PHP) *
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                  ₱
-                </span>
-                <input
-                  type="number"
-                  name="price"
-                  value={product.price}
-                  onChange={handleNumberChange}
-                  step="0.01"
-                  min="0"
-                  className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                    formErrors.price ? "border-red-500" : "border-gray-300"
-                  }`}
-                  placeholder="0.00"
-                />
-              </div>
-              {formErrors.price && (
-                <p className="mt-1 text-sm text-red-600">{formErrors.price}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Stock
-              </label>
-              <div className="relative">
-                <Hash className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  type="number"
-                  name="stock"
-                  value={product.stock}
-                  onChange={handleNumberChange}
-                  min="0"
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="0"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                SKU
-              </label>
-              <input
-                type="text"
-                name="sku"
-                value={product.sku}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="SKU-001"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Specifications Section */}
-        <div className="bg-white shadow rounded-lg p-6">
-          <div className="flex items-center mb-6">
-            <Ruler className="h-6 w-6 text-gray-500 mr-2" />
-            <h2 className="text-xl font-semibold text-gray-800">
-              Specifications
-            </h2>
-          </div>
-
-          {/* Add Specification Form */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div>
-              <input
-                type="text"
-                value={newSpec.key}
-                onChange={(e) =>
-                  setNewSpec({ ...newSpec, key: e.target.value })
-                }
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Specification name (e.g., Color)"
-              />
-            </div>
-            <div>
-              <input
-                type="text"
-                value={newSpec.value}
-                onChange={(e) =>
-                  setNewSpec({ ...newSpec, value: e.target.value })
-                }
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Value (e.g., Red)"
-              />
-            </div>
-            <div>
-              <button
-                type="button"
-                onClick={addSpecification}
-                className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                disabled={!newSpec.key.trim() || !newSpec.value.trim()}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Specification
-              </button>
-            </div>
-          </div>
-
-          {/* Specifications List */}
-          {product.specifications.length > 0 ? (
-            <div className="space-y-3">
-              {product.specifications.map((spec, index) => (
-                <div
-                  key={index}
-                  className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg"
-                >
-                  <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <input
-                        type="text"
-                        value={spec.key}
-                        onChange={(e) =>
-                          updateSpecification(index, "key", e.target.value)
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                        placeholder="Key"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <input
-                        type="text"
-                        value={spec.value}
-                        onChange={(e) =>
-                          updateSpecification(index, "value", e.target.value)
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                        placeholder="Value"
-                      />
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeSpecification(index)}
-                    className="p-1 text-red-500 hover:text-red-700"
-                    title="Remove"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              <p>No specifications added yet.</p>
-              <p className="text-sm mt-1">
-                Add specifications like color, size, material, etc. (Optional)
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Additional Details Section */}
-        <div className="bg-white shadow rounded-lg p-6">
-          <div className="flex items-center mb-6">
-            <Weight className="h-6 w-6 text-gray-500 mr-2" />
-            <h2 className="text-xl font-semibold text-gray-800">
-              Additional Details
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Weight
-              </label>
-              <input
-                type="text"
-                name="weight"
-                value={product.weight}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="e.g., 1.5 kg"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Dimensions
-              </label>
-              <input
-                type="text"
-                name="dimensions"
-                value={product.dimensions}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="e.g., 10x20x30 cm"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Status & Actions Section */}
-        <div className="bg-white shadow rounded-lg p-6">
-          <div className="flex items-center mb-6">
-            <Star className="h-6 w-6 text-gray-500 mr-2" />
-            <h2 className="text-xl font-semibold text-gray-800">
-              Status & Actions
-            </h2>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-6">
-            <div className="space-y-4">
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="featured"
-                  name="featured"
-                  checked={product.featured}
-                  onChange={handleChange}
-                  className="h-4 w-4 text-blue-600 rounded focus:ring-blue-500"
-                />
-                <label htmlFor="featured" className="ml-2 text-gray-700">
-                  Mark as featured product
-                </label>
-              </div>
-
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="isActive"
-                  name="isActive"
-                  checked={product.isActive}
-                  onChange={handleChange}
-                  className="h-4 w-4 text-blue-600 rounded focus:ring-blue-500"
-                />
-                <label htmlFor="isActive" className="ml-2 text-gray-700">
-                  Product is active
-                </label>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-4">
-              <button
-                type="button"
-                onClick={() => navigate("/admin/products")}
-                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                disabled={loading}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={loading || imageUploading}
-                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    {isEditMode ? "Update Product" : "Create Product"}
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      </form>
-    </div>
-  );
+  
+  if (url.includes('/api/api')) {
+    url = url.replace('/api/api', '/api');
+  }
+  
+  if (!url.endsWith('/api')) {
+    url = url.endsWith('/') ? `${url}api` : `${url}/api`;
+  }
+  
+  return url;
 };
 
-export default ProductForm;
+const validatedApiUrl = validateAndFixUrl(API_BASE_URL);
+console.log("🌐 Final API URL:", validatedApiUrl);
+
+// ========== AXIOS INSTANCE ==========
+const API = axios.create({
+  baseURL: validatedApiUrl,
+  headers: {
+    "Content-Type": "application/json",
+    "Accept": "application/json",
+  },
+  timeout: 30000,
+  withCredentials: false,
+});
+
+// ========== REQUEST INTERCEPTOR ==========
+API.interceptors.request.use(
+  (config) => {
+    if (isBrowser) {
+      try {
+        const token = authService?.getToken?.();
+        if (token && token.trim() !== "") {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+      } catch (error) {
+        console.warn("❌ Error getting auth token:", error);
+      }
+
+      if (config.method === "get") {
+        config.headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+        config.headers["Pragma"] = "no-cache";
+        config.headers["Expires"] = "0";
+        
+        // Add cache busting for image requests
+        if (config.url && (config.url.includes('/products') || config.url.includes('/categories'))) {
+          if (!config.params) {
+            config.params = { _t: Date.now() };
+          } else {
+            config.params._t = Date.now();
+          }
+        }
+      }
+
+      if (config.data instanceof FormData) {
+        delete config.headers["Content-Type"];
+      }
+    }
+    
+    console.log(`➡️ ${config.method?.toUpperCase()} ${config.url}`, 
+      config.data instanceof FormData ? "[FormData]" : 
+      config.method === "get" ? config.params : 
+      config.data ? "[Data]" : "");
+    
+    return config;
+  },
+  (error) => {
+    console.error("❌ Request interceptor error:", error);
+    return Promise.reject(error);
+  }
+);
+
+// ========== RESPONSE INTERCEPTOR ==========
+API.interceptors.response.use(
+  (response) => {
+    console.log(`✅ ${response.status} ${response.config.url}`);
+    
+    if (response && response.data) {
+      if (response.data.success !== undefined || response.data.data || response.data.error) {
+        return response.data;
+      }
+      return {
+        success: true,
+        data: response.data,
+        status: response.status,
+      };
+    }
+    return response;
+  },
+  (error) => {
+    console.error("❌ API Error:", {
+      message: error.message,
+      code: error.code,
+      status: error.response?.status,
+      url: error.config?.url,
+      method: error.config?.method,
+      data: error.response?.data
+    });
+
+    if (error.code === "ECONNABORTED") {
+      return Promise.reject({
+        success: false,
+        message: "Request timeout. Please try again.",
+        status: 408,
+      });
+    }
+
+    if (error.code === "ERR_NETWORK" || error.message === "Network Error") {
+      console.error("🌐 Network error detected!");
+      console.error("Backend URL:", validatedApiUrl);
+      
+      return Promise.reject({
+        success: false,
+        message: "Cannot connect to server. Please check your internet connection and try again.",
+        details: `Failed to connect to: ${validatedApiUrl.replace('/api', '')}`,
+        status: 0,
+      });
+    }
+
+    if (error.message && error.message.includes("CORS")) {
+      return Promise.reject({
+        success: false,
+        message: "CORS error. Please check backend CORS configuration.",
+        details: "Backend needs to allow requests from your domain.",
+        status: 0,
+      });
+    }
+
+    if (error.response) {
+      const { status, data } = error.response;
+
+      if (status === 401 && isBrowser) {
+        try {
+          authService?.logout?.();
+          if (!window.location.pathname.includes("/login")) {
+            sessionStorage.setItem("redirectAfterLogin", window.location.pathname);
+            window.location.href = "/login";
+          }
+        } catch (authError) {
+          console.warn("Auth logout error:", authError);
+        }
+      }
+
+      if (status === 403) {
+        return Promise.reject({
+          success: false,
+          message: "You don't have permission to perform this action.",
+          status: 403,
+        });
+      }
+
+      if (status === 404) {
+        return Promise.reject({
+          success: false,
+          message: data?.message || "Resource not found",
+          status: 404,
+        });
+      }
+
+      if (status === 400) {
+        let errorMessage = data?.message || "Bad request";
+        if (data?.errors) {
+          if (Array.isArray(data.errors)) {
+            errorMessage = data.errors.map(err => err.msg || err.message).join(", ");
+          } else if (typeof data.errors === 'object') {
+            errorMessage = Object.values(data.errors).map(err => err.message || err).join(", ");
+          }
+        } else if (data?.error) {
+          errorMessage = data.error;
+        }
+        
+        return Promise.reject({
+          success: false,
+          message: errorMessage,
+          data: data,
+          status: 400,
+        });
+      }
+
+      if (status === 429) {
+        return Promise.reject({
+          success: false,
+          message: "Too many requests. Please try again later.",
+          status: 429,
+        });
+      }
+
+      if (status >= 500) {
+        return Promise.reject({
+          success: false,
+          message: "Server error. Please try again later.",
+          status: status,
+        });
+      }
+
+      return Promise.reject({
+        success: false,
+        message: data?.message || `Error ${status}`,
+        data: data,
+        status: status,
+      });
+    }
+
+    return Promise.reject({
+      success: false,
+      message: error.message || "An unexpected error occurred",
+      status: -1,
+    });
+  }
+);
+
+// ========== ULTIMATE IMAGE URL HELPER FOR VERCEL ==========
+export const getImageUrl = (imagePath, type = "products") => {
+  // NULL CHECKS
+  if (!imagePath || 
+      imagePath === "undefined" || 
+      imagePath === "null" || 
+      imagePath === "" || 
+      imagePath.trim() === "") {
+    console.warn(`❌ Empty image path for ${type}`);
+    return "/placeholder-image.jpg";
+  }
+
+  // If it's already a valid URL (http, https, data, blob), return as-is
+  if (
+    typeof imagePath === "string" &&
+    (imagePath.startsWith("http://") || 
+     imagePath.startsWith("https://") ||
+     imagePath.startsWith("blob:") || 
+     imagePath.startsWith("data:"))
+  ) {
+    console.log(`✅ Already full URL: ${imagePath}`);
+    return imagePath;
+  }
+
+  // Handle placeholder images
+  if (imagePath.includes('placeholder')) {
+    console.log(`⚠️ Placeholder detected: ${imagePath}`);
+    return "/placeholder-image.jpg";
+  }
+
+  // Clean the filename
+  let filename = imagePath;
+  
+  // Remove query parameters
+  if (filename.includes('?')) {
+    filename = filename.split('?')[0];
+  }
+  
+  // Extract just the filename from path
+  if (filename.includes("/")) {
+    filename = filename.substring(filename.lastIndexOf("/") + 1);
+  }
+  
+  // Decode URL encoding
+  filename = decodeURIComponent(filename);
+
+  // Handle empty filename after cleaning
+  if (!filename || filename.trim() === "") {
+    console.warn(`❌ Empty filename after cleaning for: ${imagePath}`);
+    return "/placeholder-image.jpg";
+  }
+
+  // ====== GENERATE ALL POSSIBLE URLS ======
+  const possibleUrls = [];
+  
+  // 1. Direct backend URL (MOST RELIABLE FOR VERCEL)
+  possibleUrls.push(`https://federalpartsphilippines-backend.onrender.com/uploads/${type}/${filename}`);
+  
+  // 2. Without type directory
+  possibleUrls.push(`https://federalpartsphilippines-backend.onrender.com/uploads/${filename}`);
+  
+  // 3. Try with environment variable base URL
+  if (IMAGE_BASE_URL && IMAGE_BASE_URL !== "undefined") {
+    possibleUrls.push(`${IMAGE_BASE_URL}/uploads/${type}/${filename}`);
+    possibleUrls.push(`${IMAGE_BASE_URL}/uploads/${filename}`);
+  }
+  
+  // 4. Try with API base URL converted
+  const apiBaseWithoutApi = validatedApiUrl.replace('/api', '');
+  possibleUrls.push(`${apiBaseWithoutApi}/uploads/${type}/${filename}`);
+  possibleUrls.push(`${apiBaseWithoutApi}/uploads/${filename}`);
+  
+  // 5. For localhost development
+  if (isLocalhost) {
+    possibleUrls.push(`http://localhost:5000/uploads/${type}/${filename}`);
+    possibleUrls.push(`http://localhost:5000/uploads/${filename}`);
+  }
+  
+  // 6. Try just the filename (in case it's already a full path from backend)
+  if (imagePath.startsWith('/uploads/')) {
+    possibleUrls.push(`https://federalpartsphilippines-backend.onrender.com${imagePath}`);
+  }
+  
+  // Return the first URL from the prioritized list
+  const finalUrl = possibleUrls[0];
+  console.log(`🖼️ Image URL generated for "${filename}":`, finalUrl);
+  console.log(`📊 Total alternatives: ${possibleUrls.length}`);
+  
+  return finalUrl;
+};
+
+// ========== SMART IMAGE LOADER WITH FALLBACK ==========
+export const loadImageWithFallback = async (imagePath, type = "products", fallbacks = []) => {
+  if (!imagePath) {
+    return "/placeholder-image.jpg";
+  }
+
+  // If it's already a full URL, use it
+  if (imagePath.startsWith('http') || imagePath.startsWith('data:')) {
+    return imagePath;
+  }
+
+  // Generate primary URL
+  const primaryUrl = getImageUrl(imagePath, type);
+  
+  // Create list of URLs to try
+  const urlsToTry = [primaryUrl];
+  
+  // Add user-provided fallbacks
+  if (Array.isArray(fallbacks)) {
+    urlsToTry.push(...fallbacks);
+  }
+  
+  // Add automatic fallbacks
+  const filename = extractFilename(imagePath);
+  urlsToTry.push(
+    `https://federalpartsphilippines-backend.onrender.com/uploads/${filename}`,
+    `https://federalpartsphilippines-backend.onrender.com/uploads/${type}/${filename}`
+  );
+  
+  // Remove duplicates
+  const uniqueUrls = [...new Set(urlsToTry.filter(url => url && url !== "/placeholder-image.jpg"))];
+  
+  console.log(`🔄 Testing ${uniqueUrls.length} image URLs for "${filename}"`);
+  
+  // Try each URL in sequence
+  for (let i = 0; i < uniqueUrls.length; i++) {
+    const url = uniqueUrls[i];
+    try {
+      const isValid = await testImageUrl(url);
+      if (isValid) {
+        console.log(`✅ Image found at: ${url}`);
+        return url;
+      }
+    } catch (error) {
+      console.log(`❌ URL failed: ${url} - ${error.message}`);
+    }
+  }
+  
+  // All URLs failed, return placeholder
+  console.warn(`⚠️ All image URLs failed for "${filename}", using placeholder`);
+  return "/placeholder-image.jpg";
+};
+
+// Helper function to test if an image URL is valid
+const testImageUrl = (url) => {
+  return new Promise((resolve, reject) => {
+    if (!url || url === "/placeholder-image.jpg") {
+      resolve(false);
+      return;
+    }
+    
+    const img = new Image();
+    img.onload = () => resolve(true);
+    img.onerror = () => resolve(false);
+    img.src = url;
+    
+    // Timeout after 3 seconds
+    setTimeout(() => resolve(false), 3000);
+  });
+};
+
+// Helper function to extract filename
+const extractFilename = (path) => {
+  if (!path) return '';
+  if (path.includes('/')) {
+    return path.substring(path.lastIndexOf('/') + 1);
+  }
+  return path;
+};
+
+// ========== SAFE IMAGE URL ==========
+export const getSafeImageUrl = (imagePath, type = "products", fallback = "/placeholder-image.jpg") => {
+  const url = getImageUrl(imagePath, type);
+  return url || fallback;
+};
+
+// ========== PROCESSING HELPERS ==========
+const processProductImages = async (product) => {
+  if (!product) return product;
+  
+  const productObj = { ...product };
+  
+  // Ensure images array exists
+  if (!Array.isArray(productObj.images)) {
+    if (productObj.image) {
+      productObj.images = [productObj.image];
+    } else if (productObj.imageUrl) {
+      productObj.images = [productObj.imageUrl];
+    } else {
+      productObj.images = [];
+    }
+  }
+  
+  // Process each image - convert to proper URLs
+  const processedImages = [];
+  for (const img of productObj.images) {
+    if (img && img.trim() !== "") {
+      const imgUrl = getImageUrl(img, "products");
+      if (imgUrl && imgUrl !== "/placeholder-image.jpg") {
+        processedImages.push(imgUrl);
+      }
+    }
+  }
+  
+  productObj.images = processedImages;
+  
+  // Set main image if available
+  if (productObj.images.length > 0 && !productObj.image) {
+    productObj.image = productObj.images[0];
+  } else if (!productObj.image && productObj.images.length === 0) {
+    productObj.image = "/placeholder-image.jpg";
+  }
+  
+  console.log(`🖼️ Processed product "${productObj.name || productObj._id}":`, {
+    originalCount: product.images?.length || 0,
+    processedCount: productObj.images.length,
+    mainImage: productObj.image
+  });
+  
+  return productObj;
+};
+
+const processCategoryImage = (category) => {
+  if (!category) return category;
+  
+  const categoryObj = { ...category };
+  
+  // Process main image
+  if (categoryObj.image && categoryObj.image.trim() !== "") {
+    categoryObj.image = getImageUrl(categoryObj.image, "categories");
+  } else {
+    categoryObj.image = "/placeholder-image.jpg";
+  }
+  
+  // Process imageUrl if exists
+  if (categoryObj.imageUrl && categoryObj.imageUrl.trim() !== "") {
+    categoryObj.imageUrl = getImageUrl(categoryObj.imageUrl, "categories");
+  }
+  
+  console.log(`📁 Processed category "${categoryObj.name || categoryObj._id}":`, {
+    originalImage: category.image,
+    processedImage: categoryObj.image
+  });
+  
+  return categoryObj;
+};
+
+// ========== UPLOAD UTILITIES ==========
+export const uploadImage = async (file, type = "category") => {
+  try {
+    console.log(`📤 Uploading ${type} image:`, file.name);
+    
+    if (!file) {
+      return {
+        success: false,
+        message: "No file provided"
+      };
+    }
+
+    const formData = new FormData();
+    formData.append("image", file);
+    
+    const endpoint = type === "category" ? "/upload/category" : "/upload";
+    
+    const response = await API.post(endpoint, formData);
+
+    console.log("📤 Upload response:", response);
+    
+    // Ensure the returned image URL is fully qualified
+    if (response.success && response.image && response.image.url) {
+      const imageUrl = response.image.url;
+      if (!imageUrl.startsWith('http')) {
+        // Convert to full URL
+        response.image.fullUrl = `https://federalpartsphilippines-backend.onrender.com${imageUrl}`;
+      }
+    }
+    
+    return response;
+  } catch (error) {
+    console.error("❌ Error uploading image:", error);
+    return {
+      success: false,
+      message: error.message || "Failed to upload image",
+      error: error
+    };
+  }
+};
+
+export const uploadBase64Image = async (base64Data, type = "product") => {
+  try {
+    console.log(`📤 Uploading base64 ${type} image`);
+    
+    if (!base64Data || !base64Data.startsWith("data:image/")) {
+      return {
+        success: false,
+        message: "Invalid base64 image data"
+      };
+    }
+
+    const response = await API.post("/upload/base64", {
+      image: base64Data,
+      type: type
+    });
+
+    // Ensure the returned image URL is fully qualified
+    if (response.success && response.image && response.image.url) {
+      const imageUrl = response.image.url;
+      if (!imageUrl.startsWith('http')) {
+        // Convert to full URL
+        response.image.fullUrl = `https://federalpartsphilippines-backend.onrender.com${imageUrl}`;
+      }
+    }
+
+    return response;
+  } catch (error) {
+    console.error("❌ Error uploading base64 image:", error);
+    return {
+      success: false,
+      message: error.message || "Failed to upload base64 image",
+      error: error
+    };
+  }
+};
+
+// ========== CATEGORY API ==========
+export const categoryAPI = {
+  getAllCategories: async (params = {}) => {
+    try {
+      console.log("📁 Fetching categories with params:", params);
+      const response = await API.get("/categories", { params });
+      
+      if (response.success && response.categories) {
+        const processedCategories = response.categories.map(category => 
+          processCategoryImage(category)
+        );
+        
+        return {
+          ...response,
+          categories: processedCategories
+        };
+      }
+      
+      return response;
+    } catch (error) {
+      console.error("❌ Error fetching categories:", error);
+      return {
+        success: false,
+        message: error.message || "Failed to fetch categories",
+        categories: []
+      };
+    }
+  },
+
+  getAll: async (params = {}) => {
+    return categoryAPI.getAllCategories(params);
+  },
+
+  getCategoryById: async (id) => {
+    try {
+      console.log(`📁 Fetching category ${id}`);
+      const response = await API.get(`/categories/${id}`);
+      
+      if (response.success && response.category) {
+        response.category = processCategoryImage(response.category);
+      }
+      
+      return response;
+    } catch (error) {
+      console.error(`❌ Error fetching category ${id}:`, error);
+      return {
+        success: false,
+        message: error.message || "Failed to fetch category",
+        category: null
+      };
+    }
+  },
+
+  createCategory: async (categoryData) => {
+    try {
+      console.log("➕ Creating category:", categoryData);
+      
+      const formData = new FormData();
+      
+      formData.append('name', categoryData.name || '');
+      formData.append('description', categoryData.description || '');
+      formData.append('seoTitle', categoryData.seoTitle || '');
+      formData.append('seoDescription', categoryData.seoDescription || '');
+      formData.append('seoKeywords', categoryData.seoKeywords || '');
+      formData.append('order', categoryData.order?.toString() || '0');
+      formData.append('isActive', categoryData.isActive?.toString() || 'true');
+      
+      if (categoryData.parentCategory) {
+        formData.append('parentCategory', categoryData.parentCategory);
+      }
+      
+      if (categoryData.image instanceof File) {
+        formData.append('image', categoryData.image);
+      } else if (categoryData.image && categoryData.image.startsWith('data:image/')) {
+        const uploadResponse = await uploadBase64Image(categoryData.image, 'category');
+        if (uploadResponse.success) {
+          formData.append('imageUrl', uploadResponse.image?.url || '');
+        }
+      }
+      
+      const response = await API.post("/categories", formData);
+      
+      console.log("✅ Create category response:", response);
+      
+      if (response.success && response.category) {
+        response.category = processCategoryImage(response.category);
+      }
+      
+      return response;
+    } catch (error) {
+      console.error("❌ Error creating category:", error);
+      return {
+        success: false,
+        message: error.message || "Failed to create category",
+        category: null,
+        error: error
+      };
+    }
+  },
+
+  updateCategory: async (id, categoryData) => {
+    try {
+      console.log(`✏️ Updating category ${id}:`, categoryData);
+      
+      const formData = new FormData();
+      
+      formData.append('name', categoryData.name || '');
+      formData.append('description', categoryData.description || '');
+      formData.append('seoTitle', categoryData.seoTitle || '');
+      formData.append('seoDescription', categoryData.seoDescription || '');
+      formData.append('seoKeywords', categoryData.seoKeywords || '');
+      formData.append('order', categoryData.order?.toString() || '0');
+      formData.append('isActive', categoryData.isActive?.toString() || 'true');
+      
+      if (categoryData.parentCategory) {
+        formData.append('parentCategory', categoryData.parentCategory);
+      } else {
+        formData.append('parentCategory', '');
+      }
+      
+      if (categoryData.image instanceof File) {
+        formData.append('image', categoryData.image);
+      } else if (categoryData.image === '' || categoryData.image === null) {
+        formData.append('removeImage', 'true');
+      } else if (categoryData.image && categoryData.image.startsWith('data:image/')) {
+        const uploadResponse = await uploadBase64Image(categoryData.image, 'category');
+        if (uploadResponse.success) {
+          formData.append('imageUrl', uploadResponse.image?.url || '');
+        }
+      }
+      
+      const response = await API.put(`/categories/${id}`, formData);
+      
+      console.log("✅ Update category response:", response);
+      
+      if (response.success && response.category) {
+        response.category = processCategoryImage(response.category);
+      }
+      
+      return response;
+    } catch (error) {
+      console.error(`❌ Error updating category ${id}:`, error);
+      console.error("Error details:", error.response?.data);
+      return {
+        success: false,
+        message: error.message || "Failed to update category",
+        category: null,
+        error: error
+      };
+    }
+  },
+
+  deleteCategory: async (id) => {
+    try {
+      console.log(`🗑️ Deleting category ${id}`);
+      const response = await API.delete(`/categories/${id}`);
+      return response;
+    } catch (error) {
+      console.error(`❌ Error deleting category ${id}:`, error);
+      return {
+        success: false,
+        message: error.message || "Failed to delete category"
+      };
+    }
+  },
+
+  updateCategoryProductCounts: async () => {
+    try {
+      console.log("🔄 Updating category product counts...");
+      const response = await API.post("/admin/categories/update-counts");
+      return response;
+    } catch (error) {
+      console.error("❌ Error updating category product counts:", error);
+      return {
+        success: false,
+        message: error.message || "Failed to update category product counts"
+      };
+    }
+  },
+};
+
+// ========== PRODUCT API ==========
+export const productAPI = {
+  getAllProducts: async (params = {}) => {
+    try {
+      console.log("📦 Fetching products with params:", params);
+      const response = await API.get("/products", { params });
+      
+      if (response.success && response.products) {
+        // Process images for each product
+        const processedProducts = [];
+        for (const product of response.products) {
+          const processedProduct = await processProductImages(product);
+          processedProducts.push(processedProduct);
+        }
+        
+        return {
+          ...response,
+          products: processedProducts
+        };
+      }
+      
+      return response;
+    } catch (error) {
+      console.error("❌ Error fetching products:", error);
+      return {
+        success: false,
+        message: error.message || "Failed to fetch products",
+        products: [],
+        total: 0,
+        totalPages: 0
+      };
+    }
+  },
+
+  getAll: async (params = {}) => {
+    return productAPI.getAllProducts(params);
+  },
+
+  getProductById: async (id) => {
+    try {
+      console.log(`📦 Fetching product ${id}`);
+      const response = await API.get(`/products/${id}`);
+      
+      if (response.success && response.product) {
+        response.product = await processProductImages(response.product);
+      }
+      
+      return response;
+    } catch (error) {
+      console.error(`❌ Error fetching product ${id}:`, error);
+      return {
+        success: false,
+        message: error.message || "Failed to fetch product",
+        product: null
+      };
+    }
+  },
+
+  createProduct: async (productData) => {
+    try {
+      console.log("➕ Creating product:", productData);
+      
+      // Prepare the data to send
+      const dataToSend = {
+        name: productData.name || '',
+        description: productData.description || '',
+        price: productData.price || 0,
+        stock: productData.stock || 0,
+        sku: productData.sku || '',
+        weight: productData.weight || '',
+        dimensions: productData.dimensions || '',
+        featured: productData.featured || false,
+        isActive: productData.isActive !== undefined ? productData.isActive : true,
+        specifications: productData.specifications || {},
+      };
+
+      // Add category if provided
+      if (productData.category && productData.category.trim() !== '') {
+        dataToSend.category = productData.category;
+      }
+
+      // Handle images - send base64 images directly
+      if (productData.images && Array.isArray(productData.images)) {
+        dataToSend.images = productData.images;
+      }
+
+      console.log("📤 Sending product data:", dataToSend);
+      
+      const response = await API.post("/admin/products", dataToSend);
+      
+      if (response.success && response.product) {
+        response.product = await processProductImages(response.product);
+      }
+      
+      return response;
+    } catch (error) {
+      console.error("❌ Error creating product:", error);
+      return {
+        success: false,
+        message: error.message || "Failed to create product",
+        product: null,
+        error: error
+      };
+    }
+  },
+
+  updateProduct: async (id, productData) => {
+    try {
+      console.log(`✏️ Updating product ${id}:`, productData);
+      
+      // Prepare the data to send
+      const dataToSend = {
+        name: productData.name || '',
+        description: productData.description || '',
+        price: productData.price || 0,
+        stock: productData.stock || 0,
+        sku: productData.sku || '',
+        weight: productData.weight || '',
+        dimensions: productData.dimensions || '',
+        featured: productData.featured || false,
+        isActive: productData.isActive !== undefined ? productData.isActive : true,
+        specifications: productData.specifications || {},
+      };
+
+      // Add category if provided
+      if (productData.category && productData.category.trim() !== '') {
+        dataToSend.category = productData.category;
+      }
+
+      // Handle images - send base64 images directly
+      if (productData.images && Array.isArray(productData.images)) {
+        dataToSend.images = productData.images;
+      }
+
+      console.log("📤 Sending update data:", dataToSend);
+      
+      const response = await API.put(`/admin/products/${id}`, dataToSend);
+      
+      if (response.success && response.product) {
+        response.product = await processProductImages(response.product);
+      }
+      
+      return response;
+    } catch (error) {
+      console.error(`❌ Error updating product ${id}:`, error);
+      return {
+        success: false,
+        message: error.message || "Failed to update product",
+        product: null,
+        error: error
+      };
+    }
+  },
+
+  deleteProduct: async (id) => {
+    try {
+      console.log(`🗑️ Deleting product ${id}`);
+      const response = await API.delete(`/admin/products/${id}`);
+      return response;
+    } catch (error) {
+      console.error(`❌ Error deleting product ${id}:`, error);
+      return {
+        success: false,
+        message: error.message || "Failed to delete product"
+      };
+    }
+  },
+
+  searchProducts: async (query, params = {}) => {
+    try {
+      const response = await API.get("/products", {
+        params: { search: query, ...params }
+      });
+      
+      if (response.success && response.products) {
+        const processedProducts = [];
+        for (const product of response.products) {
+          const processedProduct = await processProductImages(product);
+          processedProducts.push(processedProduct);
+        }
+        response.products = processedProducts;
+      }
+      
+      return response;
+    } catch (error) {
+      console.error("❌ Error searching products:", error);
+      return {
+        success: false,
+        message: error.message || "Failed to search products",
+        products: [],
+        total: 0
+      };
+    }
+  },
+
+  getProductsByCategory: async (categoryId, params = {}) => {
+    try {
+      const response = await API.get("/products", {
+        params: { category: categoryId, ...params }
+      });
+      
+      if (response.success && response.products) {
+        const processedProducts = [];
+        for (const product of response.products) {
+          const processedProduct = await processProductImages(product);
+          processedProducts.push(processedProduct);
+        }
+        response.products = processedProducts;
+      }
+      
+      return response;
+    } catch (error) {
+      console.error(`❌ Error fetching products by category ${categoryId}:`, error);
+      return {
+        success: false,
+        message: error.message || "Failed to fetch products by category",
+        products: [],
+        total: 0
+      };
+    }
+  },
+
+  uploadProductImage: async (imageFile, productId = null) => {
+    try {
+      console.log(`📸 Uploading product image${productId ? ` for product ${productId}` : ''}`);
+      
+      if (!imageFile) {
+        return {
+          success: false,
+          message: "No image file provided"
+        };
+      }
+      
+      const formData = new FormData();
+      formData.append('image', imageFile);
+      if (productId) {
+        formData.append('productId', productId);
+      }
+      
+      const response = await API.post("/upload", formData);
+      
+      // Ensure the returned URL is fully qualified for Vercel
+      if (response.success && response.image && response.image.url) {
+        const imageUrl = response.image.url;
+        if (!imageUrl.startsWith('http')) {
+          response.image.fullUrl = `https://federalpartsphilippines-backend.onrender.com${imageUrl}`;
+        }
+      }
+      
+      return response;
+    } catch (error) {
+      console.error("❌ Error uploading product image:", error);
+      return {
+        success: false,
+        message: error.message || "Failed to upload product image",
+        image: null
+      };
+    }
+  },
+};
+
+// ========== OTHER API MODULES ==========
+export const authAPI = {
+  login: (credentials) => API.post("/auth/login", credentials),
+  register: (userData) => API.post("/auth/register", userData),
+  logout: () => API.post("/auth/logout"),
+  refreshToken: () => API.post("/auth/refresh-token"),
+  getCurrentUser: () => API.get("/auth/me"),
+  updateProfile: (userData) => API.put("/auth/profile", userData),
+  changePassword: (passwordData) => API.put("/auth/change-password", passwordData),
+  forgotPassword: (email) => API.post("/auth/forgot-password", { email }),
+  resetPassword: (token, passwordData) => 
+    API.post(`/auth/reset-password/${token}`, passwordData),
+  verifyEmail: (token) => API.post(`/auth/verify-email/${token}`),
+  resendVerificationEmail: (email) => 
+    API.post("/auth/resend-verification", { email }),
+};
+
+export const cartAPI = {
+  getCart: () => {
+    if (isBrowser) {
+      try {
+        const cart = localStorage.getItem('cart');
+        return cart ? JSON.parse(cart) : { items: [], total: 0, count: 0 };
+      } catch (error) {
+        console.error("Error parsing cart from localStorage:", error);
+        return { items: [], total: 0, count: 0 };
+      }
+    }
+    return { items: [], total: 0, count: 0 };
+  },
+  
+  addToCart: (product, quantity = 1) => {
+    if (!isBrowser) return { success: false, message: "Not in browser" };
+    
+    try {
+      const cart = cartAPI.getCart();
+      const existingIndex = cart.items.findIndex(item => item.product._id === product._id);
+      
+      if (existingIndex >= 0) {
+        cart.items[existingIndex].quantity += quantity;
+      } else {
+        cart.items.push({
+          product: {
+            _id: product._id,
+            name: product.name,
+            price: product.price,
+            discountedPrice: product.discountedPrice,
+            images: product.images || [],
+            stock: product.stock || 0
+          },
+          quantity: quantity
+        });
+      }
+      
+      cart.total = cart.items.reduce((sum, item) => {
+        const price = item.product.discountedPrice || item.product.price;
+        return sum + (price * item.quantity);
+      }, 0);
+      
+      cart.count = cart.items.reduce((sum, item) => sum + item.quantity, 0);
+      
+      localStorage.setItem('cart', JSON.stringify(cart));
+      
+      return {
+        success: true,
+        cart,
+        message: "Product added to cart"
+      };
+    } catch (error) {
+      console.error("❌ Error adding to cart:", error);
+      return {
+        success: false,
+        message: error.message || "Failed to add to cart"
+      };
+    }
+  },
+  
+  updateCartItem: (productId, quantity) => {
+    if (!isBrowser) return { success: false, message: "Not in browser" };
+    
+    try {
+      const cart = cartAPI.getCart();
+      const itemIndex = cart.items.findIndex(item => item.product._id === productId);
+      
+      if (itemIndex >= 0) {
+        if (quantity <= 0) {
+          cart.items.splice(itemIndex, 1);
+        } else {
+          cart.items[itemIndex].quantity = quantity;
+        }
+        
+        cart.total = cart.items.reduce((sum, item) => {
+          const price = item.product.discountedPrice || item.product.price;
+          return sum + (price * item.quantity);
+        }, 0);
+        
+        cart.count = cart.items.reduce((sum, item) => sum + item.quantity, 0);
+        
+        localStorage.setItem('cart', JSON.stringify(cart));
+        
+        return {
+          success: true,
+          cart,
+          message: "Cart updated"
+        };
+      }
+      
+      return {
+        success: false,
+        message: "Product not found in cart"
+      };
+    } catch (error) {
+      console.error("❌ Error updating cart:", error);
+      return {
+        success: false,
+        message: error.message || "Failed to update cart"
+      };
+    }
+  },
+  
+  removeFromCart: (productId) => {
+    return cartAPI.updateCartItem(productId, 0);
+  },
+  
+  clearCart: () => {
+    if (!isBrowser) return { success: false, message: "Not in browser" };
+    
+    try {
+      localStorage.setItem('cart', JSON.stringify({ items: [], total: 0, count: 0 }));
+      return {
+        success: true,
+        message: "Cart cleared"
+      };
+    } catch (error) {
+      console.error("❌ Error clearing cart:", error);
+      return {
+        success: false,
+        message: error.message || "Failed to clear cart"
+      };
+    }
+  },
+  
+  getCartCount: () => {
+    const cart = cartAPI.getCart();
+    return cart.count || 0;
+  }
+};
+
+export const dashboardAPI = {
+  getOverviewStats: async () => {
+    try {
+      const productsResponse = await productAPI.getAllProducts({ limit: 1 });
+      const totalProducts = productsResponse.total || 0;
+      
+      const lowStockResponse = await productAPI.getAllProducts({ 
+        inStock: true,
+        maxStock: 10
+      });
+      const lowStockProducts = lowStockResponse.products?.length || 0;
+      
+      const categoryResponse = await categoryAPI.getAllCategories();
+      const totalCategories = categoryResponse.categories?.length || 0;
+      
+      const allProducts = await productAPI.getAllProducts({ limit: 1000 });
+      let totalValue = 0;
+      if (allProducts.products) {
+        totalValue = allProducts.products.reduce((sum, product) => {
+          const price = product.discountedPrice || product.price || 0;
+          const stock = product.stock || 0;
+          return sum + (price * stock);
+        }, 0);
+      }
+      
+      return {
+        success: true,
+        stats: {
+          products: {
+            total: totalProducts,
+            inStock: totalProducts - (lowStockProducts || 0),
+            lowStock: lowStockProducts,
+          },
+          orders: {
+            totalOrders: 0,
+            pendingOrders: 0,
+            completedOrders: 0,
+            cancelledOrders: 0,
+            totalRevenue: 0
+          },
+          categories: {
+            total: totalCategories,
+            active: categoryResponse.categories?.filter(c => c.isActive).length || 0
+          },
+          totalValue: totalValue,
+          lowStockAlerts: lowStockProducts
+        }
+      };
+    } catch (error) {
+      console.error("❌ Error fetching dashboard stats:", error);
+      return {
+        success: false,
+        message: error.message || "Failed to fetch dashboard stats",
+        stats: {}
+      };
+    }
+  }
+};
+
+// ========== UTILITY FUNCTIONS ==========
+export const formatPrice = (price, currency = "PHP") => {
+  try {
+    if (price === null || price === undefined) {
+      return `₱0.00`;
+    }
+    
+    const priceNum = Number(price);
+    
+    if (isNaN(priceNum)) {
+      return `₱0.00`;
+    }
+    
+    if (currency === "PHP") {
+      return `₱${priceNum.toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`;
+    }
+    
+    try {
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: currency,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(priceNum);
+    } catch (intlError) {
+      return `${currency} ${priceNum.toFixed(2)}`;
+    }
+  } catch (error) {
+    console.error("Error formatting price:", error);
+    return `₱0.00`;
+  }
+};
+
+export const calculateDiscountPercentage = (price, discountedPrice) => {
+  if (!price || !discountedPrice || discountedPrice >= price) return 0;
+  return Math.round(((price - discountedPrice) / price) * 100);
+};
+
+export const getFinalPrice = (price, discountedPrice) => {
+  if (!price) return 0;
+  return discountedPrice && discountedPrice < price ? discountedPrice : price;
+};
+
+// ========== DEBUGGING AND TESTING ==========
+export const testImageUrls = () => {
+  const testCases = [
+    { input: "engine.jpg", type: "products" },
+    { input: "product-1234567890.jpg", type: "products" },
+    { input: "/uploads/products/engine.jpg", type: "products" },
+    { input: "uploads/products/engine.jpg", type: "products" },
+    { input: "https://example.com/image.jpg", type: "products" },
+    { input: "engine%20part.jpg", type: "products" },
+    { input: "undefined", type: "products" },
+    { input: "", type: "products" },
+    { input: "category-1234567890.jpg", type: "categories" },
+  ];
+
+  console.log("🧪 TESTING IMAGE URLS:");
+  testCases.forEach(test => {
+    const url = getImageUrl(test.input, test.type);
+    console.log(`🧪 "${test.input}" (${test.type}) -> ${url}`);
+  });
+};
+
+export const debugImage = (imagePath, type = "products") => {
+  console.log("🔍 DEBUG IMAGE:");
+  console.log("Input:", imagePath);
+  console.log("Type:", type);
+  const result = getImageUrl(imagePath, type);
+  console.log("Result:", result);
+  return result;
+};
+
+// ========== MAIN API SERVICE OBJECT ==========
+const apiService = {
+  API,
+  productAPI,
+  categoryAPI,
+  authAPI,
+  cartAPI,
+  dashboardAPI,
+  getImageUrl,
+  getSafeImageUrl,
+  loadImageWithFallback,
+  uploadImage,
+  uploadBase64Image,
+  formatPrice,
+  calculateDiscountPercentage,
+  getFinalPrice,
+  testImageUrls,
+  debugImage,
+  API_BASE_URL: validatedApiUrl,
+  IMAGE_BASE_URL: IMAGE_BASE_URL || "https://federalpartsphilippines-backend.onrender.com",
+  
+  // Convenience methods
+  getProducts: productAPI.getAllProducts,
+  getProduct: productAPI.getProductById,
+  createProduct: productAPI.createProduct,
+  updateProduct: productAPI.updateProduct,
+  deleteProduct: productAPI.deleteProduct,
+  searchProducts: productAPI.searchProducts,
+  getCategories: categoryAPI.getAllCategories,
+  getCategory: categoryAPI.getCategoryById,
+  createCategory: categoryAPI.createCategory,
+  updateCategory: categoryAPI.updateCategory,
+  deleteCategory: categoryAPI.deleteCategory,
+  updateCategoryProductCounts: categoryAPI.updateCategoryProductCounts,
+  login: authAPI.login,
+  register: authAPI.register,
+  logout: authAPI.logout,
+  getCurrentUser: authAPI.getCurrentUser,
+  getCart: cartAPI.getCart,
+  addToCart: cartAPI.addToCart,
+  updateCartItem: cartAPI.updateCartItem,
+  removeFromCart: cartAPI.removeFromCart,
+  clearCart: cartAPI.clearCart,
+  getCartCount: cartAPI.getCartCount,
+  getDashboardStats: dashboardAPI.getOverviewStats,
+  
+  // Image testing
+  testImageConnection: async (imageUrl) => {
+    try {
+      const response = await fetch(imageUrl, { method: 'HEAD', mode: 'no-cors' });
+      return {
+        success: true,
+        message: "Image URL appears accessible"
+      };
+    } catch (error) {
+      // Try with image element
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve({ success: true, message: "Image loads successfully" });
+        img.onerror = () => resolve({ success: false, message: "Image failed to load" });
+        img.src = imageUrl;
+      });
+    }
+  },
+  
+  // Health check
+  healthCheck: async () => {
+    try {
+      const response = await API.get("/health");
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        message: "API health check failed",
+        error: error.message
+      };
+    }
+  },
+  
+  // Initialize
+  initialize: async () => {
+    console.log("🚀 Initializing API Service...");
+    console.log("📡 API URL:", validatedApiUrl);
+    console.log("🌍 Environment:", isLocalhost ? "Localhost" : isVercel ? "Vercel" : "Production");
+    
+    // Test connection
+    try {
+      const response = await API.get("/");
+      console.log("✅ API Connection successful:", response.data?.message);
+      
+      // Test image access
+      console.log("🖼️ Testing image access...");
+      const testImageUrl = "https://federalpartsphilippines-backend.onrender.com/uploads/products/test.jpg";
+      const imgTest = await apiService.testImageConnection(testImageUrl);
+      console.log("📊 Image access test:", imgTest.success ? "✅ Works" : "⚠️ May have issues");
+      
+      return {
+        success: true,
+        connected: true,
+        message: "API initialized successfully",
+        environment: isLocalhost ? "localhost" : isVercel ? "vercel" : "production",
+        imageAccess: imgTest.success
+      };
+    } catch (error) {
+      console.error("❌ API initialization failed:", error.message);
+      return {
+        success: false,
+        connected: false,
+        message: "API initialization failed",
+        error: error.message
+      };
+    }
+  },
+  
+  // Debug product images
+  debugProductImages: (product) => {
+    console.log("🔍 DEBUGGING PRODUCT IMAGES:");
+    console.log("Product ID:", product._id);
+    console.log("Product Name:", product.name);
+    console.log("Raw images:", product.images);
+    
+    if (product.images && Array.isArray(product.images)) {
+      product.images.forEach((img, index) => {
+        const url = getImageUrl(img, "products");
+        console.log(`Image ${index}:`, {
+          raw: img,
+          url: url,
+          type: typeof img
+        });
+      });
+    }
+  },
+  
+  // Fix all image URLs in data
+  fixAllImageUrls: async (data) => {
+    if (!data) return data;
+    
+    if (Array.isArray(data)) {
+      return data.map(item => apiService.fixImageUrlsInObject(item));
+    }
+    
+    return apiService.fixImageUrlsInObject(data);
+  },
+  
+  fixImageUrlsInObject: (obj) => {
+    if (!obj || typeof obj !== 'object') return obj;
+    
+    const fixed = { ...obj };
+    
+    // Fix images array
+    if (Array.isArray(fixed.images)) {
+      fixed.images = fixed.images
+        .map(img => getImageUrl(img, "products"))
+        .filter(url => url && url !== "/placeholder-image.jpg");
+    }
+    
+    // Fix single image field
+    if (fixed.image) {
+      fixed.image = getImageUrl(fixed.image, fixed.type === "category" ? "categories" : "products");
+    }
+    
+    // Fix imageUrl field
+    if (fixed.imageUrl) {
+      fixed.imageUrl = getImageUrl(fixed.imageUrl, fixed.type === "category" ? "categories" : "products");
+    }
+    
+    return fixed;
+  }
+};
+
+export default apiService;
