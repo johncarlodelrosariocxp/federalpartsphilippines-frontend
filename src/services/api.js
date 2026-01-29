@@ -1,4 +1,4 @@
-// src/services/api.js - FIXED VERSION FOR SPECIFICATIONS ISSUE
+// src/services/api.js - ULTIMATE FIXED VERSION FOR IMAGE ISSUES
 import axios from "axios";
 import authService from "./auth.js";
 
@@ -225,16 +225,21 @@ API.interceptors.response.use(
   }
 );
 
-// ========== IMAGE URL HELPERS ==========
+// ========== ULTIMATE IMAGE URL HELPER ==========
 export const getImageUrl = (imagePath, type = "products") => {
+  // NULL CHECKS
   if (!imagePath || 
       imagePath === "undefined" || 
       imagePath === "null" || 
       imagePath === "" || 
       imagePath.trim() === "") {
+    console.warn(`❌ Empty image path for ${type}`);
     return null;
   }
 
+  console.log(`🖼️ Processing image:`, { imagePath, type });
+
+  // ALREADY FULL URL - RETURN AS-IS
   if (
     typeof imagePath === "string" &&
     (imagePath.startsWith("http://") || 
@@ -242,102 +247,99 @@ export const getImageUrl = (imagePath, type = "products") => {
      imagePath.startsWith("blob:") || 
      imagePath.startsWith("data:"))
   ) {
+    console.log(`✅ Already full URL: ${imagePath}`);
     return imagePath;
   }
 
-  const baseUrl = IMAGE_BASE_URL || "https://federalpartsphilippines-backend.onrender.com";
+  // GET BASE URL
+  const API_BASE_URL = import.meta.env.VITE_API_URL || "https://federalpartsphilippines-backend.onrender.com/api";
+  let baseUrl = API_BASE_URL.replace("/api", "");
+  baseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash
   
-  const cleanBaseUrl = baseUrl.replace(/\/api$/, '');
+  console.log(`📍 Base URL: ${baseUrl}`);
+
+  // CLEAN THE FILENAME
+  let filename = imagePath;
   
-  if (typeof imagePath === "string" && imagePath.startsWith("/uploads/")) {
-    return `${cleanBaseUrl}${imagePath}`;
+  // Remove query parameters (CRITICAL!)
+  if (filename.includes('?')) {
+    filename = filename.split('?')[0];
+    console.log(`🔪 Removed query params, filename: ${filename}`);
   }
   
-  if (typeof imagePath === "string" && imagePath.includes("uploads/")) {
-    const path = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
-    return `${cleanBaseUrl}${path}`;
+  // Extract just the filename from path
+  if (filename.includes("/")) {
+    filename = filename.substring(filename.lastIndexOf("/") + 1);
+    console.log(`🔪 Extracted filename from path: ${filename}`);
   }
   
-  if (typeof imagePath === "string") {
-    const cleanFilename = imagePath.replace(/^.*[\\/]/, '');
-    
-    if (!cleanFilename || cleanFilename.trim() === "") {
-      return null;
-    }
-    
-    if (cleanFilename.includes('placeholder')) {
-      return null;
-    }
-    
-    return `${cleanBaseUrl}/uploads/${type}/${cleanFilename}`;
+  // Decode URL encoding
+  filename = decodeURIComponent(filename);
+  console.log(`🔍 Decoded filename: ${filename}`);
+
+  // Handle empty filename after cleaning
+  if (!filename || filename.trim() === "") {
+    console.warn(`❌ Empty filename after cleaning for: ${imagePath}`);
+    return null;
   }
 
-  return null;
+  // Handle special cases
+  if (filename.includes('placeholder')) {
+    console.log(`⚠️ Placeholder detected: ${filename}`);
+    return null;
+  }
+
+  // FINAL URL
+  const finalUrl = `${baseUrl}/uploads/${type}/${filename}`;
+  console.log(`🎯 Final image URL: ${finalUrl}`);
+  
+  return finalUrl;
 };
 
 export const getSafeImageUrl = (imagePath, type = "products", fallback = null) => {
   const url = getImageUrl(imagePath, type);
   
   if (!url) {
+    console.warn(`⚠️ No URL, using fallback for: ${imagePath}`);
     return fallback;
   }
   
-  try {
-    if (url.startsWith('http://') || 
-        url.startsWith('https://') || 
-        url.startsWith('blob:') || 
-        url.startsWith('data:')) {
-      return url;
-    }
-    
-    if (url.startsWith('/')) {
-      const baseUrl = IMAGE_BASE_URL || "https://federalpartsphilippines-backend.onrender.com";
-      const cleanBaseUrl = baseUrl.replace(/\/api$/, '');
-      return `${cleanBaseUrl}${url}`;
-    }
-    
-    return url;
-  } catch (error) {
-    console.warn("Invalid image URL:", imagePath, error);
-    return fallback;
-  }
+  return url;
 };
 
-// ========== IMAGE PROCESSING HELPERS ==========
+// ========== PROCESSING HELPERS ==========
 const processProductImages = (product) => {
   if (!product) return product;
   
   const productObj = { ...product };
   
+  // Ensure images array exists
   if (!Array.isArray(productObj.images)) {
-    productObj.images = [];
+    if (productObj.image) {
+      productObj.images = [productObj.image];
+    } else if (productObj.imageUrl) {
+      productObj.images = [productObj.imageUrl];
+    } else {
+      productObj.images = [];
+    }
   }
   
+  // Process each image
   productObj.images = productObj.images
     .filter(img => img && img.trim() !== "")
-    .map(img => {
-      if (img.startsWith('http://') || 
-          img.startsWith('https://') || 
-          img.startsWith('blob:') || 
-          img.startsWith('data:')) {
-        return img;
-      }
-      
-      if (img.startsWith('/uploads/')) {
-        const baseUrl = IMAGE_BASE_URL || "https://federalpartsphilippines-backend.onrender.com";
-        const cleanBaseUrl = baseUrl.replace(/\/api$/, '');
-        return `${cleanBaseUrl}${img}`;
-      }
-      
-      const baseUrl = IMAGE_BASE_URL || "https://federalpartsphilippines-backend.onrender.com";
-      const cleanBaseUrl = baseUrl.replace(/\/api$/, '');
-      return `${cleanBaseUrl}/uploads/products/${img}`;
-    })
+    .map(img => getImageUrl(img, "products"))
     .filter(img => img !== null && img !== undefined);
   
-  if (productObj.images.length === 0) {
-    productObj.images = [];
+  // Set main image if available
+  if (productObj.images.length > 0 && !productObj.image) {
+    productObj.image = productObj.images[0];
   }
+  
+  console.log(`🖼️ Processed product ${productObj.name || productObj._id}:`, {
+    originalCount: product.images?.length || 0,
+    processedCount: productObj.images.length,
+    images: productObj.images
+  });
   
   return productObj;
 };
@@ -347,26 +349,20 @@ const processCategoryImage = (category) => {
   
   const categoryObj = { ...category };
   
+  // Process main image
   if (categoryObj.image && categoryObj.image.trim() !== "") {
-    const img = categoryObj.image;
-    
-    if (img.startsWith('http://') || 
-        img.startsWith('https://') || 
-        img.startsWith('blob:') || 
-        img.startsWith('data:')) {
-      return categoryObj;
-    }
-    
-    if (img.startsWith('/uploads/')) {
-      const baseUrl = IMAGE_BASE_URL || "https://federalpartsphilippines-backend.onrender.com";
-      const cleanBaseUrl = baseUrl.replace(/\/api$/, '');
-      categoryObj.image = `${cleanBaseUrl}${img}`;
-    } else {
-      const baseUrl = IMAGE_BASE_URL || "https://federalpartsphilippines-backend.onrender.com";
-      const cleanBaseUrl = baseUrl.replace(/\/api$/, '');
-      categoryObj.image = `${cleanBaseUrl}/uploads/categories/${img}`;
-    }
+    categoryObj.image = getImageUrl(categoryObj.image, "categories");
   }
+  
+  // Process imageUrl if exists
+  if (categoryObj.imageUrl && categoryObj.imageUrl.trim() !== "") {
+    categoryObj.imageUrl = getImageUrl(categoryObj.imageUrl, "categories");
+  }
+  
+  console.log(`📁 Processed category ${categoryObj.name || categoryObj._id}:`, {
+    originalImage: category.image,
+    processedImage: categoryObj.image
+  });
   
   return categoryObj;
 };
@@ -1175,6 +1171,34 @@ export const testApiConnection = async () => {
   };
 };
 
+// ========== DEBUGGING UTILITIES ==========
+export const debugImage = (imagePath, type = "products") => {
+  console.log("🔍 DEBUG IMAGE:");
+  console.log("Input:", imagePath);
+  console.log("Type:", type);
+  console.log("Result:", getImageUrl(imagePath, type));
+  return getImageUrl(imagePath, type);
+};
+
+export const testImageUrls = () => {
+  const testCases = [
+    { input: "engine.jpg", type: "products" },
+    { input: "engine.jpg?timestamp=123456", type: "products" },
+    { input: "/uploads/products/engine.jpg", type: "products" },
+    { input: "uploads/products/engine.jpg", type: "products" },
+    { input: "https://example.com/image.jpg", type: "products" },
+    { input: "engine%20part.jpg", type: "products" },
+    { input: "undefined", type: "products" },
+    { input: "", type: "products" },
+    { input: "brake-pads.jpg", type: "categories" },
+  ];
+
+  console.log("🧪 TESTING IMAGE URLS:");
+  testCases.forEach(test => {
+    console.log(`🧪 "${test.input}" (${test.type}) -> ${getImageUrl(test.input, test.type)}`);
+  });
+};
+
 // ========== MAIN API SERVICE OBJECT ==========
 const apiService = {
   API,
@@ -1192,6 +1216,8 @@ const apiService = {
   calculateDiscountPercentage,
   getFinalPrice,
   testApiConnection,
+  debugImage,
+  testImageUrls,
   API_BASE_URL: validatedApiUrl,
   IMAGE_BASE_URL: IMAGE_BASE_URL || "https://federalpartsphilippines-backend.onrender.com",
   getProducts: productAPI.getAllProducts,
@@ -1357,6 +1383,24 @@ const apiService = {
         message: error.message,
         urls: []
       };
+    }
+  },
+  
+  // NEW: Comprehensive image debug function
+  debugProductImages: (product) => {
+    console.log("🔍 DEBUGGING PRODUCT IMAGES:");
+    console.log("Product ID:", product._id);
+    console.log("Product Name:", product.name);
+    console.log("Raw images:", product.images);
+    
+    if (product.images && Array.isArray(product.images)) {
+      product.images.forEach((img, index) => {
+        console.log(`Image ${index}:`, {
+          raw: img,
+          processed: getImageUrl(img, "products"),
+          type: typeof img
+        });
+      });
     }
   }
 };

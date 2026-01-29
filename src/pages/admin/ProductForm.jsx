@@ -1,7 +1,7 @@
-// src/pages/admin/ProductForm.jsx - COMPLETE AND WORKING VERSION
+// src/pages/admin/ProductForm.jsx - COMPLETE FIXED VERSION
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { productAPI, categoryAPI, getImageUrl } from "../../services/api";
+import { productAPI, categoryAPI } from "../../services/api";
 import {
   Save,
   Upload,
@@ -20,9 +20,8 @@ import {
   X,
   Loader2,
   Eye,
-  Grid,
-  List,
-  AlertTriangle,
+  Plus,
+  Folder,
 } from "lucide-react";
 
 const ProductForm = () => {
@@ -37,42 +36,37 @@ const ProductForm = () => {
   const [success, setSuccess] = useState("");
   const [formErrors, setFormErrors] = useState({});
   const [imageUploading, setImageUploading] = useState(false);
-  const [serverError, setServerError] = useState(null);
   const [selectedImagePreview, setSelectedImagePreview] = useState(null);
-  const [imageViewMode, setImageViewMode] = useState("grid");
 
   const [product, setProduct] = useState({
     name: "",
     description: "",
     price: "",
     category: "",
+    categories: [],
     images: [],
     stock: 0,
     sku: "",
     weight: "",
     dimensions: "",
-    specifications: {},
+    specifications: [],
     featured: false,
     isActive: true,
   });
 
-  const [specifications, setSpecifications] = useState([]);
   const [newSpec, setNewSpec] = useState({ key: "", value: "" });
 
-  // Generate fallback SVG image
-  const createFallbackImage = () => {
-    return `data:image/svg+xml,${encodeURIComponent(`
-      <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="200" height="200" fill="#F3F4F6"/>
-        <rect width="200" height="200" fill="#F3F4F6"/>
-        <path d="M60 70L140 130M140 70L60 130M140 50L180 90M180 50L140 90" stroke="#D1D5DB" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M40 40H160V160H40V40Z" stroke="#D1D5DB" stroke-width="4"/>
-        <text x="100" y="100" font-family="Arial" font-size="16" fill="#9CA3AF" text-anchor="middle" alignment-baseline="middle">No Image</text>
-      </svg>
-    `)}`;
-  };
-
-  const fallbackImage = createFallbackImage();
+  // Fallback image
+  const fallbackImage = `data:image/svg+xml,${encodeURIComponent(`
+    <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="200" height="200" fill="#F3F4F6"/>
+      <rect x="50" y="50" width="100" height="70" rx="8" fill="#E5E7EB"/>
+      <rect x="75" y="85" width="50" height="4" rx="2" fill="#9CA3AF"/>
+      <rect x="85" y="95" width="30" height="3" rx="1.5" fill="#9CA3AF"/>
+      <circle cx="100" cy="140" r="15" fill="#D1D5DB"/>
+      <text x="100" y="145" font-family="Arial, sans-serif" font-size="12" fill="#6B7280" text-anchor="middle" alignment-baseline="middle">No Image</text>
+    </svg>
+  `)}`;
 
   useEffect(() => {
     fetchCategories();
@@ -86,20 +80,21 @@ const ProductForm = () => {
       console.log("Fetching categories...");
       const response = await categoryAPI.getAllCategories({ active: true });
       
-      if (response && response.success && response.categories) {
+      console.log("Categories response:", response);
+      
+      if (response?.success && Array.isArray(response.categories)) {
         setCategories(response.categories);
-      } else if (response && Array.isArray(response.categories)) {
-        setCategories(response.categories);
-      } else if (response && Array.isArray(response)) {
+      } else if (Array.isArray(response)) {
         setCategories(response);
+      } else if (response?.data && Array.isArray(response.data)) {
+        setCategories(response.data);
       } else {
-        console.warn("Unexpected categories response:", response);
+        console.warn("No categories found or unexpected format:", response);
         setCategories([]);
       }
     } catch (err) {
       console.error("Error fetching categories:", err);
       setCategories([]);
-      setError("Failed to load categories. Please try again.");
     }
   };
 
@@ -110,101 +105,106 @@ const ProductForm = () => {
 
       console.log(`Fetching product with ID: ${id}`);
       const response = await productAPI.getProductById(id);
-      console.log("Product fetch response:", response);
-
-      if (!response) {
-        throw new Error("No response from server");
-      }
+      
+      console.log("Product API response:", response);
 
       let productData = null;
 
       // Handle different response formats
-      if (response.success && response.product) {
+      if (response?.success && response.product) {
         productData = response.product;
-      } else if (response.product) {
+      } else if (response?.data?.product) {
+        productData = response.data.product;
+      } else if (response?.data && !response.product) {
+        productData = response.data;
+      } else if (response?.product) {
         productData = response.product;
-      } else if (response.success && response.data) {
-        productData = response.data;
-      } else if (response.data) {
-        productData = response.data;
-      } else if (response._id) {
+      } else if (response?._id) {
         productData = response;
       } else {
-        console.error("Unexpected product response format:", response);
+        console.error("Unexpected response format:", response);
         throw new Error("Unexpected response format from server");
       }
 
       if (!productData) {
-        throw new Error("Product data not found");
+        throw new Error("Product data not found in response");
       }
 
-      console.log("Product data:", productData);
+      console.log("Product data to process:", productData);
 
-      // Parse specifications
-      const specs = productData.specifications || {};
-      const specArray = Object.keys(specs).map((key) => ({
-        key,
-        value: specs[key],
-      }));
-
-      // Handle category
-      let categoryId = "";
-      if (productData.category) {
-        if (typeof productData.category === "string") {
-          categoryId = productData.category;
-        } else if (productData.category._id) {
-          categoryId = productData.category._id;
-        } else if (productData.category.id) {
-          categoryId = productData.category.id;
+      // Handle specifications - always ensure it's an array
+      let specificationsArray = [];
+      if (productData.specifications) {
+        if (typeof productData.specifications === 'object' && !Array.isArray(productData.specifications)) {
+          specificationsArray = Object.entries(productData.specifications).map(([key, value]) => ({
+            key,
+            value: String(value)
+          }));
+        } else if (Array.isArray(productData.specifications)) {
+          specificationsArray = productData.specifications;
         }
       }
 
-      // Handle images
-      let productImages = [];
-      if (productData.images && Array.isArray(productData.images)) {
-        productImages = productData.images
-          .map((img) => {
-            if (typeof img === "string" && img.trim()) {
-              // Clean the image string
-              const cleanImg = img.trim();
-              return cleanImg;
-            }
-            return img;
-          })
-          .filter(img => img);
+      // Handle category - support both single category and multiple categories
+      let categoryId = "";
+      let categoriesArray = [];
+      
+      if (productData.category) {
+        if (typeof productData.category === "string") {
+          categoryId = productData.category;
+          categoriesArray = [productData.category];
+        } else if (productData.category._id) {
+          categoryId = productData.category._id;
+          categoriesArray = [productData.category._id];
+        }
+      }
+      
+      // Handle multiple categories
+      if (productData.categories && Array.isArray(productData.categories)) {
+        categoriesArray = productData.categories.map(cat => {
+          if (typeof cat === "string") return cat;
+          if (cat._id) return cat._id;
+          if (cat.id) return cat.id;
+          return null;
+        }).filter(Boolean);
+        
+        if (categoriesArray.length > 0 && !categoryId) {
+          categoryId = categoriesArray[0];
+        }
       }
 
-      console.log(`Loaded ${productImages.length} images`);
+      // Handle images - ensure array format
+      let productImages = [];
+      if (productData.images && Array.isArray(productData.images)) {
+        productImages = productData.images.filter(img => img && img.trim() !== "");
+      } else if (productData.image) {
+        if (typeof productData.image === "string" && productData.image.trim()) {
+          productImages = [productData.image];
+        }
+      }
 
-      setProduct({
+      const productState = {
         name: productData.name || "",
         description: productData.description || "",
         price: productData.price?.toString() || "0",
         category: categoryId,
+        categories: categoriesArray,
         images: productImages,
         stock: productData.stock || 0,
         sku: productData.sku || "",
         weight: productData.weight || "",
         dimensions: productData.dimensions || "",
-        specifications: productData.specifications || {},
+        specifications: specificationsArray,
         featured: productData.featured || false,
         isActive: productData.isActive !== undefined ? productData.isActive : true,
-      });
+      };
 
-      setSpecifications(specArray);
-      setServerError(null);
+      console.log("Setting product state:", productState);
+      setProduct(productState);
+
     } catch (err) {
       console.error("Error fetching product:", err);
-      const errorMessage = err.message || "Failed to load product";
-      setError(errorMessage);
-      
-      if (err.response?.status === 500) {
-        setServerError({
-          type: "server",
-          message: "Server error. Please check if the backend is running.",
-          details: err.response?.data
-        });
-      }
+      setError(`Failed to load product: ${err.message}`);
     } finally {
       setInitialLoading(false);
     }
@@ -243,62 +243,88 @@ const ProductForm = () => {
         [name]: "",
       });
     }
-    
-    // Clear any server errors when user edits the form
-    if (serverError) {
-      setServerError(null);
-    }
   };
 
   const handleNumberChange = (e) => {
     const { name, value } = e.target;
-    if (value === "") {
+    setProduct({
+      ...product,
+      [name]: value === "" ? (name === "stock" ? 0 : "") : value,
+    });
+  };
+
+  // Category selection
+  const handleCategoryChange = (e) => {
+    const categoryId = e.target.value;
+    setProduct({
+      ...product,
+      category: categoryId,
+    });
+  };
+
+  // Add multiple categories
+  const addCategory = () => {
+    if (product.category && !product.categories.includes(product.category)) {
       setProduct({
         ...product,
-        [name]: name === "stock" ? 0 : "",
-      });
-    } else {
-      const parsedValue = name.includes("price")
-        ? parseFloat(value)
-        : parseInt(value, 10);
-      setProduct({
-        ...product,
-        [name]: isNaN(parsedValue) ? "" : parsedValue,
-      });
-    }
-    
-    if (formErrors[name]) {
-      setFormErrors({
-        ...formErrors,
-        [name]: "",
+        categories: [...product.categories, product.category],
+        category: "", // Clear selection after adding
       });
     }
   };
 
+  // Remove category from the list - FIXED
+  const removeCategory = (categoryIdToRemove) => {
+    console.log("Removing category:", categoryIdToRemove);
+    console.log("Current categories:", product.categories);
+    
+    const updatedCategories = product.categories.filter(
+      categoryId => categoryId !== categoryIdToRemove
+    );
+    
+    console.log("Updated categories:", updatedCategories);
+    
+    setProduct({
+      ...product,
+      categories: updatedCategories
+    });
+  };
+
+  // Clear all categories
+  const clearAllCategories = () => {
+    setProduct({
+      ...product,
+      categories: []
+    });
+  };
+
+  // Specifications functions
   const addSpecification = () => {
     if (newSpec.key.trim() && newSpec.value.trim()) {
-      setSpecifications([...specifications, { ...newSpec }]);
+      setProduct({
+        ...product,
+        specifications: [...product.specifications, { ...newSpec }]
+      });
       setNewSpec({ key: "", value: "" });
     }
   };
 
   const removeSpecification = (index) => {
-    const newSpecs = [...specifications];
+    const newSpecs = [...product.specifications];
     newSpecs.splice(index, 1);
-    setSpecifications(newSpecs);
+    setProduct({
+      ...product,
+      specifications: newSpecs
+    });
   };
 
   const updateSpecification = (index, field, value) => {
-    const newSpecs = [...specifications];
+    const newSpecs = [...product.specifications];
     newSpecs[index][field] = value;
-    setSpecifications(newSpecs);
-  };
-
-  const moveSpecification = (fromIndex, toIndex) => {
-    const newSpecs = [...specifications];
-    const [removed] = newSpecs.splice(fromIndex, 1);
-    newSpecs.splice(toIndex, 0, removed);
-    setSpecifications(newSpecs);
+    setProduct({
+      ...product,
+      specifications: newSpecs
+    });
   };
 
   const handleImageUpload = async (e) => {
@@ -307,7 +333,6 @@ const ProductForm = () => {
 
     setError("");
     setSuccess("");
-    setServerError(null);
 
     const validFiles = files.filter((file) => {
       if (!file.type.startsWith("image/")) {
@@ -337,7 +362,6 @@ const ProductForm = () => {
     try {
       setImageUploading(true);
 
-      // Convert files to base64 for preview and storage
       const base64Images = await Promise.all(
         validFiles.map(async (file) => {
           try {
@@ -359,7 +383,6 @@ const ProductForm = () => {
 
       const validBase64Images = base64Images.filter(img => img !== null);
 
-      // Add to product images
       setProduct((prev) => ({
         ...prev,
         images: [...prev.images, ...validBase64Images],
@@ -371,9 +394,7 @@ const ProductForm = () => {
         } for preview`
       );
 
-      setTimeout(() => {
-        setSuccess("");
-      }, 3000);
+      setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
       console.error("Error adding images:", err);
       setError(err.message || "Failed to add images. Please try again.");
@@ -395,7 +416,6 @@ const ProductForm = () => {
   const removeImage = (index) => {
     const image = product.images[index];
 
-    // Clean up blob URL if it's a local image
     if (image && image.isLocal && image.preview) {
       URL.revokeObjectURL(image.preview);
     }
@@ -423,7 +443,6 @@ const ProductForm = () => {
       return fallbackImage;
     }
 
-    // If it's a string URL
     if (typeof image === "string") {
       if (
         image.startsWith("http://") ||
@@ -433,12 +452,9 @@ const ProductForm = () => {
       ) {
         return image;
       }
-      // Convert relative path to full URL
-      const imageUrl = getImageUrl(image, 'products');
-      return imageUrl || fallbackImage;
+      return image;
     }
 
-    // If it's a local image object
     if (image && typeof image === "object") {
       if (image.preview) {
         return image.preview;
@@ -447,8 +463,7 @@ const ProductForm = () => {
         return image.base64;
       }
       if (image.url) {
-        const imageUrl = getImageUrl(image.url, 'products');
-        return imageUrl || fallbackImage;
+        return image.url;
       }
     }
 
@@ -484,7 +499,6 @@ const ProductForm = () => {
     setError("");
     setSuccess("");
     setFormErrors({});
-    setServerError(null);
     
     if (!validateForm()) {
       setError("Please fix the errors in the form");
@@ -494,32 +508,33 @@ const ProductForm = () => {
     setLoading(true);
 
     try {
-      // Prepare specifications object
-      const specs = {};
-      specifications.forEach((spec) => {
+      // Convert specifications array to object
+      const specificationsObj = {};
+      product.specifications.forEach((spec) => {
         if (spec.key && spec.key.trim() && spec.value && spec.value.trim()) {
-          specs[spec.key.trim()] = spec.value.trim();
+          specificationsObj[spec.key.trim()] = spec.value.trim();
         }
       });
 
-      // Separate local and existing images
+      // Prepare images
       const localImages = product.images.filter(img => isLocalImage(img));
       const existingImages = product.images.filter(img => !isLocalImage(img));
 
-      // Prepare image data - local images as base64, existing as strings
+      // Prepare image data
       const allImages = [
         ...existingImages.map(img => {
           if (typeof img === 'string') {
+            if (img.includes('/uploads/products/')) {
+              return img.split('/').pop();
+            }
             return img;
-          } else if (img && typeof img === 'object') {
-            return img.base64 || img.url || img;
           }
           return img;
         }).filter(img => img),
         ...localImages.map(img => img.base64).filter(base64 => base64)
       ];
 
-      // Prepare product data
+      // Prepare product data - send both single category and multiple categories
       const productData = {
         name: product.name.trim(),
         description: product.description.trim(),
@@ -530,16 +545,20 @@ const ProductForm = () => {
         dimensions: product.dimensions.trim() || "",
         featured: Boolean(product.featured),
         isActive: Boolean(product.isActive),
+        specifications: Object.keys(specificationsObj).length > 0 ? specificationsObj : {},
       };
 
-      if (product.category) {
+      // Add category (single) for backward compatibility
+      if (product.category && product.category.trim() !== '') {
         productData.category = product.category;
       }
 
-      if (Object.keys(specs).length > 0) {
-        productData.specifications = specs;
+      // Add multiple categories if available (prefer this over single category)
+      if (product.categories.length > 0) {
+        productData.categories = product.categories;
       }
 
+      // Add images if any
       if (allImages.length > 0) {
         productData.images = allImages;
       }
@@ -553,7 +572,7 @@ const ProductForm = () => {
         response = await productAPI.createProduct(productData);
       }
 
-      console.log("Save response:", response);
+      console.log("API Response:", response);
 
       if (response?.success) {
         const message = isEditMode
@@ -569,20 +588,16 @@ const ProductForm = () => {
       }
     } catch (err) {
       console.error("Error saving product:", err);
-      
-      if (err.response?.status === 500) {
-        setServerError({
-          type: "server",
-          message: "Server error occurred. Please try again.",
-          details: err.response?.data
-        });
-        setError("Server error. Please check the console for details.");
-      } else {
-        setError(err.message || "Failed to save product. Please try again.");
-      }
+      setError(err.message || "Failed to save product. Please try again.");
     } finally {
       setLoading(false);
     }
+  };
+
+  // Get category name by ID
+  const getCategoryName = (categoryId) => {
+    const category = categories.find(c => c._id === categoryId || c.id === categoryId);
+    return category ? category.name : "Unknown Category";
   };
 
   if (initialLoading) {
@@ -652,38 +667,6 @@ const ProductForm = () => {
         </div>
       )}
 
-      {/* Server Error Details */}
-      {serverError && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <div className="flex items-start">
-            <AlertTriangle className="h-5 w-5 text-red-500 mr-2 mt-0.5 flex-shrink-0" />
-            <div className="flex-1">
-              <h3 className="font-semibold text-red-800 mb-1">Server Error</h3>
-              <p className="text-red-700">{serverError.message}</p>
-              {serverError.details && (
-                <div className="mt-2 p-2 bg-red-100 rounded text-sm">
-                  <p className="font-medium">Error details:</p>
-                  <pre className="mt-1 text-red-800 whitespace-pre-wrap">
-                    {typeof serverError.details === 'object' 
-                      ? JSON.stringify(serverError.details, null, 2)
-                      : serverError.details}
-                  </pre>
-                </div>
-              )}
-              <div className="mt-3 text-sm">
-                <p className="font-medium">Troubleshooting steps:</p>
-                <ul className="list-disc pl-5 mt-1 space-y-1">
-                  <li>Check if the backend server is running</li>
-                  <li>Verify your internet connection</li>
-                  <li>Refresh the page and try again</li>
-                  <li>Contact support if the issue persists</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Success and Error Messages */}
       {success && (
         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center">
@@ -692,7 +675,7 @@ const ProductForm = () => {
         </div>
       )}
 
-      {error && !serverError && (
+      {error && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center">
           <AlertCircle className="h-5 w-5 text-red-500 mr-2 flex-shrink-0" />
           <span className="text-red-700">{error}</span>
@@ -702,247 +685,120 @@ const ProductForm = () => {
       <form onSubmit={handleSubmit} className="space-y-8">
         {/* Images Section */}
         <div className="bg-white shadow rounded-lg p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center">
-              <ImageIcon className="h-6 w-6 text-gray-500 mr-2" />
-              <h2 className="text-xl font-semibold text-gray-800">
-                Product Images
-              </h2>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-500">
-                {product.images.length}/10 images • {product.images.filter(img => isLocalImage(img)).length} new
-              </span>
-              <div className="flex items-center space-x-2">
-                <button
-                  type="button"
-                  onClick={() => setImageViewMode("grid")}
-                  className={`p-2 rounded ${imageViewMode === "grid" ? "bg-blue-100 text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
-                >
-                  <Grid className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setImageViewMode("list")}
-                  className={`p-2 rounded ${imageViewMode === "list" ? "bg-blue-100 text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
-                >
-                  <List className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
+          <div className="flex items-center mb-6">
+            <ImageIcon className="h-6 w-6 text-gray-500 mr-2" />
+            <h2 className="text-xl font-semibold text-gray-800">
+              Product Images
+            </h2>
           </div>
 
-          {/* Images Grid/List */}
+          <div className="text-sm text-gray-500 mb-4">
+            {product.images.length}/10 images • {product.images.filter(img => isLocalImage(img)).length} new
+          </div>
+
+          {/* Images Grid */}
           {product.images.length > 0 ? (
-            imageViewMode === "grid" ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-6">
-                {product.images.map((img, index) => {
-                  const imageUrl = getImageDisplayUrl(img);
-                  const isLocal = isLocalImage(img);
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-6">
+              {product.images.map((img, index) => {
+                const imageUrl = getImageDisplayUrl(img);
+                const isLocal = isLocalImage(img);
 
-                  return (
-                    <div key={index} className="relative group">
-                      <div 
-                        className="aspect-square w-full overflow-hidden rounded-lg border border-gray-200 bg-gray-50 cursor-pointer"
-                        onClick={() => showImagePreview(img, index)}
-                      >
-                        <img
-                          src={imageUrl}
-                          alt={`Product ${index + 1}`}
-                          className="h-full w-full object-cover"
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = fallbackImage;
-                          }}
-                        />
-                      </div>
-                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-200 rounded-lg flex items-center justify-center space-x-2 opacity-0 group-hover:opacity-100">
-                        <button
-                          type="button"
-                          onClick={() => showImagePreview(img, index)}
-                          className="p-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors"
-                          title="Preview image"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => removeImage(index)}
-                          className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-                          title="Remove image"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                        {index > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => reorderImages(index, index - 1)}
-                            className="p-2 bg-gray-700 text-white rounded-full hover:bg-gray-800 transition-colors"
-                            title="Move up"
-                          >
-                            <ChevronUp className="h-4 w-4" />
-                          </button>
-                        )}
-                        {index < product.images.length - 1 && (
-                          <button
-                            type="button"
-                            onClick={() => reorderImages(index, index + 1)}
-                            className="p-2 bg-gray-700 text-white rounded-full hover:bg-gray-800 transition-colors"
-                            title="Move down"
-                          >
-                            <ChevronDown className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                      {isLocal && (
-                        <div className="absolute top-2 left-2">
-                          <span className="px-2 py-1 text-xs bg-green-500 text-white rounded-full">
-                            New
-                          </span>
-                        </div>
-                      )}
-                      <div className="absolute bottom-2 left-2 right-2">
-                        <div className="text-xs text-white bg-black bg-opacity-50 px-2 py-1 rounded truncate text-center">
-                          {index + 1}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {/* Upload Button */}
-                {product.images.length < 10 && (
-                  <label className="cursor-pointer">
-                    <div className="aspect-square w-full border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center hover:border-blue-500 hover:bg-blue-50 transition-colors">
-                      {imageUploading ? (
-                        <Loader2 className="h-8 w-8 text-blue-500 mb-2 animate-spin" />
-                      ) : (
-                        <Upload className="h-8 w-8 text-gray-400 mb-2" />
-                      )}
-                      <span className="text-sm text-gray-600">
-                        {imageUploading ? "Uploading..." : "Add Image"}
-                      </span>
-                      <span className="text-xs text-gray-500 mt-1">Max 5MB</span>
-                    </div>
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="hidden"
-                      disabled={imageUploading || loading}
-                    />
-                  </label>
-                )}
-              </div>
-            ) : (
-              // List View
-              <div className="space-y-3 mb-6">
-                {product.images.map((img, index) => {
-                  const imageUrl = getImageDisplayUrl(img);
-                  const isLocal = isLocalImage(img);
-
-                  return (
-                    <div key={index} className="flex items-center p-3 border rounded-lg hover:bg-gray-50">
-                      <div 
-                        className="w-16 h-16 flex-shrink-0 rounded border border-gray-200 overflow-hidden cursor-pointer"
-                        onClick={() => showImagePreview(img, index)}
-                      >
-                        <img
-                          src={imageUrl}
-                          alt={`Product ${index + 1}`}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = fallbackImage;
-                          }}
-                        />
-                      </div>
-                      <div className="ml-4 flex-1">
-                        <div className="flex items-center">
-                          <span className="font-medium">Image {index + 1}</span>
-                          {isLocal && (
-                            <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
-                              New
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm text-gray-500">
-                          {isLocal ? "Local image - will be uploaded on save" : "Server image"}
-                        </p>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <button
-                          type="button"
-                          onClick={() => showImagePreview(img, index)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded"
-                          title="Preview"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => removeImage(index)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded"
-                          title="Remove"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                        {index > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => reorderImages(index, index - 1)}
-                            className="p-2 text-gray-600 hover:bg-gray-100 rounded"
-                            title="Move up"
-                          >
-                            <ChevronUp className="h-4 w-4" />
-                          </button>
-                        )}
-                        {index < product.images.length - 1 && (
-                          <button
-                            type="button"
-                            onClick={() => reorderImages(index, index + 1)}
-                            className="p-2 text-gray-600 hover:bg-gray-100 rounded"
-                            title="Move down"
-                          >
-                            <ChevronDown className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {/* Upload Button for List View */}
-                {product.images.length < 10 && (
-                  <label className="block cursor-pointer">
-                    <div className="p-4 border-2 border-dashed border-gray-300 rounded-lg text-center hover:border-blue-500 hover:bg-blue-50 transition-colors">
-                      <div className="flex flex-col items-center">
-                        {imageUploading ? (
-                          <Loader2 className="h-8 w-8 text-blue-500 mb-2 animate-spin" />
-                        ) : (
-                          <Upload className="h-8 w-8 text-gray-400 mb-2" />
-                        )}
-                        <span className="text-sm text-gray-600">
-                          {imageUploading ? "Uploading..." : "Click to add more images"}
-                        </span>
-                        <span className="text-xs text-gray-500 mt-1">Max 5MB per image</span>
-                      </div>
-                      <input
-                        type="file"
-                        multiple
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        className="hidden"
-                        disabled={imageUploading || loading}
+                return (
+                  <div key={index} className="relative group">
+                    <div 
+                      className="aspect-square w-full overflow-hidden rounded-lg border border-gray-200 bg-gray-50 cursor-pointer"
+                      onClick={() => showImagePreview(img, index)}
+                    >
+                      <img
+                        src={imageUrl}
+                        alt={`Product ${index + 1}`}
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = fallbackImage;
+                        }}
                       />
                     </div>
-                  </label>
-                )}
-              </div>
-            )
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-200 rounded-lg flex items-center justify-center space-x-2 opacity-0 group-hover:opacity-100">
+                      <button
+                        type="button"
+                        onClick={() => showImagePreview(img, index)}
+                        className="p-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors"
+                        title="Preview image"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeImage(index)}
+                        className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                        title="Remove image"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                      {index > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => reorderImages(index, index - 1)}
+                          className="p-2 bg-gray-700 text-white rounded-full hover:bg-gray-800 transition-colors"
+                          title="Move up"
+                        >
+                          <ChevronUp className="h-4 w-4" />
+                        </button>
+                      )}
+                      {index < product.images.length - 1 && (
+                        <button
+                          type="button"
+                          onClick={() => reorderImages(index, index + 1)}
+                          className="p-2 bg-gray-700 text-white rounded-full hover:bg-gray-800 transition-colors"
+                          title="Move down"
+                        >
+                          <ChevronDown className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                    {isLocal && (
+                      <div className="absolute top-2 left-2">
+                        <span className="px-2 py-1 text-xs bg-green-500 text-white rounded-full">
+                          New
+                        </span>
+                      </div>
+                    )}
+                    <div className="absolute bottom-2 left-2 right-2">
+                      <div className="text-xs text-white bg-black bg-opacity-50 px-2 py-1 rounded truncate text-center">
+                        {index + 1}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Upload Button */}
+              {product.images.length < 10 && (
+                <label className="cursor-pointer">
+                  <div className="aspect-square w-full border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center hover:border-blue-500 hover:bg-blue-50 transition-colors">
+                    {imageUploading ? (
+                      <Loader2 className="h-8 w-8 text-blue-500 mb-2 animate-spin" />
+                    ) : (
+                      <Upload className="h-8 w-8 text-gray-400 mb-2" />
+                    )}
+                    <span className="text-sm text-gray-600">
+                      {imageUploading ? "Uploading..." : "Add Image"}
+                    </span>
+                    <span className="text-xs text-gray-500 mt-1">Max 5MB</span>
+                  </div>
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    disabled={imageUploading || loading}
+                  />
+                </label>
+              )}
+            </div>
           ) : (
-            // No Images State
             <div className="text-center py-12 border-2 border-dashed border-gray-300 rounded-lg mb-6">
               <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No images uploaded</h3>
@@ -966,18 +822,6 @@ const ProductForm = () => {
               <p className="text-xs text-gray-500 mt-3">Up to 10 images • Max 5MB each</p>
             </div>
           )}
-
-          <div className="text-sm text-gray-600">
-            <p className="mb-1">
-              • The first image will be used as the main product image
-            </p>
-            <p className="mb-1">
-              • New images (marked with green "New" badge) will be uploaded to the server when you save
-            </p>
-            <p>
-              • Reorder images by clicking the up/down arrows
-            </p>
-          </div>
         </div>
 
         {/* Basic Information Section */}
@@ -1009,27 +853,82 @@ const ProductForm = () => {
               )}
             </div>
 
+            {/* Single Category Selection */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Category
+                Primary Category
               </label>
               <select
                 name="category"
                 value={product.category}
-                onChange={handleChange}
+                onChange={handleCategoryChange}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="">Select Category (Optional)</option>
+                <option value="">Select a category</option>
                 {categories.map((category) => (
-                  <option
-                    key={category._id || category.id}
-                    value={category._id || category.id}
-                  >
+                  <option key={category._id || category.id} value={category._id || category.id}>
                     {category.name}
                   </option>
                 ))}
               </select>
+              
+              {/* Add to multiple categories button */}
+              {product.category && !product.categories.includes(product.category) && (
+                <button
+                  type="button"
+                  onClick={addCategory}
+                  className="mt-2 inline-flex items-center gap-1 px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                >
+                  <Plus className="h-3 w-3" />
+                  Add to categories list
+                </button>
+              )}
             </div>
+
+            {/* Selected Categories Display */}
+            {product.categories.length > 0 && (
+              <div className="md:col-span-2">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Selected Categories ({product.categories.length})
+                  </label>
+                  {product.categories.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={clearAllCategories}
+                      className="text-xs text-red-600 hover:text-red-800"
+                    >
+                      Clear all
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg">
+                  {product.categories.map((categoryId) => {
+                    const categoryName = getCategoryName(categoryId);
+                    return (
+                      <div
+                        key={categoryId}
+                        className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm"
+                      >
+                        <Folder className="h-3 w-3" />
+                        <span>{categoryName}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeCategory(categoryId)}
+                          className="ml-1 text-blue-700 hover:text-red-700 transition-colors"
+                          title={`Remove ${categoryName}`}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  These categories will be assigned to the product
+                </p>
+              </div>
+            )}
 
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1146,15 +1045,6 @@ const ProductForm = () => {
                 }
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Specification name (e.g., Color)"
-                onKeyPress={(e) => {
-                  if (
-                    e.key === "Enter" &&
-                    newSpec.key.trim() &&
-                    newSpec.value.trim()
-                  ) {
-                    addSpecification();
-                  }
-                }}
               />
             </div>
             <div>
@@ -1166,33 +1056,25 @@ const ProductForm = () => {
                 }
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Value (e.g., Red)"
-                onKeyPress={(e) => {
-                  if (
-                    e.key === "Enter" &&
-                    newSpec.key.trim() &&
-                    newSpec.value.trim()
-                  ) {
-                    addSpecification();
-                  }
-                }}
               />
             </div>
             <div>
               <button
                 type="button"
                 onClick={addSpecification}
-                className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                 disabled={!newSpec.key.trim() || !newSpec.value.trim()}
               >
+                <Plus className="h-4 w-4 mr-2" />
                 Add Specification
               </button>
             </div>
           </div>
 
           {/* Specifications List */}
-          {specifications.length > 0 ? (
+          {product.specifications.length > 0 ? (
             <div className="space-y-3">
-              {specifications.map((spec, index) => (
+              {product.specifications.map((spec, index) => (
                 <div
                   key={index}
                   className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg"
@@ -1221,36 +1103,14 @@ const ProductForm = () => {
                       />
                     </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    {index > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => moveSpecification(index, index - 1)}
-                        className="p-1 text-gray-500 hover:text-gray-700"
-                        title="Move up"
-                      >
-                        <ChevronUp className="h-4 w-4" />
-                      </button>
-                    )}
-                    {index < specifications.length - 1 && (
-                      <button
-                        type="button"
-                        onClick={() => moveSpecification(index, index + 1)}
-                        className="p-1 text-gray-500 hover:text-gray-700"
-                        title="Move down"
-                      >
-                        <ChevronDown className="h-4 w-4" />
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => removeSpecification(index)}
-                      className="p-1 text-red-500 hover:text-red-700"
-                      title="Remove"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeSpecification(index)}
+                    className="p-1 text-red-500 hover:text-red-700"
+                    title="Remove"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </div>
               ))}
             </div>
@@ -1300,19 +1160,6 @@ const ProductForm = () => {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="e.g., 10x20x30 cm"
               />
-            </div>
-
-            <div className="md:col-span-3">
-              <div className="text-sm text-gray-600">
-                <p>
-                  • Weight and dimensions help customers understand the product
-                  size (Optional)
-                </p>
-                <p>
-                  • These details are displayed on the product page for better
-                  customer experience
-                </p>
-              </div>
             </div>
           </div>
         </div>

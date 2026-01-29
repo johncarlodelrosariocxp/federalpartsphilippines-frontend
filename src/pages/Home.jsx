@@ -42,7 +42,7 @@ const Home = () => {
   const [visibleCategories, setVisibleCategories] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const itemsPerPage = 8; // Changed back to 8 for desktop view
+  const itemsPerPage = 8;
 
   // Get API base URL
   const getApiBaseUrl = () => {
@@ -89,12 +89,10 @@ const Home = () => {
       let categoriesData = [];
       
       try {
-        // Use the categoryAPI service
         console.log("📡 Using categoryAPI service...");
         const response = await categoryAPI.getAll();
         console.log("📥 categoryAPI response:", response);
         
-        // Handle different response formats
         if (response?.success && response.data) {
           categoriesData = response.data;
         } else if (response?.success && response.categories) {
@@ -107,7 +105,6 @@ const Home = () => {
           categoriesData = response;
         } else {
           console.warn("Unexpected response format:", response);
-          // Try direct fetch as fallback
           throw new Error("Invalid response from categoryAPI");
         }
         
@@ -117,7 +114,6 @@ const Home = () => {
       } catch (apiError) {
         console.error("❌ categoryAPI failed:", apiError);
         
-        // Try direct fetch as fallback
         try {
           console.log("🔄 Trying direct fetch as fallback...");
           const API_BASE_URL = getApiBaseUrl();
@@ -158,13 +154,11 @@ const Home = () => {
 
       console.log("✅ Processed categories data:", categoriesData);
 
-      // Process categories - FILTER OUT YAMAHA, SUZUKI, AND HONDA
       const processedCategories = categoriesData
         .filter(cat => cat && cat.name)
         .filter(cat => {
           const categoryName = cat.name || "";
           const lowerName = categoryName.toLowerCase();
-          // Hide categories containing yamaha, suzuki, or honda
           return !lowerName.includes("yamaha") && 
                  !lowerName.includes("suzuki") && 
                  !lowerName.includes("honda");
@@ -176,7 +170,6 @@ const Home = () => {
           const slug = cat.slug || categoryName.toLowerCase().replace(/\s+/g, "-").replace(/[^\w-]/g, "") || "category";
           const categoryId = cat._id || cat.id || `cat-${Math.random().toString(36).substr(2, 9)}`;
           
-          // Get subcategories
           const subcategories = cat.subcategories || cat.subCategories || [];
           
           const processedSubcategories = Array.isArray(subcategories) 
@@ -188,7 +181,7 @@ const Home = () => {
                   slug: sub.slug || sub.name.toLowerCase().replace(/\s+/g, "-").replace(/[^\w-]/g, ""),
                   count: sub.productCount || sub.count || 0
                 }))
-                .slice(0, 3) // Reduced for mobile
+                .slice(0, 3)
             : [];
 
           return {
@@ -216,8 +209,6 @@ const Home = () => {
       }
     } catch (error) {
       console.error("❌ Error in fetchCategories:", error);
-      
-      // Show error and let user retry
       setApiStatus("error");
       setUsingFallback(false);
       toast.error(`❌ Failed to load categories: ${error.message}`);
@@ -232,27 +223,22 @@ const Home = () => {
     const newCategoryProducts = {};
     const newLoadingProducts = {};
 
-    // Initialize loading states
     categories.forEach(category => {
       newLoadingProducts[category._id] = true;
     });
     setLoadingProducts(newLoadingProducts);
 
-    // Fetch products for each category
     for (const category of categories) {
       try {
         console.log(`🔄 Fetching products for category: ${category.name} (ID: ${category._id})`);
         
         let products = [];
         
-        // Try multiple methods to fetch products
         try {
-          // Method 1: Use productAPI with category ID
           console.log(`📡 Method 1: Using productAPI.getProductsByCategory with ID: ${category._id}`);
           const response = await productAPI.getProductsByCategory(category._id);
           console.log(`📥 Products response for ${category.name}:`, response);
           
-          // Parse different response formats
           if (response?.success && response.products) {
             products = response.products;
           } else if (response?.success && response.data) {
@@ -267,7 +253,6 @@ const Home = () => {
           
           console.log(`✅ Method 1 found ${products.length} products for ${category.name}`);
           
-          // If no products found with ID, try with slug
           if (products.length === 0 && category.slug) {
             console.log(`📡 Method 1a: Trying with slug: ${category.slug}`);
             try {
@@ -283,12 +268,10 @@ const Home = () => {
         } catch (apiError) {
           console.error(`❌ API error for category ${category.name}:`, apiError);
           
-          // Method 2: Try direct fetch with multiple endpoints
           try {
             const API_BASE_URL = getApiBaseUrl();
             console.log(`📡 Method 2: Trying direct fetch for ${category.name}`);
             
-            // Try different endpoint formats
             const endpoints = [
               `${API_BASE_URL}/api/products?category=${category._id}`,
               `${API_BASE_URL}/api/products?categoryId=${category._id}`,
@@ -337,9 +320,7 @@ const Home = () => {
           }
         }
 
-        // Process products
         const processedProducts = products.map(product => {
-          // Get the main image
           let mainImage = "";
           
           if (product.images && Array.isArray(product.images) && product.images.length > 0) {
@@ -352,7 +333,6 @@ const Home = () => {
             mainImage = product.thumbnail;
           }
           
-          // Convert to absolute URL if needed
           let finalImageUrl = mainImage;
           if (mainImage && !mainImage.startsWith("http") && !mainImage.startsWith("data:")) {
             const API_BASE_URL = getApiBaseUrl();
@@ -365,12 +345,10 @@ const Home = () => {
             }
           }
           
-          // Fallback image
           if (!finalImageUrl || finalImageUrl.trim() === '') {
             finalImageUrl = "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop";
           }
           
-          // Ensure product has required fields
           return {
             _id: product._id || product.id || `prod-${Math.random().toString(36).substr(2, 9)}`,
             name: product.name || "Unnamed Product",
@@ -386,7 +364,6 @@ const Home = () => {
           };
         });
 
-        // Store products
         if (processedProducts.length > 0) {
           newCategoryProducts[category._id] = processedProducts;
           console.log(`✅ Loaded ${processedProducts.length} products for ${category.name}`);
@@ -404,14 +381,12 @@ const Home = () => {
       }
     }
 
-    // Update state
     setCategoryProducts(newCategoryProducts);
     setLoadingProducts(newLoadingProducts);
     
     console.log("✅ Updated categoryProducts:", newCategoryProducts);
   };
 
-  // Helper function to get appropriate icon based on category name
   const getCategoryIcon = (categoryName) => {
     if (!categoryName) return FolderTree;
 
@@ -426,16 +401,12 @@ const Home = () => {
     return FolderTree;
   };
 
-  // Helper function to get appropriate image based on category
   const getCategoryImage = (category) => {
-    // If category has image property
     if (category?.image && typeof category.image === 'string' && category.image.trim() !== '') {
-      // If it's already a full URL
       if (category.image.startsWith("http")) {
         return category.image;
       }
       
-      // If it's a relative path
       const API_BASE_URL = getApiBaseUrl();
       if (category.image.startsWith("/uploads/")) {
         return `${API_BASE_URL}${category.image}`;
@@ -446,7 +417,6 @@ const Home = () => {
       }
     }
 
-    // If category has imageUrl property
     if (category?.imageUrl && typeof category.imageUrl === 'string' && category.imageUrl.trim() !== '') {
       if (category.imageUrl.startsWith("http")) {
         return category.imageUrl;
@@ -456,7 +426,6 @@ const Home = () => {
       return `${API_BASE_URL}${category.imageUrl.startsWith("/") ? "" : "/"}${category.imageUrl}`;
     }
 
-    // Fallback to Unsplash image based on category name
     const name = (category?.name || "").toLowerCase();
     if (name.includes("engine")) return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=250&fit=crop";
     if (name.includes("brake")) return "https://images.unsplash.com/photo-1558981806-ec527fa0b4c9?w=400&h=250&fit=crop";
@@ -469,6 +438,39 @@ const Home = () => {
     return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=250&fit=crop";
   };
 
+  // Animation observer function
+  const observeSectionAnimations = (section) => {
+    if (!section) return;
+    
+    const animatedElements = section.querySelectorAll('[data-animate]');
+    
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const element = entry.target;
+            const delay = element.getAttribute('data-delay') || '0ms';
+            
+            setTimeout(() => {
+              element.style.opacity = '1';
+              element.style.transform = 'translateY(0)';
+            }, parseInt(delay));
+            
+            observer.unobserve(element);
+          }
+        });
+      },
+      {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+      }
+    );
+    
+    animatedElements.forEach(element => {
+      observer.observe(element);
+    });
+  };
+
   // Intersection Observer for animations
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -476,6 +478,7 @@ const Home = () => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             entry.target.classList.add("section-visible");
+            observeSectionAnimations(entry.target);
           }
         });
       },
@@ -501,28 +504,23 @@ const Home = () => {
     }
   };
 
-  // Handle category click
   const handleCategoryClick = (category) => {
     setSelectedCategory(category);
-    // Scroll to top of category section
     if (sectionRefs.current[0]) {
       sectionRefs.current[0].scrollIntoView({ behavior: 'smooth' });
     }
     
-    // If products for this category haven't been loaded yet, load them now
     if (!categoryProducts[category._id]) {
       fetchProductsForCategory(category);
     }
   };
 
-  // Fetch products for a specific category on demand
   const fetchProductsForCategory = async (category) => {
     if (!category) return;
     
     try {
       console.log(`🔄 Fetching products for clicked category: ${category.name}`);
       
-      // Set loading state
       setLoadingProducts(prev => ({
         ...prev,
         [category._id]: true
@@ -530,9 +528,7 @@ const Home = () => {
       
       let products = [];
       
-      // Try multiple methods to fetch products
       try {
-        // Method 1: Use productAPI
         const response = await productAPI.getProductsByCategory(category._id);
         
         if (response?.success && response.products) {
@@ -547,7 +543,6 @@ const Home = () => {
       } catch (apiError) {
         console.error(`❌ API error:`, apiError);
         
-        // Method 2: Try direct fetch
         try {
           const API_BASE_URL = getApiBaseUrl();
           const response = await fetch(
@@ -575,9 +570,7 @@ const Home = () => {
         }
       }
 
-      // Process products
       const processedProducts = products.map(product => {
-        // Get the main image
         let mainImage = "";
         
         if (product.images && Array.isArray(product.images) && product.images.length > 0) {
@@ -588,7 +581,6 @@ const Home = () => {
           mainImage = product.imageUrl;
         }
         
-        // Convert to absolute URL if needed
         let finalImageUrl = mainImage;
         if (mainImage && !mainImage.startsWith("http") && !mainImage.startsWith("data:")) {
           const API_BASE_URL = getApiBaseUrl();
@@ -601,7 +593,6 @@ const Home = () => {
           }
         }
         
-        // Fallback image
         if (!finalImageUrl || finalImageUrl.trim() === '') {
           finalImageUrl = "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop";
         }
@@ -621,7 +612,6 @@ const Home = () => {
         };
       });
 
-      // Update category products
       setCategoryProducts(prev => ({
         ...prev,
         [category._id]: processedProducts
@@ -633,7 +623,6 @@ const Home = () => {
       console.error(`❌ Error fetching products for ${category.name}:`, error);
       toast.error(`Failed to load products for ${category.name}`);
     } finally {
-      // Clear loading state
       setLoadingProducts(prev => ({
         ...prev,
         [category._id]: false
@@ -641,12 +630,10 @@ const Home = () => {
     }
   };
 
-  // Clear selected category
   const clearSelectedCategory = () => {
     setSelectedCategory(null);
   };
 
-  // Get products for selected category
   const getProductsForSelectedCategory = () => {
     if (!selectedCategory) return [];
     
@@ -657,7 +644,6 @@ const Home = () => {
     return [];
   };
 
-  // Pagination handlers
   const totalPages = Math.ceil(categories.length / itemsPerPage);
   
   const handleNextPage = () => {
@@ -678,7 +664,6 @@ const Home = () => {
     }
   };
 
-  // Product Card Component - Optimized for mobile
   const ProductCard = ({ product }) => {
     const [isWishlisted, setIsWishlisted] = useState(false);
     const [imageError, setImageError] = useState(false);
@@ -691,7 +676,6 @@ const Home = () => {
       ? Math.round(((product.price - product.discountedPrice) / product.price) * 100)
       : 0;
     
-    // Get product image
     const getProductImage = () => {
       if (imageError) {
         return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop";
@@ -703,12 +687,10 @@ const Home = () => {
         return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop";
       }
       
-      // If it's already a full URL or data URL
       if (mainImage.startsWith("http") || mainImage.startsWith("data:")) {
         return mainImage;
       }
       
-      // If it's a relative path
       const API_BASE_URL = getApiBaseUrl();
       if (mainImage.startsWith("/uploads/")) {
         return `${API_BASE_URL}${mainImage}`;
@@ -751,7 +733,6 @@ const Home = () => {
         className="block group h-full"
       >
         <div className="bg-gradient-to-b from-gray-900 to-gray-950 rounded-xl overflow-hidden border border-gray-800 hover:border-red-500 transition-all duration-300 hover:shadow-2xl h-full flex flex-col">
-          {/* Product Image Container */}
           <div className="relative h-40 sm:h-48 overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900">
             <img
               src={getProductImage()}
@@ -760,39 +741,26 @@ const Home = () => {
               onError={handleImageError}
               loading="lazy"
             />
-            
-          
-            
-           
           </div>
           
-          {/* Product Info */}
           <div className="p-3 sm:p-4 flex-1 flex flex-col">
-            {/* Category */}
             <div className="text-xs text-gray-400 mb-1 truncate">
               {product.category?.name || "Motorcycle Parts"}
             </div>
             
-            {/* Product Name */}
             <h3 className="font-bold text-white mb-2 line-clamp-1 group-hover:text-red-400 transition-colors text-sm sm:text-base">
               {product.name}
             </h3>
             
-            {/* Description */}
             <p className="text-xs sm:text-sm text-gray-300 mb-2 sm:mb-3 line-clamp-2 flex-1">
               {product.description}
             </p>
-            
-      
-            
-       
           </div>
         </div>
       </Link>
     );
   };
 
-  // List View Product Card Component - Mobile optimized
   const ListProductCard = ({ product }) => {
     const [isWishlisted, setIsWishlisted] = useState(false);
     const [imageError, setImageError] = useState(false);
@@ -805,7 +773,6 @@ const Home = () => {
       ? Math.round(((product.price - product.discountedPrice) / product.price) * 100)
       : 0;
     
-    // Get product image
     const getProductImage = () => {
       if (imageError) {
         return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop";
@@ -857,7 +824,6 @@ const Home = () => {
       >
         <div className="bg-gradient-to-b from-gray-900 to-gray-950 rounded-xl overflow-hidden border border-gray-800 hover:border-red-500 transition-all duration-300 hover:shadow-xl">
           <div className="flex flex-col md:flex-row">
-            {/* Product Image */}
             <div className="md:w-1/4 relative">
               <div className="relative h-48 md:h-full overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900">
                 <img
@@ -868,7 +834,6 @@ const Home = () => {
                   loading="lazy"
                 />
                 
-                {/* Discount Badge */}
                 {discountPercentage > 0 && (
                   <div className="absolute top-2 left-2 md:top-3 md:left-3 bg-gradient-to-r from-red-600 to-red-700 text-white text-xs font-bold px-2 py-1 md:px-3 md:py-1.5 rounded-full shadow-lg">
                     -{discountPercentage}% OFF
@@ -877,25 +842,20 @@ const Home = () => {
               </div>
             </div>
             
-            {/* Product Info */}
             <div className="md:w-3/4 p-4 md:p-6 flex flex-col justify-between">
               <div>
-                {/* Category */}
                 <div className="text-xs text-gray-400 mb-2">
                   {product.category?.name || "Motorcycle Parts"}
                 </div>
                 
-                {/* Product Name */}
                 <h3 className="font-bold text-white text-base md:text-lg mb-2 line-clamp-1 group-hover:text-red-400 transition-colors">
                   {product.name}
                 </h3>
                 
-                {/* Description */}
                 <p className="text-gray-300 text-sm md:text-base mb-3 md:mb-4 line-clamp-2">
                   {product.description}
                 </p>
                 
-                {/* Rating and Stock */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-3 md:mb-4">
                   <div className="flex items-center gap-2">
                     {getRatingStars(product.rating)}
@@ -913,7 +873,6 @@ const Home = () => {
                 </div>
               </div>
               
-              {/* Price and Actions */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 md:gap-4 pt-3 md:pt-4 border-t border-gray-800">
                 <div>
                   <div className="flex items-baseline gap-2 md:gap-3">
@@ -928,7 +887,6 @@ const Home = () => {
                   </div>
                 </div>
                 
-                {/* Action Buttons */}
                 <div className="flex items-center gap-2 md:gap-3 w-full sm:w-auto">
                   <button
                     onClick={(e) => {
@@ -959,7 +917,6 @@ const Home = () => {
     );
   };
 
-  // StarHalf component for ratings
   const StarHalf = ({ className }) => (
     <svg
       className={className}
@@ -981,7 +938,6 @@ const Home = () => {
     </svg>
   );
 
-  // Compact Category Card Component - Mobile optimized
   const CategoryCard = ({ category, index }) => {
     const [imgError, setImgError] = useState(false);
 
@@ -989,7 +945,6 @@ const Home = () => {
       setImgError(true);
     };
 
-    // Get final image URL
     const getFinalImageUrl = () => {
       if (imgError) {
         const name = (category.title || "").toLowerCase();
@@ -1034,7 +989,6 @@ const Home = () => {
           onClick={() => handleCategoryClick(category)}
           className="w-full bg-gradient-to-b from-gray-900 to-gray-950 rounded-xl overflow-hidden shadow-lg border border-gray-800 hover:border-red-500 transition-all duration-300 hover:shadow-xl group cursor-pointer h-56 sm:h-64 flex flex-col"
         >
-          {/* Simple Image Container */}
           <div className="relative h-40 sm:h-48 overflow-hidden flex-1">
             <img
               src={getFinalImageUrl()}
@@ -1043,11 +997,8 @@ const Home = () => {
               loading="lazy"
               onError={handleImageError}
             />
-            
-         
           </div>
           
-          {/* Simple bottom bar */}
           <div className="bg-gray-900 px-2 sm:px-3 py-2 flex items-center justify-center border-t border-gray-800">
             <span className="text-xs text-gray-300 truncate px-1">
               {category.title}
@@ -1070,7 +1021,6 @@ const Home = () => {
             >
               <X className="w-6 h-6" />
             </button>
-            {/* Add mobile menu items here if needed */}
           </div>
         </div>
       )}
@@ -1155,7 +1105,37 @@ const Home = () => {
             -webkit-line-clamp: 2;
           }
           
-          /* Mobile responsive fixes */
+          /* Scroll-dependent animation styles */
+          [data-animate] {
+            transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+            will-change: opacity, transform;
+          }
+          
+          /* Delay classes for staggered animations */
+          .delay-150 {
+            transition-delay: 150ms !important;
+          }
+          
+          .delay-200 {
+            transition-delay: 200ms !important;
+          }
+          
+          .delay-300 {
+            transition-delay: 300ms !important;
+          }
+          
+          .delay-400 {
+            transition-delay: 400ms !important;
+          }
+          
+          .delay-500 {
+            transition-delay: 500ms !important;
+          }
+          
+          .delay-600 {
+            transition-delay: 600ms !important;
+          }
+          
           @media (max-width: 640px) {
             .text-5xl {
               font-size: 2.5rem !important;
@@ -1174,30 +1154,28 @@ const Home = () => {
         `}
       </style>
 
-      {/* Hero Section */}
-      <section className="relative min-h-[50vh] sm:min-h-screen flex items-center justify-center overflow-hidden bg-black">
-        <div className="absolute inset-0 z-0">
+      {/* Hero Section - Show banner at real/original size on mobile */}
+      <section className="relative w-full overflow-hidden bg-black mt-0 pt-0">
+        <div className="relative w-full">
           <img
             src="/banner/banner.jpg"
             alt="Federal Parts Banner"
-            className="w-full h-full object-cover"
+            className="w-full h-auto max-w-full block"
             onError={(e) => {
               e.target.onerror = null;
               e.target.src = "https://images.unsplash.com/photo-1566473359723-7e3e4d6c8c1b?w=1200&h=800&fit=crop";
             }}
           />
-          {/* Mobile overlay for better text visibility */}
-          <div className="absolute inset-0 bg-black/30 md:hidden"></div>
+          <div className="absolute inset-0 bg-black/10 sm:bg-transparent"></div>
         </div>
       </section>
 
       {/* Categories Section */}
       <section
         ref={(el) => (sectionRefs.current[0] = el)}
-        className="py-8 sm:py-16 bg-black "
+        className="py-8 sm:py-16 bg-black"
       >
         <div className="container mx-auto px-3 sm:px-4 max-w-7xl">
-          {/* Section Header */}
           <div className="text-center mb-8 sm:mb-12 animate-fade-up animate-on-visible">
             <h2 className="font-bebas text-3xl sm:text-4xl md:text-5xl text-white mb-2 sm:mb-3">
               Product Categories
@@ -1207,12 +1185,9 @@ const Home = () => {
             </p>
           </div>
 
-          {/* Main Content */}
           <div className="animate-fade-in">
             {selectedCategory ? (
-              /* Category Products View */
               <div>
-                {/* Category Header */}
                 <div className="mb-6 sm:mb-8">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4 sm:mb-6">
                     <div className="flex items-center gap-3 sm:gap-4">
@@ -1227,11 +1202,9 @@ const Home = () => {
                         <h3 className="text-xl sm:text-2xl font-bold text-white">
                           {selectedCategory.title}
                         </h3>
-                        
                       </div>
                     </div>
                     
-                    {/* View Toggle Buttons */}
                     <div className="flex items-center gap-1 sm:gap-2 bg-gradient-to-r from-gray-900 to-black p-1 rounded-lg border border-gray-800 self-end sm:self-auto">
                       <button
                         onClick={() => setCategoryView("grid")}
@@ -1250,7 +1223,6 @@ const Home = () => {
                     </div>
                   </div>
                   
-                  {/* Subcategories */}
                   {selectedCategory.subcategories && selectedCategory.subcategories.length > 0 && (
                     <div className="mb-4 sm:mb-6">
                       <h4 className="text-xs sm:text-sm font-medium text-gray-400 mb-2 sm:mb-3 uppercase tracking-wider">
@@ -1271,7 +1243,6 @@ const Home = () => {
                   )}
                 </div>
 
-                {/* Products Grid/List */}
                 {loadingProducts[selectedCategory._id] ? (
                   <div className="text-center py-8 sm:py-12">
                     <Loader className="w-6 h-6 sm:w-8 sm:h-8 animate-spin text-red-500 mx-auto mb-3 sm:mb-4" />
@@ -1292,7 +1263,6 @@ const Home = () => {
                     </div>
                   )
                 ) : (
-                  /* Empty State for Products */
                   <div className="text-center py-8 sm:py-12">
                     <FolderTree className="w-12 h-12 sm:w-16 sm:h-16 text-gray-600 mx-auto mb-3 sm:mb-4" />
                     <h4 className="text-lg sm:text-xl font-bold text-white mb-1 sm:mb-2">No Products Found</h4>
@@ -1321,7 +1291,6 @@ const Home = () => {
                   </div>
                 )}
 
-                {/* Product Count Display */}
                 {!loadingProducts[selectedCategory._id] && getProductsForSelectedCategory().length > 0 && (
                   <div className="mt-4 sm:mt-6 text-center">
                     <p className="text-gray-400 text-xs sm:text-sm">
@@ -1330,12 +1299,9 @@ const Home = () => {
                   </div>
                 )}
 
-             
               </div>
             ) : (
-              /* Categories Grid View */
               <div>
-                {/* Categories Grid - 8 items visible per page (4 on mobile) */}
                 {categoriesLoading ? (
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
                     {Array.from({ length: 8 }).map((_, index) => (
@@ -1427,14 +1393,12 @@ const Home = () => {
                   </div>
                 ) : (
                   <>
-                    {/* Categories Grid - Showing 8 items per page on desktop (4 on mobile) */}
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
                       {visibleCategories.map((category, index) => (
                         <CategoryCard key={category._id} category={category} index={index} />
                       ))}
                     </div>
 
-                    {/* Pagination Controls */}
                     {categories.length > itemsPerPage && (
                       <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
                         <div className="text-gray-400 text-xs sm:text-sm order-2 sm:order-1">
@@ -1499,7 +1463,6 @@ const Home = () => {
                       </div>
                     )}
 
-
                   </>
                 )}
               </div>
@@ -1508,32 +1471,40 @@ const Home = () => {
         </div>
       </section>
 
-      {/* About Section */}
+      {/* About Section with scroll-dependent animations */}
       <section
-        ref={(el) => (sectionRefs.current[1] = el)}
+        ref={(el) => {
+          sectionRefs.current[1] = el;
+          if (el) observeSectionAnimations(el);
+        }}
         className="py-8 sm:py-16 bg-black"
       >
         <div className="container mx-auto px-3 sm:px-4 max-w-7xl">
-          <div className="text-center mb-8 sm:mb-12 animate-fade-up animate-on-visible">
-            <h2 className="font-bebas text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-white mb-3 sm:mb-4 px-2">
+          <div className="text-center mb-8 sm:mb-12">
+            <h2 className="font-bebas text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-white mb-3 sm:mb-4 px-2 opacity-0 translate-y-8 transition-all duration-700 ease-out" 
+                data-animate="fade-up">
               Quality you can Trust. Price You Can Afford.
             </h2>
-            <p className="text-gray-300 text-sm sm:text-lg max-w-3xl mx-auto px-2">
+            <p className="text-gray-300 text-sm sm:text-lg max-w-3xl mx-auto px-2 opacity-0 translate-y-8 transition-all duration-700 ease-out delay-150" 
+               data-animate="fade-up">
               Experience the perfect balance of premium quality and exceptional value with Federal Parts - where trust meets affordability.
             </p>
           </div>
 
           <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 items-center">
-            <div className="animate-slide-down animate-on-visible">
-              <h2 className="font-bebas text-2xl sm:text-3xl md:text-4xl text-white mb-4 sm:mb-6">
+            <div>
+              <h2 className="font-bebas text-2xl sm:text-3xl md:text-4xl text-white mb-4 sm:mb-6 opacity-0 translate-y-8 transition-all duration-700 ease-out delay-200" 
+                  data-animate="slide-down">
                 About Federal Parts
               </h2>
-              <p className="text-gray-300 text-sm sm:text-base mb-6 sm:mb-8">
+              <p className="text-gray-300 text-sm sm:text-base mb-6 sm:mb-8 opacity-0 translate-y-8 transition-all duration-700 ease-out delay-300" 
+                 data-animate="slide-down">
                 Cutting-edge innovative technology Federal Parts is one of the brands of motorcycle spare parts marketed by PT Astra Otoparts Tbk's Domestic business unit. Consumers in Indonesia can easily obtain Federal Parts products due to the extensive marketing network, which includes 50 main dealers, 23 sales offices, and nearly 10,000 shops or workshops. In addition, Federal Parts is well known for its quality because it is manufactured according to OEM (Original Equipment Manufacturer) standards and is suitable for all motorcycle brands circulating in Indonesia, such as Honda, Kawasaki, Suzuki, and Yamaha. It is also supported by the large variety of products offered. Federal Parts is always committed to providing added value for consumers by continuously launching spare parts with the latest technology at affordable prices without compromising quality.
               </p>
 
               <div className="space-y-3 sm:space-y-4">
-                <div className="flex items-start sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-900/50 rounded-lg hover:bg-gray-800 transition-colors animate-fade-up animate-on-visible border border-gray-800">
+                <div className="flex items-start sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-900/50 rounded-lg hover:bg-gray-800 transition-colors border border-gray-800 opacity-0 translate-y-8 transition-all duration-700 ease-out delay-400" 
+                     data-animate="fade-up">
                   <Shield className="w-6 h-6 sm:w-8 sm:h-8 text-red-600 flex-shrink-0 mt-0.5 sm:mt-0" />
                   <div>
                     <h4 className="font-bold text-white text-sm sm:text-base">
@@ -1544,10 +1515,8 @@ const Home = () => {
                     </p>
                   </div>
                 </div>
-                <div 
-                  className="flex items-start sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-900/50 rounded-lg hover:bg-gray-800 transition-colors animate-fade-up animate-on-visible border border-gray-800"
-                  style={{ animationDelay: "200ms" }}
-                >
+                <div className="flex items-start sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-900/50 rounded-lg hover:bg-gray-800 transition-colors border border-gray-800 opacity-0 translate-y-8 transition-all duration-700 ease-out delay-500" 
+                     data-animate="fade-up">
                   <Target className="w-6 h-6 sm:w-8 sm:h-8 text-red-600 flex-shrink-0 mt-0.5 sm:mt-0" />
                   <div>
                     <h4 className="font-bold text-white text-sm sm:text-base">Indonesia-DNA</h4>
@@ -1556,10 +1525,8 @@ const Home = () => {
                     </p>
                   </div>
                 </div>
-                <div 
-                  className="flex items-start sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-900/50 rounded-lg hover:bg-gray-800 transition-colors animate-fade-up animate-on-visible border border-gray-800"
-                  style={{ animationDelay: "300ms" }}
-                >
+                <div className="flex items-start sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-900/50 rounded-lg hover:bg-gray-800 transition-colors border border-gray-800 opacity-0 translate-y-8 transition-all duration-700 ease-out delay-600" 
+                     data-animate="fade-up">
                   <TrendingDown className="w-6 h-6 sm:w-8 sm:h-8 text-red-600 flex-shrink-0 mt-0.5 sm:mt-0" />
                   <div>
                     <h4 className="font-bold text-white text-sm sm:text-base">
@@ -1573,9 +1540,9 @@ const Home = () => {
               </div>
             </div>
 
-            <div className="relative animate-fade-up animate-on-visible mt-8 lg:mt-0">
-              <div className="relative rounded-xl overflow-hidden shadow-2xl border border-gray-800">
-                {/* Updated about picture */}
+            <div className="relative mt-8 lg:mt-0">
+              <div className="relative rounded-xl overflow-hidden shadow-2xl border border-gray-800 opacity-0 translate-y-8 transition-all duration-700 ease-out delay-400" 
+                   data-animate="fade-up">
                 <img
                   src="/newbanner/Desktop (about federal parts.png"
                   alt="About Federal Parts"
@@ -1585,7 +1552,6 @@ const Home = () => {
                     e.target.src = "/wmremove-transformed (1).png";
                   }}
                 />
-               
               </div>
             </div>
           </div>

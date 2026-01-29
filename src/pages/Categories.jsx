@@ -480,13 +480,24 @@ const Categories = () => {
   const [categories, setCategories] = useState([]);
   const [mainCategories, setMainCategories] = useState([]);
   const [allCategories, setAllCategories] = useState([]);
+  const [allProducts, setAllProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [error, setError] = useState(null);
   const [activeMainCategory, setActiveMainCategory] = useState(null);
   const [viewingProducts, setViewingProducts] = useState(null);
   const [products, setProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  
+  // Search states
+  const [searchResults, setSearchResults] = useState({
+    brands: [],
+    motorcycles: [],
+    products: []
+  });
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [searchTerm, setSearchTerm] = useState(searchParams.get("search") || "");
   
   // Filters
   const [filters, setFilters] = useState({
@@ -552,6 +563,7 @@ const Categories = () => {
   // Fetch categories on mount
   useEffect(() => {
     fetchCategories();
+    fetchAllProducts();
   }, []);
 
   // Set first main category as active
@@ -560,6 +572,81 @@ const Categories = () => {
       setActiveMainCategory(mainCategories[0]?._id);
     }
   }, [mainCategories, activeMainCategory]);
+
+  // Fetch all products for search functionality
+  const fetchAllProducts = async () => {
+    try {
+      console.log("📦 Fetching all products for search...");
+      
+      let productsData = [];
+      
+      try {
+        // Try direct API call
+        const API_BASE_URL = import.meta.env.VITE_API_URL || "https://federalpartsphilippines-backend.onrender.com/api";
+        const baseUrl = API_BASE_URL.replace("/api", "");
+        
+        const response = await fetch(`${baseUrl}/api/products?limit=200&populate=images`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          mode: 'cors',
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          
+          if (data?.success && data.products) {
+            productsData = data.products;
+          } else if (data?.data && Array.isArray(data.data)) {
+            productsData = data.data;
+          } else if (Array.isArray(data)) {
+            productsData = data;
+          }
+        } else {
+          throw new Error("Direct product fetch failed");
+        }
+      } catch (directError) {
+        console.warn("Direct all products fetch failed, using productAPI...");
+        
+        // Fallback to productAPI
+        try {
+          const response = await productAPI.getAll({
+            limit: 200,
+            page: 1,
+          });
+          
+          if (response?.success && response.products) {
+            productsData = response.products;
+          } else if (response?.data && Array.isArray(response.data)) {
+            productsData = response.data;
+          }
+        } catch (apiError) {
+          console.error("❌ productAPI error for all products:", apiError);
+        }
+      }
+      
+      // Process products
+      const processedProducts = productsData.map(product => ({
+        ...product,
+        _id: product._id || product.id,
+        images: product.images || [product.image || product.imageUrl].filter(Boolean),
+        image: product.image || product.images?.[0] || product.imageUrl,
+        price: product.price || product.basePrice || 0,
+        discountedPrice: product.discountedPrice || product.discountPrice || null,
+        rating: product.rating || product.averageRating || 4.0,
+        stock: product.stock || product.quantity || 0,
+        category: product.category || {}
+      }));
+      
+      console.log(`📦 Loaded ${processedProducts.length} products for search`);
+      setAllProducts(processedProducts);
+      
+    } catch (error) {
+      console.error("❌ Error fetching all products:", error);
+    }
+  };
 
   // Fetch categories function
   const fetchCategories = async () => {
@@ -877,9 +964,68 @@ const Categories = () => {
     }
   };
 
+  // Perform search across brands, motorcycles, and products
+  const performSearch = async (term) => {
+    if (!term || term.trim() === "") {
+      setShowSearchResults(false);
+      setSearchResults({ brands: [], motorcycles: [], products: [] });
+      return;
+    }
+
+    setSearchLoading(true);
+    setShowSearchResults(true);
+
+    const searchTerm = term.toLowerCase().trim();
+    
+    // Search in brands (main categories)
+    const brandsResults = mainCategories.filter(category =>
+      category.name.toLowerCase().includes(searchTerm) ||
+      (category.description && category.description.toLowerCase().includes(searchTerm))
+    );
+
+    // Search in motorcycles (sub-categories)
+    const motorcyclesResults = allCategories.filter(category => 
+      category.parentCategory && (
+        category.name.toLowerCase().includes(searchTerm) ||
+        (category.description && category.description.toLowerCase().includes(searchTerm))
+      )
+    );
+
+    // Search in products
+    const productsResults = allProducts.filter(product =>
+      product.name.toLowerCase().includes(searchTerm) ||
+      (product.description && product.description.toLowerCase().includes(searchTerm)) ||
+      (product.shortDescription && product.shortDescription.toLowerCase().includes(searchTerm))
+    );
+
+    setSearchResults({
+      brands: brandsResults,
+      motorcycles: motorcyclesResults,
+      products: productsResults
+    });
+
+    setSearchLoading(false);
+  };
+
+  // Handle search input change
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    handleFilterChange("search", value);
+    
+    // Perform search if there's a term
+    if (value.trim() !== "") {
+      performSearch(value);
+    } else {
+      setShowSearchResults(false);
+      setSearchResults({ brands: [], motorcycles: [], products: [] });
+    }
+  };
+
   // Handle viewing products
   const handleViewProducts = async (categoryId) => {
     setViewingProducts(categoryId);
+    setShowSearchResults(false);
     await fetchCategoryProducts(categoryId);
     // Scroll to top on mobile
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -890,6 +1036,7 @@ const Categories = () => {
     setActiveMainCategory(categoryId);
     setViewingProducts(null);
     setProducts([]);
+    setShowSearchResults(false);
     // Scroll to subcategories on mobile
     if (window.innerWidth < 768) {
       setTimeout(() => {
@@ -918,6 +1065,9 @@ const Categories = () => {
       page: 1,
       limit: 12,
     });
+    setSearchTerm("");
+    setShowSearchResults(false);
+    setSearchResults({ brands: [], motorcycles: [], products: [] });
     setActiveMainCategory(mainCategories[0]?._id);
     setViewingProducts(null);
     setProducts([]);
@@ -926,7 +1076,8 @@ const Categories = () => {
 
   const handleRefresh = () => {
     fetchCategories();
-    toast.success("Categories refreshed!");
+    fetchAllProducts();
+    toast.success("Categories and products refreshed!");
   };
 
   // Get filtered categories
@@ -978,6 +1129,176 @@ const Categories = () => {
   const currentCategoryWithProducts = viewingProducts 
     ? allCategories.find(cat => cat._id === viewingProducts)
     : null;
+
+  // Render Search Results
+  const renderSearchResults = () => {
+    if (!showSearchResults || (!searchTerm || searchTerm.trim() === "")) {
+      return null;
+    }
+
+    const totalResults = searchResults.brands.length + 
+                        searchResults.motorcycles.length + 
+                        searchResults.products.length;
+
+    if (totalResults === 0) {
+      return (
+        <div className="absolute top-full left-0 right-0 mt-2 bg-gradient-to-b from-gray-900 to-black rounded-xl sm:rounded-2xl border border-gray-800 shadow-2xl z-50 max-h-96 overflow-y-auto">
+          <div className="p-4 text-center">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gray-900 to-black flex items-center justify-center mx-auto mb-3">
+              <Search className="w-6 h-6 text-gray-600" />
+            </div>
+            <p className="text-gray-400 text-sm">
+              No results found for "{searchTerm}"
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="absolute top-full left-0 right-0 mt-2 bg-gradient-to-b from-gray-900 to-black rounded-xl sm:rounded-2xl border border-gray-800 shadow-2xl z-50 max-h-96 overflow-y-auto">
+        {searchLoading ? (
+          <div className="p-4 text-center">
+            <div className="w-6 h-6 border-2 border-gray-700 border-t-red-500 animate-spin rounded-full mx-auto mb-2"></div>
+            <p className="text-gray-400 text-sm">Searching...</p>
+          </div>
+        ) : (
+          <div className="p-4">
+            {/* Summary */}
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm text-gray-400">
+                Found {totalResults} results for "{searchTerm}"
+              </p>
+              <button
+                onClick={() => setShowSearchResults(false)}
+                className="text-xs text-red-400 hover:text-red-300"
+              >
+                Close
+              </button>
+            </div>
+
+            {/* Brands Results */}
+            {searchResults.brands.length > 0 && (
+              <div className="mb-4">
+                <h4 className="text-xs uppercase text-gray-500 font-semibold mb-2 flex items-center gap-2">
+                  <Crown className="w-3 h-3" />
+                  Brands ({searchResults.brands.length})
+                </h4>
+                <div className="space-y-2">
+                  {searchResults.brands.map(brand => (
+                    <div
+                      key={brand._id}
+                      className="flex items-center gap-3 p-2 rounded-lg bg-gray-900/50 hover:bg-gray-800/50 cursor-pointer transition-colors"
+                      onClick={() => handleMainCategoryClick(brand._id)}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-500/20 to-red-600/20 flex items-center justify-center">
+                        <Grid3x3 className="w-3 h-3 text-red-400" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm text-white">{brand.name}</p>
+                        <p className="text-xs text-gray-400">{brand.productCount || 0} products</p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-gray-500" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Motorcycles Results */}
+            {searchResults.motorcycles.length > 0 && (
+              <div className="mb-4">
+                <h4 className="text-xs uppercase text-gray-500 font-semibold mb-2 flex items-center gap-2">
+                  <Layers className="w-3 h-3" />
+                  Motorcycles ({searchResults.motorcycles.length})
+                </h4>
+                <div className="space-y-2">
+                  {searchResults.motorcycles.map(motorcycle => (
+                    <div
+                      key={motorcycle._id}
+                      className="flex items-center gap-3 p-2 rounded-lg bg-gray-900/50 hover:bg-gray-800/50 cursor-pointer transition-colors"
+                      onClick={() => handleViewProducts(motorcycle._id)}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500/20 to-purple-600/20 flex items-center justify-center">
+                        <Package className="w-3 h-3 text-purple-400" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm text-white">{motorcycle.name}</p>
+                        <p className="text-xs text-gray-400">{motorcycle.productCount || 0} products</p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-gray-500" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Products Results */}
+            {searchResults.products.length > 0 && (
+              <div>
+                <h4 className="text-xs uppercase text-gray-500 font-semibold mb-2 flex items-center gap-2">
+                  <ShoppingBag className="w-3 h-3" />
+                  Products ({searchResults.products.length})
+                </h4>
+                <div className="space-y-2">
+                  {searchResults.products.slice(0, 5).map(product => (
+                    <div
+                      key={product._id}
+                      className="flex items-center gap-3 p-2 rounded-lg bg-gray-900/50 hover:bg-gray-800/50 cursor-pointer transition-colors"
+                      onClick={() => {
+                        navigate(`/product/${product._id}`, {
+                          state: {
+                            returnTo: `/categories`,
+                            searchTerm: searchTerm
+                          }
+                        });
+                        setShowSearchResults(false);
+                      }}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-900 to-black overflow-hidden">
+                        {product.image ? (
+                          <img 
+                            src={getImageUrl(product.image, "products")} 
+                            alt={product.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-gray-800">
+                            <Package className="w-3 h-3 text-gray-400" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm text-white line-clamp-1">{product.name}</p>
+                        <p className="text-xs text-gray-400 line-clamp-1">
+                          {product.shortDescription || product.description || 'No description'}
+                        </p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-gray-500" />
+                    </div>
+                  ))}
+                  {searchResults.products.length > 5 && (
+                    <div className="text-center pt-2">
+                      <button
+                        onClick={() => {
+                          // Navigate to products page with search term
+                          navigate(`/products?search=${encodeURIComponent(searchTerm)}`);
+                          setShowSearchResults(false);
+                        }}
+                        className="text-xs text-red-400 hover:text-red-300"
+                      >
+                        View all {searchResults.products.length} products →
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Render Hero Banner
   const renderHeroBanner = () => (
@@ -1037,31 +1358,39 @@ const Categories = () => {
           </p>
           
           {/* Search Bar */}
-          <div className="max-w-2xl mx-auto px-4">
+          <div className="max-w-2xl mx-auto px-4 relative">
             <div className="relative">
               <div className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2">
                 <Search className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
               </div>
               <input
                 type="text"
-                value={filters.search}
-                onChange={(e) => handleFilterChange("search", e.target.value)}
-                placeholder={
-                  viewingProducts 
-                    ? "Search products..."
-                    : "Search categories..."
-                }
+                value={searchTerm}
+                onChange={handleSearchChange}
+                placeholder="Search brands, motorcycles, or products..."
                 className="w-full pl-10 sm:pl-12 pr-4 py-3 sm:py-4 rounded-xl bg-black/60 backdrop-blur-sm border border-gray-700 focus:ring-2 focus:ring-red-500 focus:border-transparent text-white placeholder-gray-400 shadow-xl text-sm sm:text-base"
+                onFocus={() => {
+                  if (searchTerm && searchTerm.trim() !== "") {
+                    setShowSearchResults(true);
+                  }
+                }}
               />
-              {filters.search && (
+              {searchTerm && (
                 <button
-                  onClick={() => handleFilterChange("search", "")}
+                  onClick={() => {
+                    setSearchTerm("");
+                    handleFilterChange("search", "");
+                    setShowSearchResults(false);
+                  }}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
                 >
                   <X className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               )}
             </div>
+            
+            {/* Search Results Dropdown */}
+            {renderSearchResults()}
           </div>
         </div>
       </div>
@@ -1075,7 +1404,7 @@ const Categories = () => {
     return (
       <div className="fixed inset-0 z-50 md:hidden">
         <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowMobileFilters(false)} />
-        <div className="absolute right-0 top-0 bottom-0 w-4/5 max-w-sm bg-gradient-to-b from-gray-900 to-black border-l border-gray-800 shadow-2xl overflow-y-auto">
+        <div className="absolute right的无0 top-0 bottom-0 w-4/5 max-w-sm bg-gradient-to-b from-gray-900 to-black border-l border-gray-800 shadow-2xl overflow-y-auto">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-bold text-white">Filters</h3>
@@ -1371,6 +1700,7 @@ const Categories = () => {
           onClose={() => {
             setViewingProducts(null);
             setProducts([]);
+            setShowSearchResults(false);
           }}
           loading={productsLoading}
         />
@@ -1419,7 +1749,7 @@ const Categories = () => {
                 Contact Support
               </button>
               <button
-                onClick={fetchCategories}
+                onClick={handleRefresh}
                 className="w-full sm:w-auto px-4 py-2.5 sm:px-6 sm:py-3 bg-black hover:bg-gray-900 text-gray-300 rounded-lg border border-gray-800 transition-all duration-300 hover:border-gray-700 flex items-center justify-center gap-2 text-sm sm:text-base"
               >
                 <RefreshCw className="w-4 h-4" />
