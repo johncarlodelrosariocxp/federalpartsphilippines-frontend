@@ -252,17 +252,9 @@ export const getImageUrl = (imagePath, type = "products") => {
     return imagePath;
   }
 
-  // Handle Vercel deployment - try different URL patterns
+  // Get environment variables
   const isVercel = isBrowser && window.location.hostname.includes('vercel.app');
   
-  // GET BASE URL from environment or fallbacks
-  const API_BASE_URL = import.meta.env.VITE_API_URL || "https://federalpartsphilippines-backend.onrender.com/api";
-  let baseUrl = API_BASE_URL.replace("/api", "");
-  baseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash
-  
-  console.log(`📍 Base URL: ${baseUrl}`);
-  console.log(`📍 Environment: ${isLocalhost ? 'Localhost' : isVercel ? 'Vercel' : 'Production'}`);
-
   // CLEAN THE FILENAME
   let filename = imagePath;
   
@@ -294,29 +286,31 @@ export const getImageUrl = (imagePath, type = "products") => {
     return null;
   }
 
-  // Generate multiple possible URLs to try
-  const possibleUrls = [];
+  // GENERATE IMAGE URL - VERCEL FIX
+  let baseUrl = "";
   
-  // Try with current base URL
-  possibleUrls.push(`${baseUrl}/uploads/${type}/${filename}`);
-  
-  // Try with direct backend URL (for Vercel)
-  possibleUrls.push(`https://federalpartsphilippines-backend.onrender.com/uploads/${type}/${filename}`);
-  
-  // Try without type directory (for backward compatibility)
-  possibleUrls.push(`${baseUrl}/uploads/${filename}`);
-  possibleUrls.push(`https://federalpartsphilippines-backend.onrender.com/uploads/${filename}`);
-  
-  // For localhost, try local server
-  if (isLocalhost) {
-    possibleUrls.push(`http://localhost:5000/uploads/${type}/${filename}`);
-    possibleUrls.push(`http://localhost:5000/uploads/${filename}`);
+  if (isVercel) {
+    // For Vercel deployment, always use the Render backend URL
+    baseUrl = "https://federalpartsphilippines-backend.onrender.com";
+    console.log("🌐 Vercel detected: Using Render backend for images");
+  } else if (isLocalhost) {
+    // For localhost development
+    baseUrl = "http://localhost:5000";
+    console.log("🌐 Localhost detected");
+  } else {
+    // For other deployments (production, etc.)
+    baseUrl = IMAGE_BASE_URL || "https://federalpartsphilippines-backend.onrender.com";
+    console.log("🌐 Production environment detected");
   }
   
-  // Return the first URL - the app will try to load it
-  const finalUrl = possibleUrls[0];
-  console.log(`🎯 Using image URL: ${finalUrl}`);
-  console.log(`🔀 Alternatives available: ${possibleUrls.length}`);
+  // Remove trailing slash if exists
+  baseUrl = baseUrl.replace(/\/$/, '');
+  
+  // Construct the final image URL
+  // Try with type directory first
+  let finalUrl = `${baseUrl}/uploads/${type}/${filename}`;
+  
+  console.log(`🎯 Generated image URL: ${finalUrl}`);
   
   return finalUrl;
 };
@@ -390,7 +384,8 @@ export const loadImageWithFallback = (imagePath, type = "products", fallbacks = 
         `https://federalpartsphilippines-backend.onrender.com/uploads/${type}/${extractFilename(imagePath)}`,
         // Try without type directory
         `https://federalpartsphilippines-backend.onrender.com/uploads/${extractFilename(imagePath)}`,
-        // Add more alternatives as needed
+        // Try with localhost for development
+        `http://localhost:5000/uploads/${type}/${extractFilename(imagePath)}`,
       ];
       
       // Combine user fallbacks with automatic alternatives

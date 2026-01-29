@@ -1683,15 +1683,7 @@ const Categories = () => {
     <div className="bg-gradient-to-b from-gray-900 to-black rounded-xl sm:rounded-2xl border border-gray-800 p-4 sm:p-6 mb-6 sm:mb-8 shadow-xl">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         {/* Mobile Filter Button */}
-        <div className="md:hidden">
-          <button
-            onClick={() => setShowMobileFilters(true)}
-            className="w-full px-4 py-3 bg-black hover:bg-gray-900 text-gray-300 rounded-lg border border-gray-800 transition-all duration-300 hover:border-gray-700 flex items-center justify-center gap-2"
-          >
-            <Filter className="w-4 h-4" />
-            <span className="font-medium">Filters & Sort</span>
-          </button>
-        </div>
+      
         
         <div className="hidden md:flex items-center gap-4">
           {/* Clear Filters Button - Only shown when filters are applied */}
