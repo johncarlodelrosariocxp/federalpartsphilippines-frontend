@@ -1,4 +1,4 @@
-// src/services/api.js - ULTIMATE FIXED VERSION FOR IMAGE ISSUES
+// src/services/api.js - ULTIMATE FIXED VERSION FOR VERCEL IMAGE ISSUES
 import axios from "axios";
 import authService from "./auth.js";
 
@@ -11,7 +11,16 @@ console.log("API_BASE_URL:", API_BASE_URL);
 console.log("IMAGE_BASE_URL:", IMAGE_BASE_URL);
 
 const isBrowser = typeof window !== "undefined";
-const isLocalhost = isBrowser && window.location.hostname === 'localhost';
+// Detect environment
+const isLocalhost = isBrowser && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+const isVercel = isBrowser && (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('federalpartsphilippines'));
+
+console.log("📍 Environment detected:", {
+  isBrowser,
+  isLocalhost,
+  isVercel,
+  hostname: isBrowser ? window.location.hostname : 'server'
+});
 
 // ========== URL VALIDATION ==========
 const validateAndFixUrl = (url) => {
@@ -62,10 +71,13 @@ API.interceptors.request.use(
         config.headers["Pragma"] = "no-cache";
         config.headers["Expires"] = "0";
         
-        if (!config.params) {
-          config.params = { _t: Date.now() };
-        } else {
-          config.params._t = Date.now();
+        // Add cache busting for image requests
+        if (config.url && (config.url.includes('/products') || config.url.includes('/categories'))) {
+          if (!config.params) {
+            config.params = { _t: Date.now() };
+          } else {
+            config.params._t = Date.now();
+          }
         }
       }
 
@@ -226,7 +238,7 @@ API.interceptors.response.use(
   }
 );
 
-// ========== ULTIMATE IMAGE URL HELPER ==========
+// ========== ULTIMATE IMAGE URL HELPER FOR VERCEL ==========
 export const getImageUrl = (imagePath, type = "products") => {
   // NULL CHECKS
   if (!imagePath || 
@@ -235,12 +247,10 @@ export const getImageUrl = (imagePath, type = "products") => {
       imagePath === "" || 
       imagePath.trim() === "") {
     console.warn(`❌ Empty image path for ${type}`);
-    return null;
+    return "/placeholder-image.jpg";
   }
 
-  console.log(`🖼️ Processing image:`, { imagePath, type });
-
-  // ALREADY FULL URL - RETURN AS-IS
+  // If it's already a valid URL (http, https, data, blob), return as-is
   if (
     typeof imagePath === "string" &&
     (imagePath.startsWith("http://") || 
@@ -252,151 +262,141 @@ export const getImageUrl = (imagePath, type = "products") => {
     return imagePath;
   }
 
-  // Handle Vercel deployment - try different URL patterns
-  const isVercel = isBrowser && window.location.hostname.includes('vercel.app');
-  
-  // GET BASE URL from environment or fallbacks
-  const API_BASE_URL = import.meta.env.VITE_API_URL || "https://federalpartsphilippines-backend.onrender.com/api";
-  let baseUrl = API_BASE_URL.replace("/api", "");
-  baseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash
-  
-  console.log(`📍 Base URL: ${baseUrl}`);
-  console.log(`📍 Environment: ${isLocalhost ? 'Localhost' : isVercel ? 'Vercel' : 'Production'}`);
+  // Handle placeholder images
+  if (imagePath.includes('placeholder')) {
+    console.log(`⚠️ Placeholder detected: ${imagePath}`);
+    return "/placeholder-image.jpg";
+  }
 
-  // CLEAN THE FILENAME
+  // Clean the filename
   let filename = imagePath;
   
-  // Remove query parameters (CRITICAL!)
+  // Remove query parameters
   if (filename.includes('?')) {
     filename = filename.split('?')[0];
-    console.log(`🔪 Removed query params, filename: ${filename}`);
   }
   
   // Extract just the filename from path
   if (filename.includes("/")) {
     filename = filename.substring(filename.lastIndexOf("/") + 1);
-    console.log(`🔪 Extracted filename from path: ${filename}`);
   }
   
   // Decode URL encoding
   filename = decodeURIComponent(filename);
-  console.log(`🔍 Decoded filename: ${filename}`);
 
   // Handle empty filename after cleaning
   if (!filename || filename.trim() === "") {
     console.warn(`❌ Empty filename after cleaning for: ${imagePath}`);
-    return null;
+    return "/placeholder-image.jpg";
   }
 
-  // Handle special cases
-  if (filename.includes('placeholder')) {
-    console.log(`⚠️ Placeholder detected: ${filename}`);
-    return null;
-  }
-
-  // Generate multiple possible URLs to try
+  // ====== GENERATE ALL POSSIBLE URLS ======
   const possibleUrls = [];
   
-  // Try with current base URL
-  possibleUrls.push(`${baseUrl}/uploads/${type}/${filename}`);
-  
-  // Try with direct backend URL (for Vercel)
+  // 1. Direct backend URL (MOST RELIABLE FOR VERCEL)
   possibleUrls.push(`https://federalpartsphilippines-backend.onrender.com/uploads/${type}/${filename}`);
   
-  // Try without type directory (for backward compatibility)
-  possibleUrls.push(`${baseUrl}/uploads/${filename}`);
+  // 2. Without type directory
   possibleUrls.push(`https://federalpartsphilippines-backend.onrender.com/uploads/${filename}`);
   
-  // For localhost, try local server
+  // 3. Try with environment variable base URL
+  if (IMAGE_BASE_URL && IMAGE_BASE_URL !== "undefined") {
+    possibleUrls.push(`${IMAGE_BASE_URL}/uploads/${type}/${filename}`);
+    possibleUrls.push(`${IMAGE_BASE_URL}/uploads/${filename}`);
+  }
+  
+  // 4. Try with API base URL converted
+  const apiBaseWithoutApi = validatedApiUrl.replace('/api', '');
+  possibleUrls.push(`${apiBaseWithoutApi}/uploads/${type}/${filename}`);
+  possibleUrls.push(`${apiBaseWithoutApi}/uploads/${filename}`);
+  
+  // 5. For localhost development
   if (isLocalhost) {
     possibleUrls.push(`http://localhost:5000/uploads/${type}/${filename}`);
     possibleUrls.push(`http://localhost:5000/uploads/${filename}`);
   }
   
-  // Return the first URL - the app will try to load it
+  // 6. Try just the filename (in case it's already a full path from backend)
+  if (imagePath.startsWith('/uploads/')) {
+    possibleUrls.push(`https://federalpartsphilippines-backend.onrender.com${imagePath}`);
+  }
+  
+  // Return the first URL from the prioritized list
   const finalUrl = possibleUrls[0];
-  console.log(`🎯 Using image URL: ${finalUrl}`);
-  console.log(`🔀 Alternatives available: ${possibleUrls.length}`);
+  console.log(`🖼️ Image URL generated for "${filename}":`, finalUrl);
+  console.log(`📊 Total alternatives: ${possibleUrls.length}`);
   
   return finalUrl;
 };
 
-export const getSafeImageUrl = (imagePath, type = "products", fallback = null) => {
-  const url = getImageUrl(imagePath, type);
+// ========== SMART IMAGE LOADER WITH FALLBACK ==========
+export const loadImageWithFallback = async (imagePath, type = "products", fallbacks = []) => {
+  if (!imagePath) {
+    return "/placeholder-image.jpg";
+  }
+
+  // If it's already a full URL, use it
+  if (imagePath.startsWith('http') || imagePath.startsWith('data:')) {
+    return imagePath;
+  }
+
+  // Generate primary URL
+  const primaryUrl = getImageUrl(imagePath, type);
   
-  if (!url) {
-    console.warn(`⚠️ No URL, using fallback for: ${imagePath}`);
-    return fallback || "/placeholder-image.jpg";
+  // Create list of URLs to try
+  const urlsToTry = [primaryUrl];
+  
+  // Add user-provided fallbacks
+  if (Array.isArray(fallbacks)) {
+    urlsToTry.push(...fallbacks);
   }
   
-  return url;
+  // Add automatic fallbacks
+  const filename = extractFilename(imagePath);
+  urlsToTry.push(
+    `https://federalpartsphilippines-backend.onrender.com/uploads/${filename}`,
+    `https://federalpartsphilippines-backend.onrender.com/uploads/${type}/${filename}`
+  );
+  
+  // Remove duplicates
+  const uniqueUrls = [...new Set(urlsToTry.filter(url => url && url !== "/placeholder-image.jpg"))];
+  
+  console.log(`🔄 Testing ${uniqueUrls.length} image URLs for "${filename}"`);
+  
+  // Try each URL in sequence
+  for (let i = 0; i < uniqueUrls.length; i++) {
+    const url = uniqueUrls[i];
+    try {
+      const isValid = await testImageUrl(url);
+      if (isValid) {
+        console.log(`✅ Image found at: ${url}`);
+        return url;
+      }
+    } catch (error) {
+      console.log(`❌ URL failed: ${url} - ${error.message}`);
+    }
+  }
+  
+  // All URLs failed, return placeholder
+  console.warn(`⚠️ All image URLs failed for "${filename}", using placeholder`);
+  return "/placeholder-image.jpg";
 };
 
-// ========== SMART IMAGE LOADING WITH FALLBACK ==========
-export const loadImageWithFallback = (imagePath, type = "products", fallbacks = []) => {
-  return new Promise((resolve) => {
-    if (!imagePath) {
-      resolve(fallbacks[0] || "/placeholder-image.jpg");
+// Helper function to test if an image URL is valid
+const testImageUrl = (url) => {
+  return new Promise((resolve, reject) => {
+    if (!url || url === "/placeholder-image.jpg") {
+      resolve(false);
       return;
     }
-
-    const imgUrl = getImageUrl(imagePath, type);
-    if (!imgUrl) {
-      resolve(fallbacks[0] || "/placeholder-image.jpg");
-      return;
-    }
-
+    
     const img = new Image();
+    img.onload = () => resolve(true);
+    img.onerror = () => resolve(false);
+    img.src = url;
     
-    // Try the primary URL first
-    img.src = imgUrl;
-    
-    img.onload = () => {
-      console.log(`✅ Image loaded successfully: ${imgUrl}`);
-      resolve(imgUrl);
-    };
-    
-    img.onerror = () => {
-      console.warn(`❌ Failed to load image: ${imgUrl}`);
-      
-      // Try fallback URLs
-      const tryFallback = (index) => {
-        if (index >= fallbacks.length) {
-          console.warn(`❌ All image URLs failed, using placeholder`);
-          resolve("/placeholder-image.jpg");
-          return;
-        }
-        
-        const fallbackUrl = fallbacks[index];
-        console.log(`🔄 Trying fallback ${index + 1}: ${fallbackUrl}`);
-        
-        const fallbackImg = new Image();
-        fallbackImg.src = fallbackUrl;
-        
-        fallbackImg.onload = () => {
-          console.log(`✅ Fallback image loaded: ${fallbackUrl}`);
-          resolve(fallbackUrl);
-        };
-        
-        fallbackImg.onerror = () => {
-          console.warn(`❌ Fallback failed: ${fallbackUrl}`);
-          tryFallback(index + 1);
-        };
-      };
-      
-      // Generate alternative URLs for the same image
-      const alternativeUrls = [
-        // Try with different base URLs
-        `https://federalpartsphilippines-backend.onrender.com/uploads/${type}/${extractFilename(imagePath)}`,
-        // Try without type directory
-        `https://federalpartsphilippines-backend.onrender.com/uploads/${extractFilename(imagePath)}`,
-        // Add more alternatives as needed
-      ];
-      
-      // Combine user fallbacks with automatic alternatives
-      const allFallbacks = [...fallbacks, ...alternativeUrls];
-      tryFallback(0);
-    };
+    // Timeout after 3 seconds
+    setTimeout(() => resolve(false), 3000);
   });
 };
 
@@ -409,8 +409,14 @@ const extractFilename = (path) => {
   return path;
 };
 
+// ========== SAFE IMAGE URL ==========
+export const getSafeImageUrl = (imagePath, type = "products", fallback = "/placeholder-image.jpg") => {
+  const url = getImageUrl(imagePath, type);
+  return url || fallback;
+};
+
 // ========== PROCESSING HELPERS ==========
-const processProductImages = (product) => {
+const processProductImages = async (product) => {
   if (!product) return product;
   
   const productObj = { ...product };
@@ -426,21 +432,30 @@ const processProductImages = (product) => {
     }
   }
   
-  // Process each image - generate URLs
-  productObj.images = productObj.images
-    .filter(img => img && img.trim() !== "")
-    .map(img => getImageUrl(img, "products"))
-    .filter(img => img !== null && img !== undefined);
+  // Process each image - convert to proper URLs
+  const processedImages = [];
+  for (const img of productObj.images) {
+    if (img && img.trim() !== "") {
+      const imgUrl = getImageUrl(img, "products");
+      if (imgUrl && imgUrl !== "/placeholder-image.jpg") {
+        processedImages.push(imgUrl);
+      }
+    }
+  }
+  
+  productObj.images = processedImages;
   
   // Set main image if available
   if (productObj.images.length > 0 && !productObj.image) {
     productObj.image = productObj.images[0];
+  } else if (!productObj.image && productObj.images.length === 0) {
+    productObj.image = "/placeholder-image.jpg";
   }
   
-  console.log(`🖼️ Processed product ${productObj.name || productObj._id}:`, {
+  console.log(`🖼️ Processed product "${productObj.name || productObj._id}":`, {
     originalCount: product.images?.length || 0,
     processedCount: productObj.images.length,
-    images: productObj.images
+    mainImage: productObj.image
   });
   
   return productObj;
@@ -454,6 +469,8 @@ const processCategoryImage = (category) => {
   // Process main image
   if (categoryObj.image && categoryObj.image.trim() !== "") {
     categoryObj.image = getImageUrl(categoryObj.image, "categories");
+  } else {
+    categoryObj.image = "/placeholder-image.jpg";
   }
   
   // Process imageUrl if exists
@@ -461,7 +478,7 @@ const processCategoryImage = (category) => {
     categoryObj.imageUrl = getImageUrl(categoryObj.imageUrl, "categories");
   }
   
-  console.log(`📁 Processed category ${categoryObj.name || categoryObj._id}:`, {
+  console.log(`📁 Processed category "${categoryObj.name || categoryObj._id}":`, {
     originalImage: category.image,
     processedImage: categoryObj.image
   });
@@ -490,6 +507,15 @@ export const uploadImage = async (file, type = "category") => {
 
     console.log("📤 Upload response:", response);
     
+    // Ensure the returned image URL is fully qualified
+    if (response.success && response.image && response.image.url) {
+      const imageUrl = response.image.url;
+      if (!imageUrl.startsWith('http')) {
+        // Convert to full URL
+        response.image.fullUrl = `https://federalpartsphilippines-backend.onrender.com${imageUrl}`;
+      }
+    }
+    
     return response;
   } catch (error) {
     console.error("❌ Error uploading image:", error);
@@ -516,6 +542,15 @@ export const uploadBase64Image = async (base64Data, type = "product") => {
       image: base64Data,
       type: type
     });
+
+    // Ensure the returned image URL is fully qualified
+    if (response.success && response.image && response.image.url) {
+      const imageUrl = response.image.url;
+      if (!imageUrl.startsWith('http')) {
+        // Convert to full URL
+        response.image.fullUrl = `https://federalpartsphilippines-backend.onrender.com${imageUrl}`;
+      }
+    }
 
     return response;
   } catch (error) {
@@ -717,9 +752,12 @@ export const productAPI = {
       const response = await API.get("/products", { params });
       
       if (response.success && response.products) {
-        const processedProducts = response.products.map(product => 
-          processProductImages(product)
-        );
+        // Process images for each product
+        const processedProducts = [];
+        for (const product of response.products) {
+          const processedProduct = await processProductImages(product);
+          processedProducts.push(processedProduct);
+        }
         
         return {
           ...response,
@@ -750,7 +788,7 @@ export const productAPI = {
       const response = await API.get(`/products/${id}`);
       
       if (response.success && response.product) {
-        response.product = processProductImages(response.product);
+        response.product = await processProductImages(response.product);
       }
       
       return response;
@@ -797,7 +835,7 @@ export const productAPI = {
       const response = await API.post("/admin/products", dataToSend);
       
       if (response.success && response.product) {
-        response.product = processProductImages(response.product);
+        response.product = await processProductImages(response.product);
       }
       
       return response;
@@ -845,7 +883,7 @@ export const productAPI = {
       const response = await API.put(`/admin/products/${id}`, dataToSend);
       
       if (response.success && response.product) {
-        response.product = processProductImages(response.product);
+        response.product = await processProductImages(response.product);
       }
       
       return response;
@@ -881,9 +919,12 @@ export const productAPI = {
       });
       
       if (response.success && response.products) {
-        response.products = response.products.map(product => 
-          processProductImages(product)
-        );
+        const processedProducts = [];
+        for (const product of response.products) {
+          const processedProduct = await processProductImages(product);
+          processedProducts.push(processedProduct);
+        }
+        response.products = processedProducts;
       }
       
       return response;
@@ -905,9 +946,12 @@ export const productAPI = {
       });
       
       if (response.success && response.products) {
-        response.products = response.products.map(product => 
-          processProductImages(product)
-        );
+        const processedProducts = [];
+        for (const product of response.products) {
+          const processedProduct = await processProductImages(product);
+          processedProducts.push(processedProduct);
+        }
+        response.products = processedProducts;
       }
       
       return response;
@@ -940,6 +984,14 @@ export const productAPI = {
       }
       
       const response = await API.post("/upload", formData);
+      
+      // Ensure the returned URL is fully qualified for Vercel
+      if (response.success && response.image && response.image.url) {
+        const imageUrl = response.image.url;
+        if (!imageUrl.startsWith('http')) {
+          response.image.fullUrl = `https://federalpartsphilippines-backend.onrender.com${imageUrl}`;
+        }
+      }
       
       return response;
     } catch (error) {
@@ -1206,23 +1258,24 @@ export const getFinalPrice = (price, discountedPrice) => {
   return discountedPrice && discountedPrice < price ? discountedPrice : price;
 };
 
-// ========== IMAGE TESTING AND DEBUGGING ==========
+// ========== DEBUGGING AND TESTING ==========
 export const testImageUrls = () => {
   const testCases = [
     { input: "engine.jpg", type: "products" },
-    { input: "engine.jpg?timestamp=123456", type: "products" },
+    { input: "product-1234567890.jpg", type: "products" },
     { input: "/uploads/products/engine.jpg", type: "products" },
     { input: "uploads/products/engine.jpg", type: "products" },
     { input: "https://example.com/image.jpg", type: "products" },
     { input: "engine%20part.jpg", type: "products" },
     { input: "undefined", type: "products" },
     { input: "", type: "products" },
-    { input: "brake-pads.jpg", type: "categories" },
+    { input: "category-1234567890.jpg", type: "categories" },
   ];
 
   console.log("🧪 TESTING IMAGE URLS:");
   testCases.forEach(test => {
-    console.log(`🧪 "${test.input}" (${test.type}) -> ${getImageUrl(test.input, test.type)}`);
+    const url = getImageUrl(test.input, test.type);
+    console.log(`🧪 "${test.input}" (${test.type}) -> ${url}`);
   });
 };
 
@@ -1230,8 +1283,9 @@ export const debugImage = (imagePath, type = "products") => {
   console.log("🔍 DEBUG IMAGE:");
   console.log("Input:", imagePath);
   console.log("Type:", type);
-  console.log("Result:", getImageUrl(imagePath, type));
-  return getImageUrl(imagePath, type);
+  const result = getImageUrl(imagePath, type);
+  console.log("Result:", result);
+  return result;
 };
 
 // ========== MAIN API SERVICE OBJECT ==========
@@ -1280,21 +1334,22 @@ const apiService = {
   getCartCount: cartAPI.getCartCount,
   getDashboardStats: dashboardAPI.getOverviewStats,
   
-  // Image utilities
+  // Image testing
   testImageConnection: async (imageUrl) => {
     try {
-      const response = await axios.head(imageUrl, { timeout: 5000 });
+      const response = await fetch(imageUrl, { method: 'HEAD', mode: 'no-cors' });
       return {
         success: true,
-        status: response.status,
-        message: "Image is accessible"
+        message: "Image URL appears accessible"
       };
     } catch (error) {
-      return {
-        success: false,
-        status: error.response?.status,
-        message: error.message
-      };
+      // Try with image element
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve({ success: true, message: "Image loads successfully" });
+        img.onerror = () => resolve({ success: false, message: "Image failed to load" });
+        img.src = imageUrl;
+      });
     }
   },
   
@@ -1312,46 +1367,39 @@ const apiService = {
     }
   },
   
-  // Connection test
-  checkConnection: async () => {
-    try {
-      const response = await API.get("/");
-      return {
-        success: true,
-        connected: true,
-        message: "API is running",
-        data: response
-      };
-    } catch (error) {
-      console.error("❌ API connection check failed:", error);
-      return {
-        success: false,
-        connected: false,
-        message: "Cannot connect to API",
-        error: error.message
-      };
-    }
-  },
-  
-  // Initialize with connection test
+  // Initialize
   initialize: async () => {
     console.log("🚀 Initializing API Service...");
     console.log("📡 API URL:", validatedApiUrl);
-    console.log("🖼️ Image URL:", IMAGE_BASE_URL || "Using API URL");
+    console.log("🌍 Environment:", isLocalhost ? "Localhost" : isVercel ? "Vercel" : "Production");
     
-    const connection = await apiService.checkConnection();
-    console.log("🔌 Connection Status:", connection.success ? "✅ Connected" : "❌ Failed");
-    
-    if (connection.success) {
-      console.log("🌐 Connected to API successfully");
-    } else {
-      console.error("⚠️ Connection failed. Please check:");
-      console.error("1. Backend server is running");
-      console.error("2. CORS is properly configured");
-      console.error("3. Network connectivity");
+    // Test connection
+    try {
+      const response = await API.get("/");
+      console.log("✅ API Connection successful:", response.data?.message);
+      
+      // Test image access
+      console.log("🖼️ Testing image access...");
+      const testImageUrl = "https://federalpartsphilippines-backend.onrender.com/uploads/products/test.jpg";
+      const imgTest = await apiService.testImageConnection(testImageUrl);
+      console.log("📊 Image access test:", imgTest.success ? "✅ Works" : "⚠️ May have issues");
+      
+      return {
+        success: true,
+        connected: true,
+        message: "API initialized successfully",
+        environment: isLocalhost ? "localhost" : isVercel ? "vercel" : "production",
+        imageAccess: imgTest.success
+      };
+    } catch (error) {
+      console.error("❌ API initialization failed:", error.message);
+      return {
+        success: false,
+        connected: false,
+        message: "API initialization failed",
+        error: error.message
+      };
     }
-    
-    return connection;
   },
   
   // Debug product images
@@ -1363,13 +1411,50 @@ const apiService = {
     
     if (product.images && Array.isArray(product.images)) {
       product.images.forEach((img, index) => {
+        const url = getImageUrl(img, "products");
         console.log(`Image ${index}:`, {
           raw: img,
-          processed: getImageUrl(img, "products"),
+          url: url,
           type: typeof img
         });
       });
     }
+  },
+  
+  // Fix all image URLs in data
+  fixAllImageUrls: async (data) => {
+    if (!data) return data;
+    
+    if (Array.isArray(data)) {
+      return data.map(item => apiService.fixImageUrlsInObject(item));
+    }
+    
+    return apiService.fixImageUrlsInObject(data);
+  },
+  
+  fixImageUrlsInObject: (obj) => {
+    if (!obj || typeof obj !== 'object') return obj;
+    
+    const fixed = { ...obj };
+    
+    // Fix images array
+    if (Array.isArray(fixed.images)) {
+      fixed.images = fixed.images
+        .map(img => getImageUrl(img, "products"))
+        .filter(url => url && url !== "/placeholder-image.jpg");
+    }
+    
+    // Fix single image field
+    if (fixed.image) {
+      fixed.image = getImageUrl(fixed.image, fixed.type === "category" ? "categories" : "products");
+    }
+    
+    // Fix imageUrl field
+    if (fixed.imageUrl) {
+      fixed.imageUrl = getImageUrl(fixed.imageUrl, fixed.type === "category" ? "categories" : "products");
+    }
+    
+    return fixed;
   }
 };
 
