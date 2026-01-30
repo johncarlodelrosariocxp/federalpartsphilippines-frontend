@@ -621,7 +621,7 @@ const ProductDetail = () => {
               </Link>
             </div>
 
-            <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
               {relatedProducts.map((relatedProduct) => (
                 <ProductCard
                   key={relatedProduct._id}
