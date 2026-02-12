@@ -22,6 +22,7 @@ import HelpFindingParts from "./pages/HelpFindingParts";
 import SearchResults from "./pages/SearchResults"; // Added import
 import AdminRoutes from "./routes/AdminRoutes";
 import authService from "./services/auth";
+import News from "./pages/News";
 
 function App() {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -58,6 +59,7 @@ function App() {
             <Route path="/set-admin" element={<SetAdmin />} />
             <Route path="/help-finding-parts" element={<HelpFindingParts />} />
             <Route path="/search" element={<SearchResults />} /> {/* Added route */}
+            <Route path="/news" element={<News />} />
 
             {/* Admin routes - using AdminRoutes component ONLY */}
             <Route path="/admin/*" element={<AdminRoutes />} />

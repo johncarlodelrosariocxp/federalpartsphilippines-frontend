@@ -311,8 +311,6 @@ const SearchResults = () => {
               }}
             />
           </Link>
-          
-      
         </div>
 
         {/* Product Info */}
@@ -336,19 +334,12 @@ const SearchResults = () => {
             </div>
           )}
 
-
-         
-
           {/* Description */}
           {product.description && (
             <p className="text-sm text-gray-400 mb-4 line-clamp-2">
               {product.description}
             </p>
           )}
-
-          
-
-        
         </div>
       </div>
     );
@@ -356,11 +347,13 @@ const SearchResults = () => {
 
   if (loading && isSearching) {
     return (
-      <div className="container mx-auto px-4 py-12 bg-black min-h-screen">
-        <div className="text-center">
-          <Loader2 className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-[#cc0000] border-t-transparent mb-4" />
-          <h2 className="text-xl font-semibold text-gray-200">Searching for "{searchQuery}"...</h2>
-          <p className="text-gray-400 mt-2">Finding the best parts for you</p>
+      <div className="min-h-screen bg-black">
+        <div className="container mx-auto px-4 py-12">
+          <div className="text-center">
+            <Loader2 className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-[#cc0000] border-t-transparent mb-4" />
+            <h2 className="text-xl font-semibold text-gray-200">Searching for "{searchQuery}"...</h2>
+            <p className="text-gray-400 mt-2">Finding the best parts for you</p>
+          </div>
         </div>
       </div>
     );
@@ -368,17 +361,19 @@ const SearchResults = () => {
 
   if (error) {
     return (
-      <div className="container mx-auto px-4 py-12 bg-black min-h-screen">
-        <div className="text-center">
-          <div className="text-red-500 text-4xl mb-4">⚠️</div>
-          <h2 className="text-xl font-semibold text-gray-200 mb-2">Search Error</h2>
-          <p className="text-gray-400 mb-4">{error}</p>
-          <button
-            onClick={() => debouncedSearch(searchQuery)}
-            className="bg-[#cc0000] text-white px-6 py-2 rounded-lg hover:bg-[#aa0000] transition-colors"
-          >
-            Try Again
-          </button>
+      <div className="min-h-screen bg-black">
+        <div className="container mx-auto px-4 py-12">
+          <div className="text-center">
+            <div className="text-red-500 text-4xl mb-4">⚠️</div>
+            <h2 className="text-xl font-semibold text-gray-200 mb-2">Search Error</h2>
+            <p className="text-gray-400 mb-4">{error}</p>
+            <button
+              onClick={() => debouncedSearch(searchQuery)}
+              className="bg-[#cc0000] text-white px-6 py-2 rounded-lg hover:bg-[#aa0000] transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -387,428 +382,282 @@ const SearchResults = () => {
   const resultsCount = getResultsCount();
 
   return (
-    <div className="container mx-auto px-4 py-8 bg-black min-h-screen">
-      {/* Search Header */}
-      <div className="mb-8">
-        <div className="flex items-center text-sm text-gray-400 mb-2">
-          <Link to="/" className="hover:text-[#cc0000]">Home</Link>
-          <ChevronRight className="w-4 h-4 mx-2" />
-          <span>Search Results</span>
-        </div>
-        
-        <h1 className="text-3xl font-bold text-gray-100 mb-2">
-          {searchQuery ? `Results for "${searchQuery}"` : 'Search Results'}
-        </h1>
-        
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <p className="text-gray-300">
-            Found {resultsCount.total} {resultsCount.total === 1 ? 'result' : 'results'}
-            {searchQuery && ` for "${searchQuery}"`}
-            {resultsCount.products > 0 && ` • ${resultsCount.products} products`}
-            {resultsCount.categories > 0 && ` • ${resultsCount.categories} categories`}
-          </p>
-          
-          <div className="flex items-center space-x-4">
-            {/* Sort Dropdown */}
-            <div className="relative">
-              <select
-                value={filters.sortBy}
-                onChange={(e) => handleFilterChange('sortBy', e.target.value)}
-                className="appearance-none bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-[#cc0000] focus:border-transparent text-gray-200"
-              >
-                {sortOptions.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                <ChevronRight className="w-4 h-4 text-gray-500 rotate-90" />
-              </div>
-            </div>
-            
-            {(filters.category !== 'all' || filters.brand !== 'all' || filters.minPrice || filters.maxPrice || filters.inStock) && (
-              <button
-                onClick={clearFilters}
-                className="text-sm text-[#cc0000] hover:underline"
-              >
-                Clear Filters
-              </button>
-            )}
+    <div className="min-h-screen bg-black">
+      <div className="container mx-auto px-4 py-8">
+        {/* Search Header */}
+        <div className="mb-8">
+          <div className="flex items-center text-sm text-gray-400 mb-2">
+            <Link to="/" className="hover:text-[#cc0000]">Home</Link>
+            <ChevronRight className="w-4 h-4 mx-2" />
+            <span>Search Results</span>
           </div>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex border-b border-gray-800 mb-6">
-        <button
-          onClick={() => setActiveTab('all')}
-          className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-            activeTab === 'all'
-              ? 'border-[#cc0000] text-[#cc0000]'
-              : 'border-transparent text-gray-400 hover:text-gray-200'
-          }`}
-        >
-          All ({resultsCount.total})
-        </button>
-        <button
-          onClick={() => setActiveTab('products')}
-          className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-            activeTab === 'products'
-              ? 'border-[#cc0000] text-[#cc0000]'
-              : 'border-transparent text-gray-400 hover:text-gray-200'
-          }`}
-        >
-          Products ({resultsCount.products})
-        </button>
-        <button
-          onClick={() => setActiveTab('categories')}
-          className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-            activeTab === 'categories'
-              ? 'border-[#cc0000] text-[#cc0000]'
-              : 'border-transparent text-gray-400 hover:text-gray-200'
-          }`}
-        >
-          Categories ({resultsCount.categories})
-        </button>
-      </div>
-
-      <div className="flex flex-col lg:flex-row gap-8">
-        {/* Filters Sidebar */}
-        <div className="lg:w-1/4">
-          <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-100 flex items-center">
-                <Filter className="w-5 h-5 mr-2" />
-                Filters
-              </h3>
+          
+          <h1 className="text-3xl font-bold text-gray-100 mb-2">
+            {searchQuery ? `Results for "${searchQuery}"` : 'Search Results'}
+          </h1>
+          
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <p className="text-gray-300">
+              Found {resultsCount.total} {resultsCount.total === 1 ? 'result' : 'results'}
+              {searchQuery && ` for "${searchQuery}"`}
+              {resultsCount.products > 0 && ` • ${resultsCount.products} products`}
+              {resultsCount.categories > 0 && ` • ${resultsCount.categories} categories`}
+            </p>
+            
+            <div className="flex items-center space-x-4">
+              {/* Sort Dropdown */}
+              <div className="relative">
+                <select
+                  value={filters.sortBy}
+                  onChange={(e) => handleFilterChange('sortBy', e.target.value)}
+                  className="appearance-none bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-[#cc0000] focus:border-transparent text-gray-200"
+                >
+                  {sortOptions.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                  <ChevronRight className="w-4 h-4 text-gray-500 rotate-90" />
+                </div>
+              </div>
+              
               {(filters.category !== 'all' || filters.brand !== 'all' || filters.minPrice || filters.maxPrice || filters.inStock) && (
                 <button
                   onClick={clearFilters}
                   className="text-sm text-[#cc0000] hover:underline"
                 >
-                  Clear All
+                  Clear Filters
                 </button>
               )}
             </div>
-
-            {/* Category Filter */}
-            {allCategories.length > 0 && (
-              <div className="mb-6">
-                <h4 className="font-medium text-gray-300 mb-3">Category</h4>
-                <select
-                  value={filters.category}
-                  onChange={(e) => handleFilterChange('category', e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#cc0000] focus:border-transparent text-gray-200"
-                >
-                  <option value="all">All Categories</option>
-                  {allCategories.map(category => (
-                    <option key={category} value={category}>{category}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {/* Brand Filter */}
-            {allBrands.length > 0 && (
-              <div className="mb-6">
-                <h4 className="font-medium text-gray-300 mb-3">Brand</h4>
-                <select
-                  value={filters.brand}
-                  onChange={(e) => handleFilterChange('brand', e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#cc0000] focus:border-transparent text-gray-200"
-                >
-                  <option value="all">All Brands</option>
-                  {allBrands.map(brand => (
-                    <option key={brand} value={brand}>{brand}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {/* Price Range Filter */}
-            <div className="mb-6">
-              <h4 className="font-medium text-gray-300 mb-3">Price Range</h4>
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-400 text-sm">₱</span>
-                  <input
-                    type="number"
-                    placeholder="Min"
-                    value={filters.minPrice}
-                    onChange={(e) => handleFilterChange('minPrice', e.target.value)}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#cc0000] focus:border-transparent text-gray-200"
-                    min="0"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-400 text-sm">₱</span>
-                  <input
-                    type="number"
-                    placeholder="Max"
-                    value={filters.maxPrice}
-                    onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#cc0000] focus:border-transparent text-gray-200"
-                    min="0"
-                  />
-                </div>
-              </div>
-              {priceError && (
-                <p className="text-red-500 text-xs mt-2">{priceError}</p>
-              )}
-            </div>
-
-            {/* Stock Filter */}
-            <div className="mb-6">
-              <label className="flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={filters.inStock}
-                  onChange={(e) => handleFilterChange('inStock', e.target.checked)}
-                  className="w-4 h-4 text-[#cc0000] bg-gray-800 border-gray-700 rounded focus:ring-[#cc0000] focus:ring-2"
-                />
-                <span className="ml-3 text-gray-300">In Stock Only</span>
-              </label>
-            </div>
-
-            {/* Active Filters Summary */}
-            {(filters.category !== 'all' || filters.brand !== 'all' || filters.minPrice || filters.maxPrice || filters.inStock) && (
-              <div className="pt-6 border-t border-gray-800">
-                <h4 className="font-medium text-gray-300 mb-3">Active Filters</h4>
-                <div className="flex flex-wrap gap-2">
-                  {filters.category !== 'all' && (
-                    <span className="inline-flex items-center gap-1 bg-gray-800 text-gray-300 text-xs px-3 py-1 rounded-full">
-                      Category: {filters.category}
-                      <button onClick={() => handleFilterChange('category', 'all')}>
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                  {filters.brand !== 'all' && (
-                    <span className="inline-flex items-center gap-1 bg-gray-800 text-gray-300 text-xs px-3 py-1 rounded-full">
-                      Brand: {filters.brand}
-                      <button onClick={() => handleFilterChange('brand', 'all')}>
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                  {filters.minPrice && (
-                    <span className="inline-flex items-center gap-1 bg-gray-800 text-gray-300 text-xs px-3 py-1 rounded-full">
-                      Min: ₱{filters.minPrice}
-                      <button onClick={() => handleFilterChange('minPrice', '')}>
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                  {filters.maxPrice && (
-                    <span className="inline-flex items-center gap-1 bg-gray-800 text-gray-300 text-xs px-3 py-1 rounded-full">
-                      Max: ₱{filters.maxPrice}
-                      <button onClick={() => handleFilterChange('maxPrice', '')}>
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                  {filters.inStock && (
-                    <span className="inline-flex items-center gap-1 bg-gray-800 text-gray-300 text-xs px-3 py-1 rounded-full">
-                      In Stock
-                      <button onClick={() => handleFilterChange('inStock', false)}>
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
-        {/* Results Grid */}
-        <div className="lg:w-3/4">
-          {/* No Results */}
-          {resultsCount.total === 0 ? (
-            <div className="bg-gray-900 rounded-xl p-12 text-center border border-gray-800">
-              <Search className="w-16 h-16 text-gray-700 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-200 mb-2">No results found</h3>
-              <p className="text-gray-400 mb-6">
-                {searchQuery ? `We couldn't find any products or categories matching "${searchQuery}"` : 'Please enter a search term'}
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link
-                  to="/categories"
-                  className="bg-[#cc0000] text-white px-6 py-3 rounded-lg hover:bg-[#aa0000] transition-colors font-medium"
-                >
-                  Browse Categories
-                </Link>
-                <Link
-                  to="/shop"
-                  className="bg-gray-800 text-gray-200 px-6 py-3 rounded-lg hover:bg-gray-700 transition-colors font-medium"
-                >
-                  View All Products
-                </Link>
+        {/* Tabs */}
+        <div className="flex border-b border-gray-800 mb-6">
+          <button
+            onClick={() => setActiveTab('all')}
+            className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+              activeTab === 'all'
+                ? 'border-[#cc0000] text-[#cc0000]'
+                : 'border-transparent text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            All ({resultsCount.total})
+          </button>
+          <button
+            onClick={() => setActiveTab('products')}
+            className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+              activeTab === 'products'
+                ? 'border-[#cc0000] text-[#cc0000]'
+                : 'border-transparent text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            Products ({resultsCount.products})
+          </button>
+          <button
+            onClick={() => setActiveTab('categories')}
+            className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+              activeTab === 'categories'
+                ? 'border-[#cc0000] text-[#cc0000]'
+                : 'border-transparent text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            Categories ({resultsCount.categories})
+          </button>
+        </div>
+
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Results Grid */}
+          <div className="w-full">
+            {/* No Results */}
+            {resultsCount.total === 0 ? (
+              <div className="bg-gray-900 rounded-xl p-12 text-center border border-gray-800">
+                <Search className="w-16 h-16 text-gray-700 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-200 mb-2">No results found</h3>
+                <p className="text-gray-400 mb-6">
+                  {searchQuery ? `We couldn't find any products or categories matching "${searchQuery}"` : 'Please enter a search term'}
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <Link
+                    to="/categories"
+                    className="bg-[#cc0000] text-white px-6 py-3 rounded-lg hover:bg-[#aa0000] transition-colors font-medium"
+                  >
+                    Browse Categories
+                  </Link>
+                  <Link
+                    to="/shop"
+                    className="bg-gray-800 text-gray-200 px-6 py-3 rounded-lg hover:bg-gray-700 transition-colors font-medium"
+                  >
+                    View All Products
+                  </Link>
+                </div>
               </div>
-            </div>
-          ) : (
-            <>
-              {/* Categories Results */}
-              {(activeTab === 'all' || activeTab === 'categories') && categories.length > 0 && (
-                <div className="mb-8">
-                  <h3 className="text-xl font-semibold text-gray-100 mb-4 flex items-center">
-                    <Grid className="w-5 h-5 mr-2 text-[#cc0000]" />
-                    Categories ({categories.length})
-                  </h3>
-                  <div className="space-y-6">
-                    {categories.map((category) => (
-                      <div key={category._id} className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-                        {/* Category Header */}
-                        <div className="p-6">
-                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            <div className="flex items-start gap-4 flex-1">
-                              <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
-                                <img
-                                  src={getImageUrl(category.image, 'categories') || '/images/category-placeholder.jpg'}
-                                  alt={category.name}
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => {
-                                    e.target.src = '/images/category-placeholder.jpg';
-                                  }}
-                                />
+            ) : (
+              <>
+                {/* Categories Results */}
+                {(activeTab === 'all' || activeTab === 'categories') && categories.length > 0 && (
+                  <div className="mb-8">
+                    <h3 className="text-xl font-semibold text-gray-100 mb-4 flex items-center">
+                      <Grid className="w-5 h-5 mr-2 text-[#cc0000]" />
+                      Categories ({categories.length})
+                    </h3>
+                    <div className="space-y-6">
+                      {categories.map((category) => (
+                        <div key={category._id} className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+                          {/* Category Header */}
+                          <div className="p-6">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                              <div className="flex items-start gap-4 flex-1">
+                                <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
+                                  <img
+                                    src={getImageUrl(category.image, 'categories') || '/images/category-placeholder.jpg'}
+                                    alt={category.name}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      e.target.src = '/images/category-placeholder.jpg';
+                                    }}
+                                  />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="font-semibold text-gray-100 text-lg mb-1">
+                                    {category.name}
+                                  </h4>
+                                  {category.description && (
+                                    <p className="text-sm text-gray-400 line-clamp-2">
+                                      {category.description}
+                                    </p>
+                                  )}
+                                  {category.productCount !== undefined && (
+                                    <div className="mt-2 text-sm text-gray-500">
+                                      {category.productCount} product{category.productCount !== 1 ? 's' : ''}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                              <div className="flex-1 min-w-0">
-                                <h4 className="font-semibold text-gray-100 text-lg mb-1">
-                                  {category.name}
-                                </h4>
-                                {category.description && (
-                                  <p className="text-sm text-gray-400 line-clamp-2">
-                                    {category.description}
-                                  </p>
-                                )}
-                                {category.productCount !== undefined && (
-                                  <div className="mt-2 text-sm text-gray-500">
-                                    {category.productCount} product{category.productCount !== 1 ? 's' : ''}
+                              
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => toggleCategoryExpand(category._id)}
+                                  className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors text-sm"
+                                >
+                                  {expandedCategories[category._id] ? 'Hide Products' : 'Show Products'}
+                                  <ChevronRight className={`w-4 h-4 transition-transform ${expandedCategories[category._id] ? 'rotate-90' : ''}`} />
+                                </button>
+                                <button
+                                  onClick={() => viewAllCategoryProducts(category._id, category.name)}
+                                  className="flex items-center gap-2 px-4 py-2 bg-[#cc0000] text-white rounded-lg hover:bg-[#aa0000] transition-colors text-sm"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                  View All
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Category Products (Expanded View) */}
+                          {expandedCategories[category._id] && (
+                            <div className="border-t border-gray-800 p-6 bg-gray-950/50">
+                              <div className="mb-4">
+                                <h5 className="font-medium text-gray-300 mb-2">Products in {category.name}</h5>
+                                {loadingCategoryProducts[category._id] ? (
+                                  <div className="flex justify-center py-8">
+                                    <Loader2 className="animate-spin h-8 w-8 text-[#cc0000]" />
+                                  </div>
+                                ) : categoryProducts[category._id] ? (
+                                  <>
+                                    {categoryProducts[category._id].length > 0 ? (
+                                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {categoryProducts[category._id].map(product => renderProductCard(product))}
+                                      </div>
+                                    ) : (
+                                      <div className="text-center py-8 text-gray-400">
+                                        No products found in this category.
+                                      </div>
+                                    )}
+                                  </>
+                                ) : (
+                                  <div className="text-center py-8 text-gray-400">
+                                    Click "Show Products" to load products.
                                   </div>
                                 )}
                               </div>
+                              
+                              {/* View All Link */}
+                              <div className="flex justify-center mt-4">
+                                <button
+                                  onClick={() => viewAllCategoryProducts(category._id, category.name)}
+                                  className="text-[#cc0000] hover:text-[#aa0000] text-sm font-medium flex items-center gap-1"
+                                >
+                                  View all products in {category.name}
+                                  <ChevronRight className="w-4 h-4" />
+                                </button>
+                              </div>
                             </div>
-                            
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => toggleCategoryExpand(category._id)}
-                                className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors text-sm"
-                              >
-                                {expandedCategories[category._id] ? 'Hide Products' : 'Show Products'}
-                                <ChevronRight className={`w-4 h-4 transition-transform ${expandedCategories[category._id] ? 'rotate-90' : ''}`} />
-                              </button>
-                              <button
-                                onClick={() => viewAllCategoryProducts(category._id, category.name)}
-                                className="flex items-center gap-2 px-4 py-2 bg-[#cc0000] text-white rounded-lg hover:bg-[#aa0000] transition-colors text-sm"
-                              >
-                                <Eye className="w-4 h-4" />
-                                View All
-                              </button>
-                            </div>
-                          </div>
+                          )}
                         </div>
-
-                        {/* Category Products (Expanded View) */}
-                        {expandedCategories[category._id] && (
-                          <div className="border-t border-gray-800 p-6 bg-gray-950/50">
-                            <div className="mb-4">
-                              <h5 className="font-medium text-gray-300 mb-2">Products in {category.name}</h5>
-                              {loadingCategoryProducts[category._id] ? (
-                                <div className="flex justify-center py-8">
-                                  <Loader2 className="animate-spin h-8 w-8 text-[#cc0000]" />
-                                </div>
-                              ) : categoryProducts[category._id] ? (
-                                <>
-                                  {categoryProducts[category._id].length > 0 ? (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                      {categoryProducts[category._id].map(product => renderProductCard(product))}
-                                    </div>
-                                  ) : (
-                                    <div className="text-center py-8 text-gray-400">
-                                      No products found in this category.
-                                    </div>
-                                  )}
-                                </>
-                              ) : (
-                                <div className="text-center py-8 text-gray-400">
-                                  Click "Show Products" to load products.
-                                </div>
-                              )}
-                            </div>
-                            
-                            {/* View All Link */}
-                            <div className="flex justify-center mt-4">
-                              <button
-                                onClick={() => viewAllCategoryProducts(category._id, category.name)}
-                                className="text-[#cc0000] hover:text-[#aa0000] text-sm font-medium flex items-center gap-1"
-                              >
-                                View all products in {category.name}
-                                <ChevronRight className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Products Results */}
-              {(activeTab === 'all' || activeTab === 'products') && filteredProducts.length > 0 && (
-                <div>
-                  <h3 className="text-xl font-semibold text-gray-100 mb-4 flex items-center">
-                    <Package className="w-5 h-5 mr-2 text-[#cc0000]" />
-                    Products ({filteredProducts.length})
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredProducts.map(product => renderProductCard(product))}
+                {/* Products Results */}
+                {(activeTab === 'all' || activeTab === 'products') && filteredProducts.length > 0 && (
+                  <div>
+                    <h3 className="text-xl font-semibold text-gray-100 mb-4 flex items-center">
+                      <Package className="w-5 h-5 mr-2 text-[#cc0000]" />
+                      Products ({filteredProducts.length})
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {filteredProducts.map(product => renderProductCard(product))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Pagination */}
-              {filteredProducts.length > 9 && (
-                <div className="mt-8 flex justify-center">
-                  <nav className="flex items-center space-x-2">
-                    <button className="px-3 py-2 rounded-lg border border-gray-700 text-gray-400 hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed">
-                      Previous
-                    </button>
-                    {[1, 2, 3].map((num) => (
-                      <button
-                        key={num}
-                        className={`px-3 py-2 rounded-lg ${
-                          num === 1
-                            ? 'bg-[#cc0000] text-white'
-                            : 'border border-gray-700 text-gray-400 hover:bg-gray-800'
-                        }`}
-                      >
-                        {num}
+                {/* Pagination */}
+                {filteredProducts.length > 9 && (
+                  <div className="mt-8 flex justify-center">
+                    <nav className="flex items-center space-x-2">
+                      <button className="px-3 py-2 rounded-lg border border-gray-700 text-gray-400 hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed">
+                        Previous
                       </button>
-                    ))}
-                    <span className="px-3 py-2 text-gray-500">...</span>
-                    <button className="px-3 py-2 rounded-lg border border-gray-700 text-gray-400 hover:bg-gray-800">
-                      Next
-                    </button>
-                  </nav>
-                </div>
-              )}
-            </>
-          )}
+                      {[1, 2, 3].map((num) => (
+                        <button
+                          key={num}
+                          className={`px-3 py-2 rounded-lg ${
+                            num === 1
+                              ? 'bg-[#cc0000] text-white'
+                              : 'border border-gray-700 text-gray-400 hover:bg-gray-800'
+                          }`}
+                        >
+                          {num}
+                        </button>
+                      ))}
+                      <span className="px-3 py-2 text-gray-500">...</span>
+                      <button className="px-3 py-2 rounded-lg border border-gray-700 text-gray-400 hover:bg-gray-800">
+                        Next
+                      </button>
+                    </nav>
+                  </div>
+                )}
+              </>
+            )}
 
-          {/* Search Tips */}
-          {searchQuery && resultsCount.total === 0 && (
-            <div className="mt-8 bg-gray-900 rounded-xl p-6 border border-gray-800">
-              <h4 className="font-semibold text-gray-200 mb-3">Search Tips</h4>
-              <ul className="text-gray-400 space-y-2 text-sm">
-                <li>• Check your spelling and try again</li>
-                <li>• Try using more general keywords</li>
-                <li>• Browse through our categories instead</li>
-                <li>• Contact support if you need help finding a specific product</li>
-              </ul>
-            </div>
-          )}
+            {/* Search Tips */}
+            {searchQuery && resultsCount.total === 0 && (
+              <div className="mt-8 bg-gray-900 rounded-xl p-6 border border-gray-800">
+                <h4 className="font-semibold text-gray-200 mb-3">Search Tips</h4>
+                <ul className="text-gray-400 space-y-2 text-sm">
+                  <li>• Check your spelling and try again</li>
+                  <li>• Try using more general keywords</li>
+                  <li>• Browse through our categories instead</li>
+                  <li>• Contact support if you need help finding a specific product</li>
+                </ul>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

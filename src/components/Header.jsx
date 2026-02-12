@@ -1,7 +1,7 @@
 // src/components/Header.jsx
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Menu, X, Search, ShoppingCart, User, Home, ShoppingBag, Grid, Info, Phone, LogOut } from "lucide-react";
+import { Menu, X, Search, ShoppingCart, User, Home, ShoppingBag, Grid, Info, Phone, LogOut, Newspaper } from "lucide-react";
 import { productAPI, cartAPI, authAPI } from "../services/api";
 import debounce from "lodash/debounce";
 
@@ -207,18 +207,20 @@ const Header = () => {
     setIsMenuOpen(false);
   };
 
-  // Mobile bottom navigation items
+  // Mobile bottom navigation items (Updated with News)
   const mobileNavItems = [
     { name: "Home", path: "/", icon: Home },
     { name: "Categories", path: "/categories", icon: Grid },
+    { name: "News", path: "/news", icon: Newspaper },
     { name: "About", path: "/about", icon: Info },
     { name: "Contact", path: "/contact", icon: Phone },
   ];
 
-  // Desktop navigation items
+  // Desktop navigation items (Updated with News)
   const desktopNavItems = [
     { name: "Home", path: "/" },
     { name: "Categories", path: "/categories" },
+    { name: "News", path: "/news" },
     { name: "About", path: "/about" },
     { name: "Contact", path: "/contact" },
   ];
@@ -551,12 +553,13 @@ const Header = () => {
               )}
             </div>
 
-            {/* Menu Links - Cart and account removed from mobile menu */}
+            {/* Menu Links - Cart and account removed from mobile menu, added News */}
             <div className="space-y-1">
               {[
                 { name: "Home", path: "/", icon: Home },
                 { name: "Shop", path: "/shop", icon: ShoppingBag },
                 { name: "Categories", path: "/categories", icon: Grid },
+                { name: "News", path: "/news", icon: Newspaper },
                 { name: "About", path: "/about", icon: Info },
                 { name: "Contact", path: "/contact", icon: Phone },
               ].map((item) => {
