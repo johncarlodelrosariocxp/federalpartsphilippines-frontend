@@ -1609,14 +1609,7 @@ const Home = () => {
                 <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-3xl"></div>
                 <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl"></div>
                 
-                <h4 
-                  className="text-white font-semibold mb-3 text-sm sm:text-base relative flex items-center gap-2"
-                  data-aos="fade-right"
-                  data-aos-delay="600"
-                >
-                  <span className="w-1.5 h-5 bg-gradient-to-b from-yellow-500 to-orange-500 rounded-full"></span>
-                  Troubleshooting Tips:
-                </h4>
+             
                 <ul className="text-xs sm:text-sm text-gray-400 space-y-2 relative">
                   {[
                     "• Ensure your backend server is running on Render",
