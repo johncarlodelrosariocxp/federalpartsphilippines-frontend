@@ -35,7 +35,46 @@ import {
 import { toast } from "react-hot-toast";
 import { categoryAPI, productAPI } from "../services/api";
 
-// FIXED: Enhanced Image URL helper function
+// Function to get local image based on product name
+const getLocalProductImage = (productName) => {
+  if (!productName) return null;
+  
+  const name = productName.toLowerCase();
+  
+  // Map product names to local image files
+  const imageMap = {
+    'back plate': 'BACK PLATE.jpg',
+    'bearing': 'BEARING.jpg',
+    'brake pad': 'BRAKE_PAD.jpg',
+    'brake shoe': 'BRAKE_SHOE.jpg',
+    'bushing': 'BUSHING.jpg',
+    'cap suppresor': 'CAP SUPPRESOR.jpg',
+    'center spring': 'CENTER SPRING.jpg',
+    'clutch spring': 'CLUCH SPRING.jpg',
+    'drive face': 'DRIVE FACE.jpg',
+    'face assy set': 'FACE ASSY SET.jpg',
+    'horn': 'HORN.jpg',
+    'paket v-belt': 'PAKET V-BELT.jpg',
+    'pulley': 'PULLEY.jpg',
+    'race set steering': 'RACE_SET_STEERING.jpg',
+    'roller weight set': 'ROLLER WEIGHT SET.jpg',
+    'slider 3pcsset': 'SLIDER 3PCSSET.jpg',
+    'spark plug': 'SPARK PLUG.jpg',
+    'washer 2pc': 'WASHER 2PC.jpg',
+    'weight set primary clutch': 'WEIGHT SET PRIMARY CLUTCH.jpg'
+  };
+  
+  // Check if product name contains any of the keywords
+  for (const [keyword, filename] of Object.entries(imageMap)) {
+    if (name.includes(keyword)) {
+      return `/images/${filename}`;
+    }
+  }
+  
+  return null;
+};
+
+// Enhanced Image URL helper function with local image support
 const getImageUrl = (imagePath, type = "categories") => {
   // Handle null/undefined/empty cases
   if (!imagePath || imagePath === "undefined" || imagePath === "null" || imagePath === "") {
@@ -47,6 +86,11 @@ const getImageUrl = (imagePath, type = "categories") => {
       imagePath.startsWith("https://") ||
       imagePath.startsWith("blob:") || 
       imagePath.startsWith("data:")) {
+    return imagePath;
+  }
+  
+  // If it's a local image path starting with /images/
+  if (imagePath.startsWith("/images/")) {
     return imagePath;
   }
 
@@ -84,25 +128,38 @@ const ProductCard = ({ product, categoryId }) => {
   const [isHovered, setIsHovered] = useState(false);
   const navigate = useNavigate();
 
-  // Get product images
+  // Get product images with local image priority
   const getProductImages = () => {
     let images = [];
     
-    // Try multiple possible image sources
+    // First, check if we have a local image matching the product name
+    const localImage = getLocalProductImage(product.name);
+    if (localImage) {
+      images.push(localImage);
+    }
+    
+    // Try multiple possible image sources from API
     if (product.images && Array.isArray(product.images)) {
-      images = product.images
-        .map(img => getImageUrl(img, "products"))
-        .filter(img => img !== null && img !== undefined);
+      product.images.forEach(img => {
+        const imageUrl = getImageUrl(img, "products");
+        if (imageUrl && !images.includes(imageUrl)) {
+          images.push(imageUrl);
+        }
+      });
     }
     
     if (images.length === 0 && product.image) {
       const imageUrl = getImageUrl(product.image, "products");
-      if (imageUrl) images.push(imageUrl);
+      if (imageUrl && !images.includes(imageUrl)) {
+        images.push(imageUrl);
+      }
     }
     
     if (images.length === 0 && product.imageUrl) {
       const imageUrl = getImageUrl(product.imageUrl, "products");
-      if (imageUrl) images.push(imageUrl);
+      if (imageUrl && !images.includes(imageUrl)) {
+        images.push(imageUrl);
+      }
     }
     
     // If no images found, use fallback
@@ -128,7 +185,12 @@ const ProductCard = ({ product, categoryId }) => {
 
   const handleImageError = (e) => {
     setImageError(true);
-    e.target.src = "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop&auto=format";
+    // Try next image if available
+    if (currentImageIndex < productImages.length - 1) {
+      setCurrentImageIndex(currentImageIndex + 1);
+    } else {
+      e.target.src = "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop&auto=format";
+    }
   };
 
   return (
@@ -148,7 +210,6 @@ const ProductCard = ({ product, categoryId }) => {
           }`}
           onError={handleImageError}
           loading="lazy"
-          crossOrigin="anonymous"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         
@@ -220,7 +281,6 @@ const SearchBrandCard = ({ brand, onClick }) => {
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             onError={handleImageError}
             loading="lazy"
-            crossOrigin="anonymous"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
           
@@ -281,7 +341,6 @@ const SearchMotorcycleCard = ({ motorcycle, onViewProducts }) => {
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             onError={handleImageError}
             loading="lazy"
-            crossOrigin="anonymous"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
           
@@ -367,7 +426,6 @@ const MainCategoryCard = ({
             }`}
             onError={handleImageError}
             loading="lazy"
-            crossOrigin="anonymous"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
           
@@ -430,7 +488,6 @@ const SubCategoryCard = ({
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             onError={handleImageError}
             loading="lazy"
-            crossOrigin="anonymous"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
           
@@ -542,8 +599,6 @@ const ProductsSection = ({
                 </div>
               </div>
             </div>
-            
-          
           </div>
         </div>
         
@@ -570,8 +625,6 @@ const ProductsSection = ({
               <ChevronsUp className="w-4 h-4" />
               <span className="text-sm font-medium">Back to Categories</span>
             </button>
-            
-            
           </div>
         </div>
       </div>
