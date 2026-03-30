@@ -1,14 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
-  productAPI,
-  formatPrice,
-  calculateDiscountPercentage,
-  getImageUrl,
-} from "../services/api";
-import {
-  Star,
-  Package,
   ChevronLeft,
   ChevronRight,
   AlertCircle,
@@ -18,271 +10,477 @@ import {
   ZoomIn,
   ZoomOut,
   CheckCircle,
-  ExternalLink,
   ArrowLeft,
   ShieldCheck,
   Headphones,
   FileText,
-  ChevronDown,
-  ChevronUp,
-  Zap,
-  Globe,
-  Clock,
   Award,
-  Users,
+  Truck,
+  RotateCcw,
+  ChevronUp
 } from "lucide-react";
-import ProductCard from "../components/ProductCard";
 
-// Image component with enhanced error handling
-const ProductDetailImage = ({ src, alt, className = "", onClick = null }) => {
-  const [imageError, setImageError] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+// Static product data based on the images you provided
+const staticProducts = {
+  "back-plate": {
+    id: "back-plate",
+    name: "Back Plate",
+    description: "High-quality back plate for motorcycle transmission system. Made from premium materials for durability and performance.",
+    longDescription: `
+      <h3>Product Overview</h3>
+      <p>The Federal Parts Back Plate is engineered to exact OEM specifications, ensuring perfect fitment and optimal performance. Manufactured using high-grade materials, this back plate provides exceptional strength and durability for your motorcycle's transmission system.</p>
+      
+      <h3>Key Benefits</h3>
+      <ul>
+        <li>Precision engineered for perfect fitment</li>
+        <li>Manufactured from high-strength materials</li>
+        <li>Enhanced durability for long-lasting performance</li>
+        <li>Tested under extreme conditions</li>
+        <li>OEM quality standards</li>
+      </ul>
+      
+      <h3>Technical Specifications</h3>
+      <ul>
+        <li>Material: High-grade steel alloy</li>
+        <li>Surface Treatment: Anti-corrosion coating</li>
+        <li>Compatibility: Universal fit for most motorcycles</li>
+        <li>Heat Resistance: Up to 300°C</li>
+      </ul>
+      
+      <h3>Installation</h3>
+      <p>Professional installation recommended. Please refer to your motorcycle's service manual for proper installation procedures.</p>
+    `,
+    brand: "Federal Parts",
+    category: { id: "transmission", name: "Transmission Parts" },
+    images: ["/images/BACK PLATE.jpg"],
+    features: [
+      "Precision engineered for perfect fitment",
+      "High-strength steel construction",
+      "Anti-corrosion surface treatment",
+      "Heat resistant up to 300°C",
+      "OEM quality standards"
+    ]
+  },
+  "bearing": {
+    id: "bearing",
+    name: "Bearing",
+    description: "Premium quality bearing for smooth rotation and reduced friction. Ensures optimal performance and longevity.",
+    longDescription: `
+      <h3>Product Overview</h3>
+      <p>Federal Parts premium bearings are manufactured to the highest standards, providing smooth operation and extended service life. Each bearing undergoes rigorous quality control to ensure consistent performance.</p>
+      
+      <h3>Key Benefits</h3>
+      <ul>
+        <li>Superior smoothness and reduced friction</li>
+        <li>High load capacity</li>
+        <li>Extended service life</li>
+        <li>Precision manufacturing</li>
+        <li>Excellent heat dissipation</li>
+      </ul>
+    `,
+    brand: "Federal Parts",
+    category: { id: "engine", name: "Engine Parts" },
+    images: ["/images/BEARING.jpg"],
+    features: [
+      "Low friction design",
+      "High load capacity",
+      "Extended service life",
+      "Precision ground surfaces",
+      "Heat treated for durability"
+    ]
+  },
+  "brake-pad": {
+    id: "brake-pad",
+    name: "Brake Pad",
+    description: "High-performance brake pads for superior stopping power. Provides consistent braking performance in all conditions.",
+    longDescription: `
+      <h3>Product Overview</h3>
+      <p>Federal Parts brake pads are engineered for maximum stopping power and consistent performance. Whether you're commuting or riding in challenging conditions, these brake pads deliver reliable braking when you need it most.</p>
+      
+      <h3>Key Benefits</h3>
+      <ul>
+        <li>Superior stopping power</li>
+        <li>Consistent performance in wet and dry conditions</li>
+        <li>Low dust formulation</li>
+        <li>Extended pad life</li>
+        <li>Quiet operation</li>
+      </ul>
+    `,
+    brand: "Federal Parts",
+    category: { id: "brake", name: "Brake System" },
+    images: ["/images/BRAKE_PAD.jpg"],
+    features: [
+      "Ceramic formulation for reduced dust",
+      "Superior stopping power",
+      "Quiet operation",
+      "Heat-resistant backing plate",
+      "Easy installation"
+    ]
+  },
+  "brake-shoe": {
+    id: "brake-shoe",
+    name: "Brake Shoe",
+    description: "Reliable brake shoes for drum brake systems. Provides consistent braking performance and durability.",
+    longDescription: `
+      <h3>Product Overview</h3>
+      <p>Federal Parts brake shoes are manufactured using high-friction materials that provide reliable stopping power for drum brake systems. Designed for long-lasting performance and consistent operation.</p>
+    `,
+    brand: "Federal Parts",
+    category: { id: "brake", name: "Brake System" },
+    images: ["/images/BRAKE_SHOE.jpg"],
+    features: [
+      "High-friction material",
+      "Durable construction",
+      "Consistent braking",
+      "Easy installation",
+      "Long service life"
+    ]
+  },
+  "bushing": {
+    id: "bushing",
+    name: "Bushing",
+    description: "High-quality bushings for suspension and chassis systems. Provides smooth operation and vibration dampening.",
+    longDescription: `
+      <h3>Product Overview</h3>
+      <p>Federal Parts bushings are designed to provide superior vibration dampening and smooth operation for your motorcycle's suspension and chassis components.</p>
+    `,
+    brand: "Federal Parts",
+    category: { id: "suspension", name: "Suspension" },
+    images: ["/images/BUSHING.jpg"],
+    features: [
+      "Vibration dampening",
+      "Corrosion resistant",
+      "Long service life",
+      "Precision fitment",
+      "Easy installation"
+    ]
+  },
+  "cap-suppresor": {
+    id: "cap-suppresor",
+    name: "Cap Suppresor",
+    description: "High-quality cap suppressor for electrical systems. Ensures reliable electrical connections.",
+    longDescription: `
+      <h3>Product Overview</h3>
+      <p>Federal Parts cap suppressors are manufactured to the highest standards, ensuring reliable electrical connections and protection against interference.</p>
+    `,
+    brand: "Federal Parts",
+    category: { id: "electrical", name: "Electrical Parts" },
+    images: ["/images/CAP SUPPRESOR.jpg"],
+    features: [
+      "Reliable connections",
+      "Interference suppression",
+      "Durable construction",
+      "Easy installation",
+      "Corrosion resistant"
+    ]
+  },
+  "center-spring": {
+    id: "center-spring",
+    name: "Center Spring",
+    description: "High-performance center spring for transmission systems. Provides optimal tension and durability.",
+    longDescription: `
+      <h3>Product Overview</h3>
+      <p>Federal Parts center springs are engineered for optimal tension and durability in transmission systems. Made from high-quality spring steel for long-lasting performance.</p>
+    `,
+    brand: "Federal Parts",
+    category: { id: "transmission", name: "Transmission Parts" },
+    images: ["/images/CENTER SPRING.jpg"],
+    features: [
+      "High-quality spring steel",
+      "Optimal tension",
+      "Long service life",
+      "Corrosion resistant",
+      "Precision manufacturing"
+    ]
+  },
+  "clutch-spring": {
+    id: "clutch-spring",
+    name: "Clutch Spring",
+    description: "High-performance clutch spring for smooth engagement and reliable operation.",
+    longDescription: `
+      <h3>Product Overview</h3>
+      <p>Federal Parts clutch springs provide smooth engagement and reliable operation for your motorcycle's clutch system. Manufactured to OEM specifications.</p>
+    `,
+    brand: "Federal Parts",
+    category: { id: "clutch", name: "Clutch System" },
+    images: ["/images/CLUCH SPRING.jpg"],
+    features: [
+      "Smooth engagement",
+      "Reliable operation",
+      "High-quality materials",
+      "Long service life",
+      "Precision manufacturing"
+    ]
+  },
+  "drive-face": {
+    id: "drive-face",
+    name: "Drive Face",
+    description: "Premium drive face for CVT systems. Ensures smooth power transfer and durability.",
+    longDescription: `
+      <h3>Product Overview</h3>
+      <p>Federal Parts drive faces are precision-engineered for optimal power transfer in CVT systems. Made from high-strength materials for durability.</p>
+    `,
+    brand: "Federal Parts",
+    category: { id: "transmission", name: "Transmission Parts" },
+    images: ["/images/DRIVE FACE.jpg"],
+    features: [
+      "Precision engineering",
+      "Smooth power transfer",
+      "High-strength materials",
+      "Long service life",
+      "Easy installation"
+    ]
+  },
+  "face-assembly-set": {
+    id: "face-assembly-set",
+    name: "Face Assembly Set",
+    description: "Complete face assembly set for CVT systems. Includes all necessary components for replacement.",
+    longDescription: `
+      <h3>Product Overview</h3>
+      <p>Complete face assembly set includes all components needed for CVT system maintenance. Pre-assembled for easy installation.</p>
+    `,
+    brand: "Federal Parts",
+    category: { id: "transmission", name: "Transmission Parts" },
+    images: ["/images/FACE ASSEMBLY SET.jpg"],
+    features: [
+      "Complete assembly set",
+      "Pre-assembled for easy installation",
+      "OEM quality standards",
+      "Long service life",
+      "All components included"
+    ]
+  },
+  "horn": {
+    id: "horn",
+    name: "Horn",
+    description: "Loud and clear horn for safety and communication. Weather-resistant design.",
+    longDescription: `
+      <h3>Product Overview</h3>
+      <p>Federal Parts horns deliver loud, clear sound for safety and communication on the road. Weather-resistant design ensures reliable operation.</p>
+    `,
+    brand: "Federal Parts",
+    category: { id: "electrical", name: "Electrical Parts" },
+    images: ["/images/HORN.jpg"],
+    features: [
+      "Loud, clear sound",
+      "Weather-resistant design",
+      "Easy installation",
+      "Durable construction",
+      "Long service life"
+    ]
+  },
+  "paket-v-belt": {
+    id: "paket-v-belt",
+    name: "Paket V-Belt",
+    description: "High-quality V-belt for CVT systems. Provides smooth power transfer and long service life.",
+    longDescription: `
+      <h3>Product Overview</h3>
+      <p>Federal Parts V-belts are manufactured using high-quality materials for smooth power transfer and extended service life in CVT systems.</p>
+    `,
+    brand: "Federal Parts",
+    category: { id: "transmission", name: "Transmission Parts" },
+    images: ["/images/PAKET V-BELT.jpg"],
+    features: [
+      "High-quality materials",
+      "Smooth power transfer",
+      "Long service life",
+      "Heat resistant",
+      "Precision manufacturing"
+    ]
+  },
+  "pulley": {
+    id: "pulley",
+    name: "Pulley",
+    description: "Precision pulley for CVT systems. Ensures smooth operation and optimal performance.",
+    longDescription: `
+      <h3>Product Overview</h3>
+      <p>Federal Parts pulleys are precision-engineered for smooth operation and optimal performance in CVT systems.</p>
+    `,
+    brand: "Federal Parts",
+    category: { id: "transmission", name: "Transmission Parts" },
+    images: ["/images/PULLEY.jpg"],
+    features: [
+      "Precision engineering",
+      "Smooth operation",
+      "High-strength materials",
+      "Long service life",
+      "Easy installation"
+    ]
+  },
+  "race-set-steering": {
+    id: "race-set-steering",
+    name: "Race Set Steering",
+    description: "Complete steering race set for smooth and precise steering control.",
+    longDescription: `
+      <h3>Product Overview</h3>
+      <p>Federal Parts steering race sets provide smooth and precise steering control. Complete set includes all necessary components.</p>
+    `,
+    brand: "Federal Parts",
+    category: { id: "steering", name: "Steering System" },
+    images: ["/images/RACE_SET_STEERING.jpg"],
+    features: [
+      "Complete steering set",
+      "Smooth operation",
+      "Precise steering control",
+      "Long service life",
+      "Easy installation"
+    ]
+  },
+  "roller-weight-set": {
+    id: "roller-weight-set",
+    name: "Roller Weight Set",
+    description: "Complete roller weight set for CVT tuning. Various weights available.",
+    longDescription: `
+      <h3>Product Overview</h3>
+      <p>Federal Parts roller weight sets allow for CVT tuning to optimize acceleration and performance. Various weight options available.</p>
+    `,
+    brand: "Federal Parts",
+    category: { id: "transmission", name: "Transmission Parts" },
+    images: ["/images/ROLLER WEIGHT SET.jpg"],
+    features: [
+      "Complete set of rollers",
+      "Various weights for tuning",
+      "High-quality materials",
+      "Smooth operation",
+      "Easy installation"
+    ]
+  },
+  "slider-3pcsset": {
+    id: "slider-3pcsset",
+    name: "Slider 3pcs Set",
+    description: "Set of 3 sliders for CVT systems. Provides smooth operation and reduced friction.",
+    longDescription: `
+      <h3>Product Overview</h3>
+      <p>Federal Parts sliders provide smooth operation and reduced friction in CVT systems. Set includes 3 pieces for complete replacement.</p>
+    `,
+    brand: "Federal Parts",
+    category: { id: "transmission", name: "Transmission Parts" },
+    images: ["/images/SLIDER 3PCSSET.jpg"],
+    features: [
+      "Set of 3 sliders",
+      "Smooth operation",
+      "Reduced friction",
+      "Long service life",
+      "Easy installation"
+    ]
+  },
+  "spark-plug": {
+    id: "spark-plug",
+    name: "Spark Plug",
+    description: "High-performance spark plug for reliable ignition and efficient combustion.",
+    longDescription: `
+      <h3>Product Overview</h3>
+      <p>Federal Parts spark plugs deliver reliable ignition and efficient combustion for optimal engine performance and fuel economy.</p>
+    `,
+    brand: "Federal Parts",
+    category: { id: "engine", name: "Engine Parts" },
+    images: ["/images/SPARK PLUG.jpg"],
+    features: [
+      "Reliable ignition",
+      "Efficient combustion",
+      "Long service life",
+      "Easy installation",
+      "Improved fuel economy"
+    ]
+  },
+  "washer-2pc": {
+    id: "washer-2pc",
+    name: "Washer 2pc",
+    description: "Set of 2 high-quality washers for various applications. Precision manufactured.",
+    longDescription: `
+      <h3>Product Overview</h3>
+      <p>Federal Parts washers are precision-manufactured for reliable performance in various applications. Set includes 2 pieces.</p>
+    `,
+    brand: "Federal Parts",
+    category: { id: "hardware", name: "Hardware" },
+    images: ["/images/WASHER 2PC.jpg"],
+    features: [
+      "Set of 2 washers",
+      "Precision manufacturing",
+      "Durable construction",
+      "Corrosion resistant",
+      "Universal fit"
+    ]
+  },
+  "weight-set-primary-clutch": {
+    id: "weight-set-primary-clutch",
+    name: "Weight Set Primary Clutch",
+    description: "Complete weight set for primary clutch system. Allows for tuning and optimization.",
+    longDescription: `
+      <h3>Product Overview</h3>
+      <p>Federal Parts primary clutch weight sets allow for tuning and optimization of clutch engagement and performance.</p>
+    `,
+    brand: "Federal Parts",
+    category: { id: "clutch", name: "Clutch System" },
+    images: ["/images/WEIGHT SET PRIMARY CLUTCH.jpg"],
+    features: [
+      "Complete weight set",
+      "Allows clutch tuning",
+      "High-quality materials",
+      "Smooth engagement",
+      "Long service life"
+    ]
+  }
+};
 
-  const handleError = () => {
-    console.warn(`Failed to load product detail image: ${src}`);
-    setImageError(true);
-    setIsLoading(false);
-  };
-
-  const handleLoad = () => {
-    setIsLoading(false);
-  };
-
-  const imageUrl = getImageUrl(src);
-
-  return (
-    <div className="relative">
-      {isLoading && (
-        <div className="absolute inset-0 bg-gray-800 animate-pulse rounded-lg" />
-      )}
-      <img
-        src={imageError ? "/images/product-placeholder.jpg" : imageUrl}
-        alt={alt}
-        className={`${className} ${
-          isLoading ? "opacity-0" : "opacity-100"
-        } transition-opacity duration-300`}
-        onError={handleError}
-        onLoad={handleLoad}
-        loading="lazy"
-        decoding="async"
-        onClick={onClick}
-        style={isLoading ? { visibility: "hidden" } : {}}
-      />
-    </div>
-  );
+// Helper function to get product by ID
+const getProductById = (productId) => {
+  return staticProducts[productId] || null;
 };
 
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedImage, setSelectedImage] = useState(0);
-  const [relatedProducts, setRelatedProducts] = useState([]);
-  const [activeTab, setActiveTab] = useState("description");
   const [imageZoom, setImageZoom] = useState(false);
-  const [showFullDescription, setShowFullDescription] = useState(false);
-
-  const imageRef = useRef(null);
-  const zoomRef = useRef(null);
+  const [activeTab, setActiveTab] = useState("description");
 
   useEffect(() => {
-    console.log("ProductDetail mounted with ID:", id);
-
-    if (!id || id === "undefined" || id === "null") {
-      console.error("Invalid product ID detected");
-      setError(
-        "Invalid product ID. Please return to shop and select a valid product."
-      );
-      setLoading(false);
-      return;
+    if (id) {
+      const foundProduct = getProductById(id);
+      if (foundProduct) {
+        setProduct(foundProduct);
+        setLoading(false);
+      } else {
+        setError("Product not found");
+        setLoading(false);
+      }
     }
-
-    fetchProduct();
     window.scrollTo(0, 0);
   }, [id]);
-
-  useEffect(() => {
-    if (imageZoom && zoomRef.current && imageRef.current) {
-      const handleMouseMove = (e) => {
-        if (!imageRef.current || !zoomRef.current) return;
-
-        const { left, top, width, height } =
-          imageRef.current.getBoundingClientRect();
-        const x = ((e.clientX - left) / width) * 100;
-        const y = ((e.clientY - top) / height) * 100;
-
-        zoomRef.current.style.backgroundPosition = `${x}% ${y}%`;
-      };
-
-      document.addEventListener("mousemove", handleMouseMove);
-      return () => document.removeEventListener("mousemove", handleMouseMove);
-    }
-  }, [imageZoom]);
-
-  const fetchProduct = async () => {
-    console.log("Fetching product with ID:", id);
-
-    try {
-      setLoading(true);
-      setError("");
-
-      if (!id || id === "undefined" || id === "null") {
-        throw new Error("Invalid product ID");
-      }
-
-      const response = await productAPI.getProductById(id);
-
-      console.log("API Response:", response);
-
-      if (!response) {
-        throw new Error("No response from server");
-      }
-
-      let productData = {};
-
-      // Handle different response structures
-      if (response.success && response.data) {
-        productData = response.data;
-      } else if (response._id) {
-        productData = response;
-      } else if (response.product) {
-        productData = response.product;
-      } else if (response.data) {
-        productData = response.data;
-      } else {
-        productData = response;
-      }
-
-      // Validate product data
-      if (!productData || !productData._id) {
-        console.error("Invalid product data received:", productData);
-        throw new Error("Product data is incomplete or invalid");
-      }
-
-      console.log("Valid product data received:", {
-        id: productData._id,
-        name: productData.name,
-        images: productData.images?.length || 0,
-        imageUrl: getImageUrl(productData.images?.[0]),
-      });
-
-      setProduct(productData);
-
-      // Fetch related products
-      if (productData.category) {
-        const categoryId = productData.category._id || productData.category;
-        if (categoryId && categoryId !== "undefined") {
-          fetchRelatedProducts(categoryId);
-        }
-      }
-    } catch (err) {
-      console.error("Error in fetchProduct:", err);
-
-      let errorMessage = "Failed to load product. Please try again.";
-      if (err.message.includes("Invalid product ID")) {
-        errorMessage =
-          "Invalid product ID. Please return to shop and select a valid product.";
-      } else if (err.message.includes("Product not found")) {
-        errorMessage =
-          "Product not found. It may have been removed or is unavailable.";
-      } else if (
-        err.message.includes("Network Error") ||
-        err.message.includes("Failed to fetch")
-      ) {
-        errorMessage =
-          "Cannot connect to server. Please check your internet connection and try again.";
-      }
-
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchRelatedProducts = async (categoryId) => {
-    try {
-      const response = await productAPI.getProductsByCategory(categoryId, {
-        limit: 4,
-        exclude: id,
-      });
-
-      let products = [];
-
-      if (response) {
-        if (response.success && response.data) {
-          products = response.data;
-        } else if (Array.isArray(response)) {
-          products = response;
-        } else if (response.products) {
-          products = response.products;
-        } else if (response.data && Array.isArray(response.data)) {
-          products = response.data;
-        }
-
-        const filteredProducts = products
-          .filter((p) => p && p._id && p._id !== id)
-          .slice(0, 4);
-
-        console.log(`Found ${filteredProducts.length} related products`);
-        setRelatedProducts(filteredProducts);
-      }
-    } catch (err) {
-      console.error("Error fetching related products:", err);
-    }
-  };
-
-  const handleImageClick = (index) => {
-    setSelectedImage(index);
-    setImageZoom(false);
-  };
-
-  const handleImageZoomToggle = () => {
-    setImageZoom(!imageZoom);
-  };
-
-  const getDiscountPercentage = () => {
-    if (!product?.discountedPrice || !product?.price) return 0;
-    if (product.discountedPrice >= product.price) return 0;
-    return calculateDiscountPercentage(product.price, product.discountedPrice);
-  };
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900 pt-24 px-4">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-blue-500 mx-auto mb-4" />
-          <p className="text-gray-400">Loading product...</p>
+          <Loader2 className="w-12 h-12 animate-spin text-red-500 mx-auto mb-4" />
+          <p className="text-gray-400">Loading product details...</p>
         </div>
       </div>
     );
   }
 
   if (error || !product) {
-    console.log("Rendering error state. Error:", error);
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900 pt-24 px-4">
         <div className="text-center max-w-md w-full">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-white mb-2">
-            Product Not Found
-          </h2>
-          <p className="text-gray-400 mb-6">
-            {error || "The product you're looking for doesn't exist."}
-          </p>
+          <h2 className="text-2xl font-bold text-white mb-2">Product Not Found</h2>
+          <p className="text-gray-400 mb-6">{error || "The product you're looking for doesn't exist."}</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
               onClick={() => navigate(-1)}
-              className="px-6 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-800 flex items-center justify-center"
+              className="px-6 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-800 flex items-center justify-center gap-2"
             >
-              <ArrowLeft className="w-4 h-4 mr-2" />
+              <ArrowLeft className="w-4 h-4" />
               Go Back
             </button>
             <Link
-              to="/shop"
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 flex items-center justify-center"
+              to="/"
+              className="px-6 py-2 bg-gradient-to-r from-red-600 to-red-500 text-white rounded-lg hover:from-red-700 hover:to-red-600 flex items-center justify-center gap-2"
             >
               Continue Shopping
             </Link>
@@ -292,16 +490,10 @@ const ProductDetail = () => {
     );
   }
 
-  const discountPercentage = getDiscountPercentage();
-  const hasDiscount = discountPercentage > 0;
-
-  // Safely get images array
-  const productImages = product.images || [];
-
   return (
     <div className="min-h-screen bg-gray-900 pt-24">
       {/* Image Zoom Modal */}
-      {imageZoom && productImages.length > 0 && (
+      {imageZoom && product.images.length > 0 && (
         <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center">
           <div className="absolute top-4 right-4">
             <button
@@ -311,133 +503,75 @@ const ProductDetail = () => {
               <X className="w-6 h-6 text-white" />
             </button>
           </div>
-
           <div className="relative w-full h-full max-w-7xl max-h-[90vh] p-4">
-            <ProductDetailImage
-              src={productImages[selectedImage]}
+            <img
+              src={product.images[selectedImage]}
               alt={product.name}
               className="w-full h-full object-contain"
             />
-
-            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
-              {productImages.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleImageClick(index)}
-                  className={`w-3 h-3 rounded-full ${
-                    selectedImage === index ? "bg-white" : "bg-white/50"
-                  }`}
-                />
-              ))}
-            </div>
           </div>
         </div>
       )}
 
       {/* Breadcrumb */}
       <div className="bg-gray-800 border-b border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <nav className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-400 overflow-x-auto">
-            <Link
-              to="/"
-              className="hover:text-blue-400 flex items-center gap-1 whitespace-nowrap"
-            >
-              <Home className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Home</span>
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <nav className="flex items-center gap-2 text-sm text-gray-400">
+            <Link to="/" className="hover:text-red-400 flex items-center gap-1">
+              <Home className="w-4 h-4" />
+              Home
             </Link>
-            <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-            <Link
-              to="/shop"
-              className="hover:text-blue-400 whitespace-nowrap"
-            >
-              Shop
-            </Link>
-            <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-            {product.category && (
-              <>
-                <Link
-                  to={`/category/${product.category._id || product.category}`}
-                  className="hover:text-blue-400 whitespace-nowrap"
-                >
-                  {typeof product.category === "object"
-                    ? product.category.name || "Category"
-                    : "Category"}
-                </Link>
-                <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-              </>
-            )}
-            <span className="text-white font-medium whitespace-nowrap truncate max-w-[120px] sm:max-w-xs">
-              {product.name}
-            </span>
+            <ChevronRight className="w-4 h-4" />
+            <Link to="/categories" className="hover:text-red-400">Categories</Link>
+            <ChevronRight className="w-4 h-4" />
+            <span className="text-white font-medium truncate max-w-[200px]">{product.name}</span>
           </nav>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
-        <div className="bg-gray-800 rounded-xl sm:rounded-2xl shadow-xl overflow-hidden">
-          {/* Product Main Info */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 xl:gap-12 p-4 sm:p-6 md:p-8">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 p-6 md:p-8">
             {/* Images Section */}
             <div>
-              {/* Main Image with Zoom */}
               <div className="relative">
                 <div
-                  ref={imageRef}
-                  className="relative aspect-square bg-gray-900 rounded-lg sm:rounded-xl overflow-hidden mb-3 sm:mb-4 cursor-zoom-in"
-                  onClick={handleImageZoomToggle}
+                  className="relative aspect-square bg-gray-900 rounded-xl overflow-hidden cursor-zoom-in"
+                  onClick={() => setImageZoom(true)}
                 >
-                  <ProductDetailImage
-                    src={productImages[selectedImage] || productImages[0]}
+                  <img
+                    src={product.images[selectedImage]}
                     alt={product.name}
                     className="w-full h-full object-cover"
                   />
-
-                  {/* Zoom Indicator */}
-                  <div className="absolute top-2 sm:top-4 right-2 sm:right-4">
+                  <div className="absolute top-4 right-4">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleImageZoomToggle();
+                        setImageZoom(true);
                       }}
-                      className="p-1.5 sm:p-2 bg-gray-800/80 backdrop-blur-sm rounded-full shadow-lg hover:bg-gray-700 transition-colors"
+                      className="p-2 bg-gray-800/80 backdrop-blur-sm rounded-full shadow-lg hover:bg-gray-700 transition-colors"
                     >
-                      {imageZoom ? (
-                        <ZoomOut className="w-4 h-4 sm:w-5 sm:h-5 text-gray-300" />
-                      ) : (
-                        <ZoomIn className="w-4 h-4 sm:w-5 sm:h-5 text-gray-300" />
-                      )}
+                      <ZoomIn className="w-5 h-5 text-gray-300" />
                     </button>
                   </div>
-
-                  {/* Zoom Preview */}
-                  {imageZoom && (
-                    <div
-                      ref={zoomRef}
-                      className="absolute inset-0 bg-no-repeat bg-[length:200%]"
-                      style={{
-                        backgroundImage: `url(${getImageUrl(
-                          productImages[selectedImage] || productImages[0]
-                        )})`,
-                      }}
-                    />
-                  )}
                 </div>
 
                 {/* Thumbnails */}
-                {productImages.length > 1 && (
-                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 sm:gap-3">
-                    {productImages.map((image, index) => (
+                {product.images.length > 1 && (
+                  <div className="grid grid-cols-4 gap-3 mt-4">
+                    {product.images.map((image, index) => (
                       <button
                         key={index}
-                        onClick={() => handleImageClick(index)}
-                        className={`aspect-square rounded-md sm:rounded-lg overflow-hidden border transition-all ${
+                        onClick={() => setSelectedImage(index)}
+                        className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${
                           selectedImage === index
-                            ? "border-blue-500 ring-1 sm:ring-2 ring-blue-900"
+                            ? "border-red-500"
                             : "border-gray-700 hover:border-gray-600"
                         }`}
                       >
-                        <ProductDetailImage
+                        <img
                           src={image}
                           alt={`${product.name} ${index + 1}`}
                           className="w-full h-full object-cover"
@@ -452,195 +586,157 @@ const ProductDetail = () => {
             {/* Product Details */}
             <div>
               {/* Back Button */}
-              <div className="mb-4 sm:mb-6">
-                <button
-                  onClick={() => navigate(-1)}
-                  className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
-                >
-                  <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4" />
-                  Back
-                </button>
+              <button
+                onClick={() => navigate(-1)}
+                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-colors mb-4"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back
+              </button>
+
+              {/* Product Title */}
+              <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
+                {product.name}
+              </h1>
+              
+              {/* Brand & Category */}
+              <div className="flex items-center gap-3 mb-4">
+                <span className="text-red-400 font-medium">{product.brand}</span>
+                <span className="text-gray-500">|</span>
+                <span className="text-gray-400">{product.category.name}</span>
               </div>
 
-              {/* Product Title and Basic Info */}
-              <div className="mb-4 sm:mb-6">
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-2">
-                  {product.name}
-                </h1>
-                <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
-                  {product.brand && (
-                    <span className="text-blue-400 font-medium text-sm sm:text-base">
-                      {product.brand}
-                    </span>
-                  )}
-                </div>
-              </div>
+              {/* Description Preview */}
+              <p className="text-gray-300 mb-6 leading-relaxed">
+                {product.description}
+              </p>
 
-              {/* Demo/Showcase Info */}
-              <div className="space-y-4 sm:space-y-6">
-                {/* Contact/Info Section */}
-                <div className="bg-gray-900/50 rounded-lg sm:rounded-xl p-4 sm:p-6 border border-gray-700">
-                  <h3 className="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4">
-                    Product Showcase Information
-                  </h3>
-                  <p className="text-gray-400 text-sm sm:text-base mb-3 sm:mb-4">
-                    This product is part of our demonstration catalog. For more
-                    information about this product or to see it in person,
-                    please contact us.
-                  </p>
-                </div>
+              {/* Inquire Button */}
+              <button
+                onClick={() => alert(`Inquiry sent for ${product.name}`)}
+                className="w-full py-3 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white rounded-lg transition-all duration-300 font-medium"
+              >
+                Inquire Now
+              </button>
 
-                {/* Showcase Badges */}
-                <div className="grid grid-cols-2 gap-3 sm:gap-4 pt-4 sm:pt-6 border-t border-gray-700">
-                  <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-900 rounded-lg">
-                    <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5 text-green-500" />
-                    <div>
-                      <div className="font-medium text-white text-sm sm:text-base">
-                        Quality Assurance
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        Premium quality
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-900 rounded-lg">
-                    <Award className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500" />
-                    <div>
-                      <div className="font-medium text-white text-sm sm:text-base">
-                        Expert Support
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        Specialists available
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-900 rounded-lg">
-                    <Globe className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />
-                    <div>
-                      <div className="font-medium text-white text-sm sm:text-base">
-                        Global Reach
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        Available worldwide
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-900 rounded-lg">
-                    <Headphones className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
-                    <div>
-                      <div className="font-medium text-white text-sm sm:text-base">
-                        Contact Sales
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        Available for demos
-                      </div>
-                    </div>
-                  </div>
+              {/* Shipping Info */}
+              <div className="grid grid-cols-2 gap-3 pt-4 mt-4 border-t border-gray-700">
+                <div className="flex items-center gap-2 text-sm text-gray-400">
+                  <Truck className="w-4 h-4" />
+                  <span>Free Shipping</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-400">
+                  <RotateCcw className="w-4 h-4" />
+                  <span>7-Day Returns</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-400">
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>2-Year Warranty</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-400">
+                  <Headphones className="w-4 h-4" />
+                  <span>24/7 Support</span>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Tabs Section - Only Description */}
+          {/* Tabs Section */}
           <div className="border-t border-gray-700">
             <div className="border-b border-gray-700">
-              <nav className="-mb-px flex space-x-4 sm:space-x-8 px-4 sm:px-6 md:px-8">
+              <nav className="flex gap-8 px-6">
                 <button
                   onClick={() => setActiveTab("description")}
-                  className={`py-3 sm:py-4 px-1 font-medium text-sm border-b-2 transition-colors flex items-center gap-2 ${
+                  className={`py-4 px-1 font-medium text-sm border-b-2 transition-colors flex items-center gap-2 ${
                     activeTab === "description"
-                      ? "border-blue-500 text-blue-400"
+                      ? "border-red-500 text-red-400"
                       : "border-transparent text-gray-500 hover:text-gray-400 hover:border-gray-600"
                   }`}
                 >
-                  <FileText className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <FileText className="w-4 h-4" />
                   Description
+                </button>
+                <button
+                  onClick={() => setActiveTab("features")}
+                  className={`py-4 px-1 font-medium text-sm border-b-2 transition-colors flex items-center gap-2 ${
+                    activeTab === "features"
+                      ? "border-red-500 text-red-400"
+                      : "border-transparent text-gray-500 hover:text-gray-400 hover:border-gray-600"
+                  }`}
+                >
+                  <Award className="w-4 h-4" />
+                  Features
+                </button>
+                <button
+                  onClick={() => setActiveTab("shipping")}
+                  className={`py-4 px-1 font-medium text-sm border-b-2 transition-colors flex items-center gap-2 ${
+                    activeTab === "shipping"
+                      ? "border-red-500 text-red-400"
+                      : "border-transparent text-gray-500 hover:text-gray-400 hover:border-gray-600"
+                  }`}
+                >
+                  <Truck className="w-4 h-4" />
+                  Shipping
                 </button>
               </nav>
             </div>
 
-            <div className="p-4 sm:p-6 md:p-8">
-              <div className="space-y-4 sm:space-y-6">
-                <div className="prose prose-invert max-w-none text-sm sm:text-base">
-                  {product.longDescription ? (
-                    <div
-                      dangerouslySetInnerHTML={{
-                        __html: product.longDescription,
-                      }}
-                    />
-                  ) : product.description ? (
-                    <div className="space-y-3 sm:space-y-4">
-                      <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-white">
-                        Product Details
-                      </h3>
-                      <p className="text-gray-400 leading-relaxed">
-                        {product.description}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 sm:py-12">
-                      <FileText className="w-12 h-12 sm:w-16 sm:h-16 text-gray-500 mx-auto mb-3 sm:mb-4" />
-                      <p className="text-gray-500">No description available.</p>
-                    </div>
-                  )}
+            <div className="p-6">
+              {activeTab === "description" && (
+                <div className="prose prose-invert max-w-none">
+                  <div dangerouslySetInnerHTML={{ __html: product.longDescription || product.description }} />
                 </div>
+              )}
 
-                {product.features && product.features.length > 0 && (
-                  <div className="bg-gray-900 rounded-lg sm:rounded-xl p-4 sm:p-6">
-                    <h3 className="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4">
-                      Key Features
-                    </h3>
-                    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-                      {product.features.map((feature, index) => (
-                        <li key={index} className="flex items-start gap-2 sm:gap-3">
-                          <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                          <span className="text-gray-300 text-sm sm:text-base">{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
+              {activeTab === "features" && (
+                <div>
+                  <h3 className="text-lg font-bold text-white mb-4">Key Features</h3>
+                  <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {product.features.map((feature, index) => (
+                      <li key={index} className="flex items-start gap-3">
+                        <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                        <span className="text-gray-300">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {activeTab === "shipping" && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-bold text-white mb-4">Shipping Information</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-gray-900/50 rounded-lg p-4">
+                      <h4 className="font-medium text-white mb-2">Delivery Options</h4>
+                      <ul className="space-y-2 text-sm text-gray-400">
+                        <li>• Standard Delivery: 3-5 business days</li>
+                        <li>• Express Delivery: 1-2 business days</li>
+                        <li>• Same Day Delivery: Available in Metro Manila</li>
+                      </ul>
+                    </div>
+                    <div className="bg-gray-900/50 rounded-lg p-4">
+                      <h4 className="font-medium text-white mb-2">Return Policy</h4>
+                      <ul className="space-y-2 text-sm text-gray-400">
+                        <li>• 7-day return window</li>
+                        <li>• Free returns on defective items</li>
+                        <li>• Original packaging required</li>
+                      </ul>
+                    </div>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Related Products */}
-        {relatedProducts.length > 0 && (
-          <div className="mt-8 sm:mt-12">
-            <div className="flex items-center justify-between mb-4 sm:mb-8">
-              <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white">
-                Similar Products
-              </h2>
-              <Link
-                to="/shop"
-                className="text-blue-400 hover:text-blue-300 flex items-center gap-1 text-sm sm:text-base"
-              >
-                View All
-                <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
-              </Link>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-              {relatedProducts.map((relatedProduct) => (
-                <ProductCard
-                  key={relatedProduct._id}
-                  product={relatedProduct}
-                  isClickable={true}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Additional Back Button at Bottom */}
-        <div className="mt-6 sm:mt-8 flex justify-center">
+        {/* Back to Top Button */}
+        <div className="mt-8 flex justify-center">
           <button
-            onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base border border-gray-600 text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors"
           >
-            <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4" />
-            Back to Previous Page
+            <ChevronUp className="w-4 h-4" />
+            Back to Top
           </button>
         </div>
       </div>
